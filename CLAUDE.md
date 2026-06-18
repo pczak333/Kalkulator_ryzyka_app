@@ -1,0 +1,92 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this project is
+
+**KRS Guard – Kalkulator Ryzyka Prawnego** is a legal risk calculator for cases involving liability of company board members (odpowiedzialność członków zarządu, art. 299 KSH). The calculator takes court/official documents and a user-filled form as input, and produces an oriented risk assessment with a call to action (typically recommending the paid "Audyt 48h" service).
+
+This repository currently holds the **input data and specification** used to build the calculator. No application code exists yet.
+
+## Data source hierarchy
+
+| Format | Role |
+|---|---|
+| `dane_wejściowe/KRS_Guard_reguly_i_zasady_funkcjonowania.xlsx` | **Authoritative source** — all rules, scoring, texts, codes |
+| `dane_wejściowe/KRS_Guard_specyfikacja_funkcjonalna_logiczna_tekstowa.md` | Functional specification: interprets the Excel data, explains logic and requirements |
+| `dane_wejściowe/KRS_Guard_reguly_i_zasady_funkcjonowania.md` | Full Markdown export of all Excel sheets — human/AI readable mirror |
+| `dane_wejściowe/csv/*.csv` | Per-sheet CSV exports for programmatic processing (semicolon-delimited) |
+
+**Rule**: never hard-code texts, scores, or rules in application code that can be driven from Excel. The Excel file is the single source of truth.
+
+## Core business logic (from spec)
+
+**Calculator flow:**
+1. Client uploads documents or fills the form manually
+2. Calculator identifies the **main document** (dokument główny) — the one requiring the most urgent response
+3. EPU / e-Court status is assessed per document type
+4. Client confirms the claim amount (K7)
+5. Client calculates or selects the time remaining to respond (K2)
+6. Client answers questions K3–K6
+7. Score `S = C + P + H + W` is computed from Excel sheet `5_Punktacja_formularza`
+8. Hard safety rules (sheet `5B_Twarde_reguly`) may override the score upward
+9. A base scenario (sheet `6_Biblioteka_scenariuszy`) is selected, then contextual rules (sheets `6D`–`6U`) enrich the output text
+10. A short, plain-language risk assessment is shown to the client
+
+**Risk levels (S = C+P+H+W):**
+- 0–3 → RISK_LOW (Niższe ryzyko / prewencja)
+- 4–5 → RISK_MEDIUM (Średnie ryzyko / braki danych)
+- 6–7 → RISK_HIGH (Wysokie ryzyko)
+- 8+ → RISK_URGENT (Sprawa pilna)
+
+Risk level codes must never be shown to the client — only the user-facing label.
+
+## Form structure (K1–K7)
+
+| Code | Field |
+|---|---|
+| K1 | Type of main document (ciężar i charakter dokumentu) |
+| K2 | Time remaining to respond |
+| K3 | Scope of support needed |
+| K4 | Board member status (aktualny / rezygnacja / odwołanie) |
+| K5 | KRS registration status |
+| K6 | Client's primary goal |
+| K7 | Claim amount |
+
+## Key data sheets and their roles
+
+| Sheet | CSV file | Purpose |
+|---|---|---|
+| `1_Slownik_pojec_KRS_Guard` | `01_…csv` | Term definitions — what the AI must not confuse |
+| `2_Reguly_wyboru_dok_glownego` + `2A/2B/2C/2D` | `02–06_…csv` | Main document selection rules and tie-breaking |
+| `3_Typy_dokumentow` | `07_…csv` | Document type codes, EPU compatibility, scoring |
+| `4_Formularz_6_krokow` | `08_…csv` | Form questions, answer codes, labels |
+| `5_Punktacja_formularza` | `09_…csv` | C/P/H/W point values per answer |
+| `5A_Interpretacja_wyniku` | `10_…csv` | Score-to-risk-level mapping |
+| `5B_Twarde_reguly` | `11_…csv` | Hard safety rules that override the score |
+| `6_Biblioteka_scenariuszy` | `12_…csv` | Base scenario texts (173 scenarios) |
+| `6A_Moduly_K3_K6` | `22_…csv` | Contextual text modules for K3–K6 answers |
+| `6D`–`6U` | `24–41_…csv` | Contextual rules: deadline, EPU, KRS, claim amount, ZUS, unknown doc |
+| `10_Testy_kontrolne` | `17_…csv` | Regression test cases |
+| `14_Kontrola_jakosci` | `21_…csv` | Quality control checklist |
+
+## Git workflow
+
+After every meaningful change — new file, updated spec, working feature, config change — commit and push to GitHub:
+
+```bash
+git add <specific files>
+git commit -m "short description of what changed and why"
+git push origin main
+```
+
+Use clear, descriptive commit messages in English or Polish (match the language of the changed content). Never bundle unrelated changes into one commit.
+
+## Communication rules (non-negotiable)
+
+- Never show technical codes (K1–K7, RISK_*, HRxx, scenario_id) to the client
+- Never use the word "użytkownik" in client-facing output; use "W formularzu wskazano…", "Zaznaczono…", "Na tym etapie…"
+- Never generate "sprzeciw od nakazu" or "odpowiedź na pozew" for ZUS/agency letters — only "złożenie wyjaśnień"
+- Always state that deadlines include weekends and holidays ("wliczają się soboty, niedziele i dni świąteczne")
+- If a specific day count is available, show the exact number — never a range
+- End every result with a CTA toward Audyt 48h without using hard-sell language
