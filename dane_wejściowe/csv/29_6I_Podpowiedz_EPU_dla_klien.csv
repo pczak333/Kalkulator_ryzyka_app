@@ -1,0 +1,8 @@
+﻿EPU podpowiedzi dla klienta;;;
+Obszar;Treść / reguła;Gdzie używać;Uwagi
+Cel zmiany;Pomóc osobie bez wiedzy prawniczej rozpoznać, czy dokument może pochodzić z EPU / e-Sądu.;Formularz, krok 1, pod checkboxem EPU;Podpowiedź nie ma dawać stuprocentowej kwalifikacji, tylko praktyczne wskazówki.
+Tekst nagłówka w aplikacji;Nie wiesz? Jak rozpoznać dokument z EPU / e-Sądu;app.py, expander pod checkboxem;Krótki tekst rozwijany, żeby nie obciążać głównego formularza.
+Tekst pomocniczy dla klienta;"Zaznacz tę opcję, jeżeli na dokumencie widzisz oznaczenia takie jak: e-Sąd; EPU; Elektroniczne Postępowanie Upominawcze; sygnaturę z oznaczeniem „Nc-e”; Sąd Rejonowy Lublin-Zachód w Lublinie — VI Wydział Cywilny; albo informację, że nakaz zapłaty został wydany w elektronicznym postępowaniu upominawczym.";app.py;Wyróżniki rozdzielone średnikami. Sąd Rejonowy Lublin-Zachód w Lublinie — VI Wydział Cywilny należy traktować jako łączne oznaczenie, a nie dwa niezależne wyróżniki.
+Gdy brak pewności;Jeżeli nie masz pewności, zostaw to pole niezaznaczone. Kalkulator potraktuje wtedy sprawę ostrożnie, jak dokument bez potwierdzonego trybu EPU.;app.py;Nie zmuszamy klienta do zgadywania.
+Ostrzeżenie przed błędnym rozumieniem;Dokument z EPU / e-Sądu to nie każdy dokument otrzymany elektronicznie. Samo oznaczenie „VI Wydział Cywilny” nie musi jeszcze oznaczać e-Sądu. Najbezpieczniej szukać kilku oznaczeń jednocześnie, np. „EPU”, „e-Sąd”, „Nc-e” albo pełnej nazwy sądu.;app.py;Doprecyzowanie po uwagach: nie traktować samego VI Wydziału Cywilnego jako wyróżnika EPU.
+Reguła jakości;Checkbox EPU powinien mieć zawsze widoczną lub rozwijaną podpowiedź dla laika.;14_Kontrola_jakosci;Warunek do testów UX.

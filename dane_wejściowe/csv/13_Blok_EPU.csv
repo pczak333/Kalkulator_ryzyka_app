@@ -1,0 +1,11 @@
+﻿pole;tresc
+kiedy_dodac;Dodaj ten blok, gdy epu_flag = TAK albo dokument zawiera sygnaturę „Nc-e”, „VI Nc-e”, wzmiankę o e-Sądzie, elektronicznym postępowaniu upominawczym albo wskazuje Sąd Rejonowy Lublin-Zachód w Lublinie.
+naglowek;Dodatkowa informacja: EPU / e-Sąd
+tekst;"Najważniejsze zasady EPU / e-Sądu, które mogą mieć znaczenie dla sposobu reakcji:
+• przy nakazie zapłaty trzeba w pierwszej kolejności potwierdzić datę doręczenia, ponieważ od niej liczony jest termin na sprzeciw;
+• sprzeciw w EPU co do zasady nie wymaga rozbudowanego uzasadnienia, ale powinien prawidłowo oznaczać zakres zaskarżenia;
+• po skutecznym sprzeciwie nakaz zapłaty traci moc, a sprawa może zostać przekazana do sądu właściwego dla pozwanego;
+• w sprawach przeciwko członkom zarządu znaczenie mogą mieć także zarzuty dotyczące okresu pełnienia funkcji, daty powstania zobowiązania i dokumentów spółki;
+• dlatego przed złożeniem reakcji warto szybko sprawdzić dokument, termin i możliwe kierunki bezpiecznej obrony."
+zastrzezenie;Ten blok ma charakter informacyjny i nie stanowi porady prawnej ani instrukcji procesowej.
+status_w_kodzie;TAK — od wersji v17 aplikacja dodaje informację o EPU/e-Sądzie także w głównej ocenie ryzyka oraz pokazuje ten blok jako uzupełnienie.

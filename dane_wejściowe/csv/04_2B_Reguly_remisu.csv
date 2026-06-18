@@ -1,0 +1,10 @@
+﻿Reguły rozstrzygania remisu;;
+Kolejność;Reguła rozstrzygająca;Który dokument wybrać
+1;Jeden dokument jest skierowany do członka zarządu, drugi do spółki;Wybrać dokument skierowany do członka zarządu
+2;Jeden dokument ma biegnący termin reakcji, drugi nie;Wybrać dokument z biegnącym terminem
+3;Jeden dokument to nakaz zapłaty, drugi to pozew;Wybrać nakaz zapłaty, jeżeli termin na sprzeciw/zarzuty jeszcze biegnie
+4;Jeden dokument pochodzi z EPU;Wybrać dokument EPU, jeżeli jest skierowany do członka zarządu albo termin nadal biegnie
+5;Jeden dokument pochodzi od sądu, drugi od wierzyciela;Wybrać dokument sądowy
+6;Jeden dokument pochodzi od komornika, drugi jest wcześniejszym dokumentem wierzyciela;Wybrać dokument komorniczy
+7;Dokumenty są tego samego typu i mają podobny priorytet;Wybrać dokument najnowszy
+8;Nadal nie można ustalić dokumentu głównego;Poprosić użytkownika o ręczny wybór dokumentu głównego

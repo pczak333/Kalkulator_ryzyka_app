@@ -1,0 +1,8 @@
+﻿Statusy dokumentów;;
+Status dokumentu;Znaczenie;Kiedy stosować
+MAIN_DOCUMENT;Dokument główny;Dokument wymaga najpilniejszej reakcji albo najlepiej pokazuje aktualny etap ryzyka
+SUPPORTING_DOCUMENT;Dokument pomocniczy;Dokument ważny dla sprawy, ale nie jest dokumentem głównym
+DELIVERY_CONFIRMATION;Potwierdzenie doręczenia;Koperta, UPP, e-doręczenie, zwrotka albo inny dowód doręczenia
+BACKGROUND_DOCUMENT;Dokument tła sprawy;Umowa, faktura, korespondencja, odpis KRS, dokument finansowy
+IRRELEVANT_DOCUMENT;Dokument niepasujący do kalkulatora;Dokument nie dotyczy prawa albo nie dotyczy odpowiedzialności zarządu/spółki
+UNREADABLE_DOCUMENT;Dokument nieczytelny;Dokument o jakości uniemożliwiającej poprawny odczyt

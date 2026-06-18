@@ -1,0 +1,96 @@
+﻿Raport przebudowy biblioteki scenariuszy (uzupełnienie scenariuszy;;;;;;
+obszar;stan przed zmianą;zmiana;stan po zmianie;uwagi;;
+Zakładka 6_Biblioteka_scenariuszy;"366 scenariuszy pełnych/kombinowanych; K3–K6 w tej samej tabeli";Przebudowano jako bibliotekę scenariuszy bazowych;172 scenariusze bazowe;Scenariusz bazowy nie udaje pełnego opisu sprawy.;;
+K3–K6;Kolumny w bibliotece scenariuszy, powodowały mylące dopasowania;Przeniesiono do modułów tekstowych;Nowy arkusz 6A_Moduly_K3_K6;Odpowiedzi użytkownika są dokładane jako osobne fragmenty.;;
+Stara biblioteka;Ryzyko utraty danych historycznych;Zachowano jako archiwum;6Z_Archiwum_stara_biblioteka;Nic nie zostało trwale usunięte.;;
+Opis kolumn;Niejasne przeznaczenie wielu pól;Dodano mapę decyzji dla kolumn;6B_Porzadek_kolumn;Pokazuje: zostawiono, przeniesiono, scalono, archiwizowano.;;
+Zasady użycia;Brak jasnego opisu nowej logiki;Dodano instrukcję działania bazy i modułów;6C_Zasady_uzycia;Dla testera i osoby rozwijającej kod.;;
+Zakładka 7;Częściowo opisywała stary model / stare wersje app_professional;Zaktualizowano instrukcję kroków;Spójna z bazą + modułami;;;
+Zakładka 9;Wymagała doprecyzowania zakazu sprzeczności i zakazu techniki w wyniku;Zaktualizowano instrukcję dla AI;Spójna z v14 i 6A;;;
+Zakładka 10;Testy wymagały nowych przypadków jakościowych;Przebudowano testy kontrolne;Dodano testy kluczowe dla modułów i SCN_002;;risk_level_code;title
+Zakładka 11;Mapa zgodności odwoływała się do starszych numerów wersji;Zaktualizowano statusy;Dodano pozycję: moduły 6A do synchronizacji z kodem;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: dokument nieustalony prawny, 0–3 dni, EPU=NIE
+Zakładka 12;Model hybrydowy był opisany, ale wymagał urealnienia po przebudowie arkusza 6;Zaktualizowano opis modelu;Jasne rozdzielenie pól blokujących i nieblokujących;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: dokument nieustalony prawny, 0–3 dni, EPU=NIE
+Zakładka 14;Kontrola jakości wymagała nowego zakresu;Zaktualizowano checklistę;Dodano ryzyka i dalsze kroki;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: dokument nieustalony prawny, 0–3 dni, EPU=NIE
+Dalszy krok;Kod v14 buduje spójny wynik, ale nowy Excel ma osobny arkusz 6A;Dostosować app.py do bezpośredniego czytania 6A_Moduly_K3_K6;Wersja aplikacji v15;To najważniejszy kolejny krok techniczny.;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: dokument nieustalony prawny, 4–7 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: dokument nieustalony prawny, 4–7 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: dokument nieustalony prawny, 8–14 dni, EPU=NIE
+;;;;;RISK_LOW;Niższe ryzyko — scenariusz bazowy: dokument nieustalony prawny, 8–14 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: dokument nieustalony prawny, 8–14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: dokument nieustalony prawny, 8–14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: dokument nieustalony prawny, ponad 14 dni, EPU=NIE
+;;;;;RISK_LOW;Niższe ryzyko — scenariusz bazowy: dokument nieustalony prawny, ponad 14 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: dokument nieustalony prawny, ponad 14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: dokument nieustalony prawny, ponad 14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: dokument nieustalony prawny, termin nieustalony, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: dokument nieustalony prawny, termin nieustalony, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: dokument nieustalony prawny, termin nieustalony, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko członkowi zarządu, 8–14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko członkowi zarządu, ponad 14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: nakaz zapłaty przeciwko członkowi zarządu, ponad 14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko członkowi zarządu, termin nieustalony, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, 0–3 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: nakaz zapłaty przeciwko spółce, 0–3 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, 4–7 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, 4–7 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: nakaz zapłaty przeciwko spółce, 4–7 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, 8–14 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, 8–14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: nakaz zapłaty przeciwko spółce, 8–14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, ponad 14 dni, EPU=NIE
+;;;;;RISK_LOW;Niższe ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, ponad 14 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, ponad 14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: nakaz zapłaty przeciwko spółce, ponad 14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, termin nieustalony, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: nakaz zapłaty przeciwko spółce, termin nieustalony, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: nakaz zapłaty przeciwko spółce, termin nieustalony, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: pozew przeciwko członkowi zarządu, 8–14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: pozew przeciwko członkowi zarządu, ponad 14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: pozew przeciwko członkowi zarządu, ponad 14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: pozew przeciwko członkowi zarządu, termin nieustalony, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: pozew przeciwko spółce, 0–3 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: pozew przeciwko spółce, 0–3 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: pozew przeciwko spółce, 0–3 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: pozew przeciwko spółce, 4–7 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: pozew przeciwko spółce, 4–7 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: pozew przeciwko spółce, 4–7 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: pozew przeciwko spółce, 8–14 dni, EPU=NIE
+;;;;;RISK_LOW;Niższe ryzyko — scenariusz bazowy: pozew przeciwko spółce, 8–14 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: pozew przeciwko spółce, 8–14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: pozew przeciwko spółce, 8–14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: pozew przeciwko spółce, ponad 14 dni, EPU=NIE
+;;;;;RISK_LOW;Niższe ryzyko — scenariusz bazowy: pozew przeciwko spółce, ponad 14 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: pozew przeciwko spółce, ponad 14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: pozew przeciwko spółce, ponad 14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: pozew przeciwko spółce, termin nieustalony, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: pozew przeciwko spółce, termin nieustalony, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: pozew przeciwko spółce, termin nieustalony, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, 0–3 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe do członka zarządu, 0–3 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, 4–7 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, 4–7 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe do członka zarządu, 4–7 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, 8–14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, ponad 14 dni, EPU=NIE
+;;;;;RISK_LOW;Niższe ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, ponad 14 dni, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, ponad 14 dni, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe do członka zarządu, ponad 14 dni, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, termin nieustalony, EPU=NIE
+;;;;;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe do członka zarządu, termin nieustalony, EPU=NIE
+;;;;;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe do członka zarządu, termin nieustalony, EPU=NIE
+;;;;;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 0–3 dni, EPU=NIE
+SCN_313;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_0_3;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 0–3 dni, EPU=NIE
+SCN_314;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_0_3;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 0–3 dni, EPU=NIE
+SCN_315;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_4_7;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 4–7 dni, EPU=NIE
+SCN_316;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_4_7;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 4–7 dni, EPU=NIE
+SCN_317;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_4_7;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 4–7 dni, EPU=NIE
+SCN_318;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_8_14;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 8–14 dni, EPU=NIE
+SCN_319;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_8_14;RISK_LOW;Niższe ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 8–14 dni, EPU=NIE
+SCN_320;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_8_14;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 8–14 dni, EPU=NIE
+SCN_321;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_8_14;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe dotyczące spółki, 8–14 dni, EPU=NIE
+SCN_322;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_ABOVE_14;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, ponad 14 dni, EPU=NIE
+SCN_323;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_ABOVE_14;RISK_LOW;Niższe ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, ponad 14 dni, EPU=NIE
+SCN_324;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_ABOVE_14;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, ponad 14 dni, EPU=NIE
+SCN_325;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_ABOVE_14;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe dotyczące spółki, ponad 14 dni, EPU=NIE
+SCN_326;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_UNKNOWN;RISK_HIGH;Wysokie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, termin nieustalony, EPU=NIE
+SCN_327;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_UNKNOWN;RISK_MEDIUM;Średnie ryzyko — scenariusz bazowy: wezwanie sądowe dotyczące spółki, termin nieustalony, EPU=NIE
+SCN_328;WEZWANIE_SADOWE_SPOLKA;NIE;K1_WEZWANIE_SADOWE_SPOLKA;K2_DAYS_LEFT_UNKNOWN;RISK_URGENT;Sprawa pilna — scenariusz bazowy: wezwanie sądowe dotyczące spółki, termin nieustalony, EPU=NIE

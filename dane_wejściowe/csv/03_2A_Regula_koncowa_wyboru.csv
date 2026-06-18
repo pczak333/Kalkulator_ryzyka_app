@@ -1,0 +1,7 @@
+﻿Reguła końcowa wyboru;
+Element;Treść
+Zasada obliczania wyniku;Wynik dokumentu = suma punktów ze wszystkich pasujących reguł z arkusza 2_Reguly_wyboru_dokumentu_glownego.
+Wybór dokumentu głównego;Dokument z najwyższą liczbą punktów zostaje wybrany jako dokument główny.
+Dokumenty pozostałe;Pozostałe dokumenty zostają oznaczone jako dokumenty pomocnicze, dokumenty tła, potwierdzenia doręczenia albo dokumenty nieistotne.
+Warunek niepewności;Jeżeli różnica między dwoma najlepszymi dokumentami jest mniejsza niż 10 punktów, należy zastosować reguły rozstrzygania remisu z arkusza 2B_Reguly_remisu.
+Ręczne potwierdzenie;Jeżeli po zastosowaniu reguł remisu nadal nie można jednoznacznie wybrać dokumentu głównego, kalkulator powinien poprosić użytkownika o ręczne potwierdzenie wyboru.

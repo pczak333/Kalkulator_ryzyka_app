@@ -1,0 +1,5 @@
+﻿Reguły dni kalendarzowych;;;;
+reguła;kiedy stosować;tekst użytkowy;miejsce w aplikacji;uwaga
+termin sądowy = dni kalendarzowe;po obliczeniu dokładnej liczby dni;Według podanych danych zostało X dni kalendarzowych na reakcję. Termin obejmuje także soboty, niedziele i dni świąteczne.;zielony komunikat w kroku 2;Ma zapobiegać myleniu dni kalendarzowych z roboczymi.
+wyjaśnienie w ocenie;gdy pokazujemy dokładną liczbę dni albo przedział;Do tego terminu wliczają się także soboty, niedziele i dni świąteczne.;główna ocena ryzyka;Krótki akapit po pierwszym podsumowaniu.
+nieznany termin;gdy brak daty doręczenia lub pouczenia;Najpierw trzeba potwierdzić datę doręczenia i sposób liczenia terminu.;główna ocena ryzyka;Nie zakładać konkretnej liczby dni.

@@ -1,0 +1,34 @@
+﻿Zgodność instrukcji z kodem — po uporządkowaniu biblioteki;;;;;
+obszar;arkusz_zrodlowy;wymaganie;status_w_kodzie;funkcja / miejsce w kodzie;uwagi
+Punktacja;5_Punktacja_formularza;Liczenie C + P + H z odpowiedzi formularza;TAK;get_points_for_codes();
+Interpretacja;5A_Interpretacja_wyniku;Ustalenie risk_level_code na podstawie punktacji;TAK;interpret_risk();Kod tylko techniczny.
+Twarde reguły;5B_Twarde_reguly;Podniesienie minimalnego ryzyka i dodanie ostrzeżeń;TAK;apply_hard_rules_from_excel();HRxx tylko panel testowy.
+Scenariusze bazowe;6_Biblioteka_scenariuszy;Wybór po main_document_type_code + epu_flag + K1 + K2 + risk_level_code;TAK;find_matching_scenarios();K3–K6 nie blokują wyboru bazy.
+Moduły K3–K6;6A_Moduly_K3_K6;Dołączenie treści wynikającej z K3, K4, K5 i K6;DO DOSTOSOWANIA / POTWIERDZENIA;build_scenario_based_assessment();"Kod v14 buduje tekst spójnie; docelowo powinien czytać moduły z nowego arkusza 6A."
+Ochrona przed sprzecznościami;9_Instrukcja_dla_AI;Treść formularza K3–K6 ma pierwszeństwo przed niepełną bazą scenariusza;TAK W v14;build_scenario_based_assessment();Usunięto problem BOARD_ACTIVE przy K4_BOARD_RESIGNED.
+Czyszczenie treści użytkownika;9_Instrukcja_dla_AI;Nie pokazuj scenariuszy, modułów, kodów, HRxx, risk_level_code ani mechaniki działania;TAK W v13/v14;clean_user_output() / filtry tekstu;Wymaga dalszego testu regresji.
+EPU;"Blok_EPU; 3_Typy_dokumentów";Obsługa EPU dla pozwów i nakazów, spółki i członka zarządu;TAK;"document_type_from_k1(); read_epu_block()";
+Konkretny termin;4_Formularz_6_krokow;Konkretna liczba dni ma pierwszeństwo przed przedziałem K2;TAK;"calculate_days_left(); user_deadline_message()";
+Dokument główny;2_Reguly_wyboru_dok_glownego;Wybór dokumentu najważniejszego procesowo z wielu dokumentów;CZĘŚCIOWO;formularz + reguły;Pełna automatyzacja po OCR.
+OCR;plan późniejszy;Odczyt skanów, zdjęć i PDF oraz rozdzielanie wielu dokumentów;NIE — KOLEJNY ETAP;brak / do wdrożenia;Nie mieszać z bieżącym testem scenariuszy.
+Panel testowy;UI testowy;Pokazuje kody, reguły, scenariusz bazowy i diagnostykę;TAK;tryb testowy;Technika tylko tutaj.
+v19 — tekst zależny od czasu reakcji;TAK;app.py używa deadline_context_for_next_step(): inny język dla 0–7, 8–14, >14 i terminu nieznanego.;TAK W EXCELU;arkusz 10;Do przeprowadzenia w aplikacji po aktualizacji kodu.
+Status pliku Excel;cały skoroszyt;Pozostałe zakładki zgodne z modelem: baza + moduły K3–K6;TAK — WERSJA EXCEL;niniejsza wersja;Kod aplikacji musi być finalnie zsynchronizowany z 6A.
+EPU w głównej ocenie;TAK;client_document_name() + epu_reference_sentence();Jeżeli EPU = TAK, nazwa dokumentu w ocenie głównej zawiera EPU / e-Sąd, a tekst odsyła do sekcji dodatkowej.;v17;Do sprawdzenia w testach EPU.
+Uzasadnienie pilności dla członka zarządu;TAK;board_member_urgency_explanation();v20;Dotyczy POZEW/NAKAZ + CZLONEK_ZARZADU;Tekst klienta bez kodów technicznych
+Uzasadnienie ryzyka dla członka zarządu;6E_Reguly_pilnosci_czlonka_zarzadu;Treść uzasadnienia ma odpowiadać etykiecie wyniku: przy „Wysokie ryzyko” nie zaczynać od „Pilny charakter sprawy”.;TAK W v21;board_member_urgency_explanation(main_doc, state, final_risk_name);Dla wysokiego ryzyka: „Wysokie ryzyko wynika między innymi...”
+Kontekst KRS w zdaniu końcowym;6F_Reguly_KRS_next_step;Jeżeli K5=KRS aktualny, wynik nie może sugerować, że aktualny status KRS dopiero trzeba zweryfikować.;TAK W v22;krs_sensitive_next_step_parts() + build_client_next_step_sentence();Dla K4=rezygnacja/odwołanie + K5=KRS aktualny tekst skupia się na dokumencie rezygnacji/odwołania i dacie skuteczności.
+v23 — dni kalendarzowe;app.py + 6G_Reguly_dni_kalendarzowych;Komunikat o terminie wyjaśnia, że dni kalendarzowe obejmują soboty, niedziele i święta.;TAK;calendar_days_note_for_client() + komunikat w kroku 2;Nowa reguła edukacyjna dla klienta.
+v23 — pilność zależna od terminu;app.py + 6D/6E;Przy pozwie/nakazie przeciwko członkowi zarządu uzasadnienie pilności uwzględnia także 0–7 dni na reakcję.;TAK;deadline_pressure_phrase() + board_member_urgency_explanation();Dla 8–14 dni nie używać języka „bardzo ograniczony czas”.
+;;;;;
+v24;Reguła EPU dla nakazu zapłaty;TAK;build_epu_nakaz_next_step_sentence();6H_Reguly_EPU_sprzeciw;"Sprzeciw w EPU jest priorytetem; KRS i dokumenty rezygnacji są wskazywane jako dalsza strategia obrony."
+v24;Rozróżnienie EPU vs sąd tradycyjny;TAK;build_client_next_step_sentence();6H_Reguly_EPU_sprzeciw;Dla EPU usunięto wymóg pierwszeństwa KRS i pełnej dokumentacji jako warunku sprzeciwu.
+v27;Uzasadnienie ryzyka dla dokumentów członka zarządu;TAK;board_member_urgency_explanation();Reguła obejmuje także wezwanie sądowe i inne dokumenty z CZLONEK_ZARZADU.;Nie ograniczać do POZEW/NAKAZ.
+;;;;;
+v28;EPU zgodne z typem dokumentu;TAK;epu_compatibility_status(), epu_is_allowed_for_k1(), UI checkbox disabled;Wezwania sądowe i dokument nieustalony nie aktywują EPU.;2026-05-21
+v30;Reguły dokumentów dotyczących spółki;TAK;company_document_risk_explanation() + build_company_next_step_sentence();Dokumenty spółki mają odrębny język ryzyka pośredniego i odrębny priorytet kolejnych kroków.;2026-05-22
+v31: odróżnienie nakazu i pozwu przeciwko spółce + akcent krótkiego terminu;TAK;company_document_risk_explanation() + company_deadline_pressure_sentence();2026-05-22;Reguła obejmuje nakaz/pozew/wezwanie spółki oraz terminy 0-7 dni.;
+v32;K7 kwota roszczenia;TAK;FormState.k7, punktacja W, claim_amount_text(), formularz K7;S = C + P + H + W;Kwota wpływa na ciężar sprawy i tekst oceny, bez zastępowania logiki terminu/dokumentu.
+v32;Regresja wariantów kwoty;TAK;testy ręczne + panel testowy;pozew/nakaz, spółka/członek zarządu, EPU/bez EPU, terminy 0–7 i 8–14;Obowiązkowo sprawdzać po zmianach.
+v32;Nieujawnianie technikaliów;TAK;clean_user_visible_text();brak kodów K7/W w tekście użytkownika;Kody tylko w panelu testowym.
+v32;Excel zgodny z kodem;TAK;arkusze 4,5,6Q,14;dodano K7 i points_W;OK

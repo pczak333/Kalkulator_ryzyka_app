@@ -1,0 +1,13 @@
+﻿Słownik pojęć KRS Guard;;
+Pojęcie;Definicja dla AI;Czego AI nie może mylić
+KRS Guard;Nazwa obszaru usług kancelarii dotyczących ochrony osób pełniących lub wcześniej pełniących funkcje w zarządach spółek w sytuacjach podwyższonego ryzyka prawnego, w szczególności w sprawach związanych z odpowiedzialnością z art. 299 KSH.;Nie jest samodzielną aplikacją techniczną ani poradą prawną.
+Kalkulator Ryzyka Prawnego;Bezpłatne narzędzie internetowe służące do orientacyjnej oceny poziomu ryzyka i pilności sprawy. Analizuje dokumenty, formularz użytkownika i generuje orientacyjną ocenę.;Nie jest poradą prawną i nie zastępuje analizy prawnika.
+Audyt 48h;Płatna usługa kancelarii polegająca na analizie dokumentów przez prawnika i przygotowaniu pisemnej rekomendacji ścieżki obrony.;Nie jest automatycznym raportem AI.
+Dokument główny;Dokument, który w danej sprawie wymaga najpilniejszej reakcji użytkownika albo najlepiej pokazuje aktualny etap ryzyka prawnego.;Nie zawsze jest dokumentem najnowszym.
+Dokument pomocniczy;Dokument ważny dla zrozumienia sprawy, ale niewymagający samodzielnej natychmiastowej reakcji.;Nie powinien zastępować dokumentu głównego.
+Termin formalny z dokumentu;Termin wskazany w treści pisma, np. 14 dni od doręczenia.;Nie jest tym samym co faktyczny czas pozostały na reakcję.
+Czas pozostały na reakcję;Liczba dni kalendarzowych od dnia analizy do dnia upływu terminu.;Nie jest tym samym co termin formalny wskazany w dokumencie.
+EPU / e-Sąd;Elektroniczne postępowanie upominawcze. Może być rozpoznawane m.in. po sygnaturze zawierającej „Nc-e” oraz po Sądzie Rejonowym Lublin-Zachód w Lublinie.;Nie każdy nakaz zapłaty jest nakazem z EPU.
+Ocena ryzyka z kalkulatora;Orientacyjna ocena poziomu pilności i ryzyka wygenerowana automatycznie przez kalkulator.;Nie jest indywidualną poradą prawną.
+Rekomendacja ścieżki obrony;Pisemna rekomendacja przygotowana po analizie dokumentów w ramach Audytu 48h.;Nie powinna być generowana automatycznie przez bezpłatny kalkulator jako porada prawna.
+Art. 299 KSH;Podstawa odpowiedzialności członków zarządu za zobowiązania spółki w określonych sytuacjach.;Nie mylić z KPC. To Kodeks spółek handlowych, nie Kodeks postępowania cywilnego.

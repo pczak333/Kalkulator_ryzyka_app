@@ -1,0 +1,6 @@
+﻿Komunikaty i instrukcje AI;
+Typ;Treść
+Komunikat dla użytkownika po wyborze dokumentu głównego;Na podstawie wgranych plików kalkulator wybrał jako dokument główny: [nazwa dokumentu]. Dokument został wybrany, ponieważ prawdopodobnie wymaga najpilniejszej reakcji albo najlepiej pokazuje aktualny etap ryzyka prawnego. Pozostałe dokumenty zostały potraktowane jako dokumenty pomocnicze. Jeżeli uważasz, że inny dokument jest ważniejszy, możesz ręcznie zmienić wybór dokumentu głównego.
+Instrukcja dla AI;AI ma obowiązek wskazać dokument główny na podstawie sumy punktów i reguł rozstrzygania remisu. Jeżeli poziom pewności wyboru dokumentu głównego jest niski, AI nie może udawać pewności. W takiej sytuacji powinno oznaczyć dokument jako „kandydat na dokument główny” i poprosić użytkownika o ręczne potwierdzenie wyboru.
+Zakaz dla AI;AI nie może wybierać dokumentu głównego wyłącznie dlatego, że dokument jest najnowszy. Data dokumentu służy tylko jako kryterium pomocnicze przy remisie.
+Reguła ostrożności;Jeżeli dokument jest słabo odczytany przez OCR albo brakuje danych o adresacie, terminie lub typie dokumentu, kalkulator powinien pokazać ostrzeżenie i umożliwić użytkownikowi ręczną korektę.

@@ -1,0 +1,15 @@
+﻿Model działania (hybrydowy)— scenariusz bazowy + moduły K3–K6;;;;
+element;rola;czy blokuje wybór scenariusza bazowego;źródło;uwagi
+main_document_type_code;Określa dokument wymagający reakcji;TAK;2/3/formularz;Najważniejszy dokument procesowy.
+epu_flag;Rozróżnia EPU/e-Sąd i sąd tradycyjny;TAK;formularz / dokument;Dla EPU dołączany jest Blok_EPU.
+K1_answer_code;Opisuje podstawowy typ sprawy/dokumentu;TAK;4_Formularz_6_krokow;Razem z dokumentem tworzy ramę sprawy.
+K2_answer_code;Opisuje czas na reakcję;TAK;4_Formularz_6_krokow;Konkretny days_left ma pierwszeństwo przed opisem przedziału.
+risk_level_code;Ostateczny poziom ryzyka po punktacji i twardych regułach;TAK;5/5A/5B;"Tylko technicznie; użytkownik widzi etykietę opisową."
+K3_answer_code;Rodzaj potrzebnego wsparcia;NIE;6A_Moduly_K3_K6;Moduł tekstowy: dokumenty teraz/później/audyt.
+K4_answer_code;Status w zarządzie;NIE;6A_Moduly_K3_K6;"Moduł tekstowy; ma pierwszeństwo przed tekstami ogólnymi."
+K5_answer_code;Status wpisu w KRS;NIE;6A_Moduly_K3_K6;Moduł tekstowy powiązany zwłaszcza z K4=rezygnacja/odwołanie.
+K6_answer_code;Cel użytkownika;NIE;6A_Moduly_K3_K6;Moduł tekstowy: obrona, czas, plan, nie wiem.
+6_Biblioteka_scenariuszy;Zawiera scenariusze bazowe, a nie pełne kombinacje K1–K6;—;arkusz 6;Dlatego nie ma w niej K3–K6 jako warunków wyboru.
+6A_Moduly_K3_K6;Zawiera fragmenty tekstu dołączane według odpowiedzi K3–K6;—;arkusz 6A;Ma zapobiegać sprzecznościom i ograniczać liczbę scenariuszy.
+Wynik użytkownika;Jedna spójna ocena prawna dla laika;—;app.py;Nie pokazuje nazw scenariuszy, modułów ani kodów technicznych.
+Panel testowy;Diagnostyka dla autora aplikacji;—;app.py;Może pokazywać kody, punktację, scenariusze bazowe i reguły.

@@ -1,0 +1,9 @@
+﻿Reguły v35 — pisma z ZUS / urzędu dotyczące odpowiedzialności członka zarządu;;;;;
+obszar;reguła;tekst / znaczenie;skutek w app.py;uwagi testowe;wersja
+Nowy typ dokumentu;K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU;Pismo z ZUS / urzędu dotyczące odpowiedzialności członka zarządu za zobowiązania spółki.;Nowa opcja na liście dokumentów.;Testować na przykładach: ZUS, US, zawiadomienie, wezwanie, decyzja.;v35
+Charakter sprawy;Nie jest pozwem ani nakazem zapłaty;Nie generować tekstów o sprzeciwie od nakazu zapłaty ani odpowiedzi na pozew.;build_public_authority_next_step_sentence();Sprawdzić brak słów: sprzeciw od nakazu, odpowiedź na pozew.;v35
+Priorytet;Wyjaśnienia i dowody;Najpierw ustalić termin odpowiedzi, okres zaległości, okres pełnienia funkcji i dokumenty wyłączające odpowiedzialność.;public_authority_risk_explanation();ZUS/US wymaga innego języka niż sąd cywilny.;v35
+EPU;Niedozwolone;Pisma ZUS/US nie są dokumentami z EPU / e-Sądu.;epu_compatibility_status() zwraca NIE.;Checkbox EPU ma być wyłączony.;v35
+Punktacja;C=3, H=1;Wysoki ciężar gatunkowy z uwagi na możliwą osobistą odpowiedzialność członka zarządu oraz administracyjny/publicznoprawny charakter sprawy.;fallback_points() i Excel 5_Punktacja_formularza.;Termin i kwota nadal wpływają na wynik.;v35
+Kwota;K7 używać kontekstowo;"Kwota oznacza kwotę zaległości/roszczenia; przy wysokiej kwocie akcentować osobistą odpowiedzialność majątkową, nie skutki dla spółki.";claim_amount_text();Regresja dla kwoty nieznanej, 150–500 tys. i >500 tys.;v35
+CTA;Audyt 48h;Celem Audytu jest identyfikacja pisma, terminu, zakresu żądania organu i dokumentów potrzebnych do odpowiedzi.;build_client_audit_cta();Nie tworzyć instrukcji procesowej.;v35

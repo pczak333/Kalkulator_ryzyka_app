@@ -1,0 +1,13 @@
+﻿Zasady użycia kalkulatora - główne obszary;;
+obszar;zasada;uwaga
+Biblioteka scenariuszy;6_Biblioteka_scenariuszy służy do wyboru scenariusza bazowego po dokumencie, EPU, K1, K2 i poziomie ryzyka.;K3-K6 nie są warunkami wyboru scenariusza bazowego.
+Moduły K3-K6;6A_Moduly_K3_K6 zawiera krótkie fragmenty tekstu dla klienta oraz pola wewnętrzne dla audytu/testów.;Do wyniku użytkownika wolno pobierać tylko user_text_fragment i ewentualnie krótkie ostrzeżenia klienta.
+Pola audytowe;audit_focus_internal oraz internal_note są przeznaczone wyłącznie dla panelu testowego i pracy kancelarii.;Nie wolno doklejać ich do sekcji „Ocena ryzyka prawnego”.
+Język klienta;Tekst wyniku nie powinien używać słowa „użytkownik” ani instrukcji typu „komunikat powinien”.;Stosować: „w formularzu wskazano”, „zaznaczono”, „warto sprawdzić”.
+Termin reakcji;Jeżeli klient podał datę doręczenia i aplikacja wyliczyła liczbę dni, wynik pokazuje konkretną liczbę dni.;Przedziały K2 są używane tylko wtedy, gdy klient wybrał przedział ręcznie.
+Kolejny krok;Ocena kończy się krótką rekomendacją kolejnych działań oraz CTA do Audytu 48h.;Nie wypisywać pełnej listy rzeczy do audytu w wyniku użytkownika.
+Nakaz przeciwko członkowi zarządu;Jeżeli dokument główny jest pewny, nie powtarzać pytania, czy pismo jest do spółki czy do członka zarządu.;Takie ostrzeżenie stosować tylko przy dokumencie niepewnym.
+Opcje „nie wiem”;Odpowiedzi typu „nie wiem” mają generować krótkie ostrzeżenie o ryzyku błędnej oceny.;Bez technicznych kodów i bez list audytowych.
+EPU / e-Sąd w ocenie głównej;Jeżeli epu_flag = TAK, główna ocena musi wprost wskazać, że dokument/sprawa pochodzi z EPU / e-Sądu oraz odesłać do sekcji „Dodatkowa informacja: EPU / e-Sąd”.;"Nie wystarczy pokazać EPU wyłącznie jako blok dodatkowy; klient musi zobaczyć tę informację także w podsumowaniu oceny."
+Język zależny od terminu;Ostatni akapit oceny musi zmieniać język w zależności od faktycznej liczby dni: 0–7 dni = pilnie/szybko, 8–14 dni = bez zwłoki, >14 dni = spokojniejsze uporządkowanie, termin nieznany = potwierdzić datę i pouczenie.;Szczegóły w arkuszu 6D_Reguly_tekstu_terminu. Nie pisać przy 14 dniach: „ze względu na krótki czas reakcji”.
+Uzasadnienie ryzyka członka zarządu;Jeżeli dokument dotyczy bezpośrednio członka zarządu, akapit wyjaśniający wagę sprawy musi być zgodny z etykietą wyniku.;"Przy „Wysokie ryzyko” stosować początek: „Wysokie ryzyko wynika między innymi...”; przy „Sprawa pilna”: „Pilny charakter sprawy wynika między innymi...”"

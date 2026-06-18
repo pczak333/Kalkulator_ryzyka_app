@@ -1,0 +1,7 @@
+﻿reguły KRS;;;;;
+k4_status;k5_status;zasada_tekstu;przykład_poprawny;przykład_niedozwolony;uwaga
+K4_BOARD_RESIGNED;K5_KRS_UPDATED;"Nie pisać, że trzeba zweryfikować aktualny status w KRS; status został wskazany jako aktualny.";sprawdzić dokument rezygnacji/odwołania, datę skuteczności i przygotować reakcję procesową;zweryfikować aktualny status w KRS;Można wspomnieć o uwzględnieniu aktualnego wpisu, ale nie o jego niepewności.
+K4_BOARD_RESIGNED;K5_KRS_NOT_UPDATED;Podkreślić rozbieżność między dokumentem rezygnacji/odwołania a wpisem KRS.;porównać dokumenty rezygnacji/odwołania z wpisem w KRS i przygotować reakcję;sprawdzić aktualny status w KRS jako ogólnik;Tu problemem jest nieaktualność wpisu, nie brak informacji.
+K4_BOARD_RESIGNED;K5_KRS_UNKNOWN;Podkreślić brak pewności i potrzebę sprawdzenia aktualnego wpisu.;sprawdzić aktualny wpis w KRS, dokument rezygnacji/odwołania i datę skuteczności;uwzględnić aktualny wpis w KRS;Tu status KRS nie jest znany.
+K4_BOARD_ACTIVE;K5_KRS_UPDATED;Nie dokładać zbędnego akapitu o rezygnacji/odwołaniu.;sprawdzić termin, pouczenie i przygotować właściwą reakcję;sprawdzić dokumenty rezygnacji albo odwołania;Dotyczy obecnego członka zarządu.
+K4_BOARD_UNKNOWN;K5_KRS_UPDATED;"Nie pisać o niepewności KRS; niepewny jest okres pełnienia funkcji.";ustalić okres pełnienia funkcji i zestawić go z aktualnym wpisem w KRS;sprawdzić aktualny status w KRS;Aktualny wpis może pomóc, ale nie rozstrzyga całego okresu.

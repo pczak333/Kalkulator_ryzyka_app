@@ -1,0 +1,48 @@
+﻿Punktacja formularza;;;;;;;
+answer_code_AI;answer_label_user;category;points_C;points_P;points_H;uwagi_dla_AI;points_W
+K1_POZEW_SPOLKA;Pozew (spółka);K1_document_weight;1;0;0;Dokument przeciwko spółce jest ważny, ale zwykle mniej pilny dla osobistej odpowiedzialności członka zarządu niż dokument skierowany bezpośrednio do członka zarządu.;0
+K1_POZEW_CZLONEK_ZARZADU;Pozew (członek zarządu);K1_document_weight;3;0;0;Dokument bezpośrednio przeciwko członkowi zarządu ma wysoki ciężar gatunkowy.;0
+K1_NAKAZ_SPOLKA;Nakaz zapłaty (spółka);K1_document_weight;2;0;0;Nakaz przeciwko spółce może mieć znaczenie dla późniejszej odpowiedzialności z art. 299 KSH, ale nie jest tak pilny jak nakaz przeciwko członkowi zarządu.;0
+K1_NAKAZ_CZLONEK_ZARZADU;Nakaz zapłaty (członek zarządu);K1_document_weight;3;0;0;Jeden z najwyższych ciężarów gatunkowych, zwłaszcza gdy biegnie termin na sprzeciw albo zarzuty.;0
+K1_WEZWANIE_SADOWE_SPOLKA;Wezwanie sądowe (spółka);K1_document_weight;1;0;0;Ważne jako dokument procesowy, ale zwykle niżej niż dokument skierowany do członka zarządu.;0
+K1_WEZWANIE_SADOWE_CZLONEK_ZARZADU;Wezwanie sądowe (członek zarządu);K1_document_weight;2;0;0;Dokument skierowany bezpośrednio do członka zarządu, często wymagający reakcji.;0
+K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU;Pismo z ZUS / urzędu dotyczące odpowiedzialności członka zarządu;K1_document_weight;3;0;0;"Pismo organu publicznego dotyczące możliwej osobistej odpowiedzialności członka zarządu ma wysoki ciężar gatunkowy i odrębną ścieżkę oceny; nie traktować jak pozew ani nakaz zapłaty.";0
+K1_INNE_NIE_WIEM;Inne / nie wiem;K1_document_weight;1;0;0;Niepewność co do rodzaju dokumentu powinna zwiększyć ostrożność, ale nie przesądza wysokiego ciężaru dokumentu.;0
+K2_DAYS_LEFT_0_3;0–3 dni kalendarzowe;K2_urgency;0;3;0;Najwyższa pilność. Bardzo krótki czas na reakcję.;0
+K2_DAYS_LEFT_4_7;4–7 dni kalendarzowych;K2_urgency;0;2;0;Wysoka pilność. Jest jeszcze czas, ale sprawa wymaga szybkiego działania.;0
+K2_DAYS_LEFT_8_14;8–14 dni kalendarzowych;K2_urgency;0;1;0;Umiarkowana pilność. Termin wymaga kontroli, ale nie jest jeszcze krytyczny.;0
+K2_DAYS_LEFT_ABOVE_14;Ponad 14 dni kalendarzowych;K2_urgency;0;0;0;Niska pilność czasowa, choć ryzyko może wynikać z rodzaju dokumentu.;0
+K2_DAYS_LEFT_UNKNOWN;Nie wiem / nie udało się ustalić;K2_urgency;0;1;1;Brak wiedzy o terminie jest ryzykiem samym w sobie. Dlatego przyznajemy 1 punkt za pilność i 1 punkt za niepewność.;0
+K2A_DELIVERY_DATE_KNOWN;Tak, znam datę doręczenia;K2A_auxiliary;0;0;0;Dane pomocnicze. Nie punktować samodzielnie. Służy do obliczenia K2.;0
+K2A_DELIVERY_DATE_UNKNOWN;Nie znam daty doręczenia;K2A_auxiliary;0;0;1;Brak daty doręczenia zwiększa niepewność.;0
+K3_SUPPORT_BASIC_NO_DOCS;Tylko wstępna ocena bez wysyłki dokumentów;K3_support_needed;0;0;2;Ocena bez pełnych dokumentów jest bardziej niepewna.;0
+K3_SUPPORT_NOW_DOCS_LATER;Wstępna ocena teraz + dokumenty dosyłam później;K3_support_needed;0;0;1;Częściowa gotowość do uporządkowania sprawy.;0
+K3_READY_FOR_AUDIT_48H;Jestem gotowy wysłać dokumenty i wejść w Audyt 48h;K3_support_needed;0;0;0;Najmniejsza niepewność organizacyjna, użytkownik jest gotowy do pełniejszej analizy.;0
+K4_BOARD_ACTIVE;Nadal pełnię funkcję;K4_board_status;0;0;1;Nadal pełniona funkcja może wymagać uporządkowania sytuacji, ale sama w sobie nie oznacza najwyższego chaosu.;0
+K4_BOARD_RESIGNED;Była rezygnacja / odwołanie;K4_board_status;0;0;1;Rezygnacja/odwołanie wymaga sprawdzenia dat i wpisu w KRS.;0
+K4_BOARD_UNKNOWN;Nie wiem / trudno powiedzieć;K4_board_status;0;0;2;Niepewność co do statusu w zarządzie istotnie zwiększa chaos informacyjny.;0
+K5_KRS_UPDATED;Tak — wpis w KRS widnieje;K5_krs_status;0;0;0;Najniższa niepewność formalna w zakresie wpisu KRS.;0
+K5_KRS_NOT_UPDATED;Nie — brak aktualnego wpisu w KRS;K5_krs_status;0;0;2;Brak aktualnego wpisu może zwiększać chaos formalny i ryzyko nieporozumień.;0
+K5_KRS_UNKNOWN;Nie wiem;K5_krs_status;0;0;2;Brak wiedzy o wpisie w KRS wymaga weryfikacji.;0
+K5_NOT_APPLICABLE;Nie dotyczy;K5_krs_status;0;0;0;Stosować automatycznie, gdy użytkownik nadal pełni funkcję.;0
+K6_GOAL_DEFENSE;Chcę ocenić, czy mam realne podstawy obrony;K6_goal;0;0;0;Cel dotyczy merytorycznej oceny podstaw obrony i możliwych zarzutów.;0
+K6_GOAL_BUY_TIME;Chcę zyskać czas na przygotowanie obrony;K6_goal;0;0;1;Cel wymaga bezpiecznego języka: tylko legalne środki procesowe i faktyczna dokumentacja.;0
+K6_GOAL_PROCEDURAL_LETTER;Chcę przygotować odpowiednie pismo procesowe;K6_goal;0;0;0;Cel praktyczny: dobór właściwego pisma zależnie od dokumentu.;0
+K6_GOAL_PLAN;Potrzebuję planu działania i oceny szans;K6_goal;0;0;0;Cel dotyczy planu kolejnych kroków oraz oceny szans po weryfikacji dokumentów.;0
+K6_GOAL_UNKNOWN;Nie wiem — potrzebuję uporządkowania sytuacji;K6_goal;0;0;1;Niepewność celu zwiększa potrzebę uporządkowania sprawy.;0
+;;;;;;;
+Element;Treść;;;;;;
+K7_AMOUNT_UNKNOWN;Nie wiem / nie widzę kwoty;K7_claim_amount;0;0;1;"Brak kwoty ogranicza pewność oceny; dodać H=1 i W=1.";1
+K7_AMOUNT_UP_TO_10K;Do 10 000 zł;K7_claim_amount;0;0;0;Niska kwota nie podnosi samodzielnie ciężaru sprawy.;0
+K7_AMOUNT_10K_50K;10 001 – 50 000 zł;K7_claim_amount;0;0;0;Kwota umiarkowana — niewielkie podniesienie ciężaru finansowego.;1
+K7_AMOUNT_50K_150K;50 001 – 150 000 zł;K7_claim_amount;0;0;0;Kwota istotna — podnosi ciężar sprawy.;2
+K7_AMOUNT_150K_500K;150 001 – 500 000 zł;K7_claim_amount;0;0;0;Wysoka kwota — istotne konsekwencje finansowe.;3
+K7_AMOUNT_ABOVE_500K;Powyżej 500 000 zł;K7_claim_amount;0;0;0;Bardzo wysoka kwota — znacząco podnosi ciężar sprawy.;4
+;;;;;;;
+;;;;;;;
+Element;Treść;;;;;;
+Zasada liczenia C;C liczymy z rodzaju dokumentu i jego ciężaru procesowego.;;;;;;
+Zasada liczenia P;P liczymy przede wszystkim z czasu na reakcję.;;;;;;
+Zasada liczenia H;H liczymy z niepewności danych, statusu zarządu/KRS i organizacyjnej gotowości.;;;;;;
+Zasada liczenia W;"W liczymy z przedziału kwoty roszczenia; W wpływa na ciężar finansowy, ale nie zastępuje oceny terminu i dokumentu.";;;;;;
+Wynik końcowy;S = C + P + H + W.;;;;;;

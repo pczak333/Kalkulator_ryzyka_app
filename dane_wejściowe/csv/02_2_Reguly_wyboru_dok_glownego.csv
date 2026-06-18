@@ -1,0 +1,50 @@
+﻿Reguły wyboru dokumentu głównego;;;;;
+ID Reguły;Obszar oceny;Warunek rozpoznania;Punkty;Znaczenie dla wyboru dokumentu głównego;Uwagi dla AI
+R01;Adresat dokumentu;Dokument jest skierowany bezpośrednio do członka zarządu, byłego członka zarządu, prezesa, członka zarządu albo osoby fizycznej wskazanej jako pozwany/dłużnik/strona;40;Bardzo silny kandydat na dokument główny;Dokumenty osobiste mają pierwszeństwo przed dokumentami skierowanymi wyłącznie do spółki
+R02;Adresat dokumentu;Dokument jest skierowany wyłącznie do spółki;15;Kandydat na dokument główny tylko wtedy, gdy nie ma dokumentu skierowanego do członka zarządu;Dokument spółki może być ważny, ale zwykle ma niższy priorytet niż dokument przeciwko członkowi zarządu
+R03;Adresat dokumentu;Nie da się ustalić, kto jest adresatem dokumentu;5;Kandydat niepewny;AI powinno oznaczyć niski poziom pewności i poprosić użytkownika o weryfikację
+R04;Typ dokumentu;Pozew przeciwko członkowi zarządu;50;Dokument główny o najwyższym priorytecie;Szczególnie gdy pojawia się art. 299 KSH, odpowiedzialność członków zarządu lub bezskuteczność egzekucji przeciwko spółce
+R05;Typ dokumentu;Nakaz zapłaty przeciwko członkowi zarządu;55;Dokument główny o najwyższym priorytecie;Zwykle wymaga pilnej reakcji, zwłaszcza gdy termin już biegnie
+R06;Typ dokumentu;Nakaz zapłaty w EPU przeciwko członkowi zarządu;60;Dokument główny krytyczny;Jeżeli sygnatura zawiera „Nc-e” albo występuje Sąd Rejonowy Lublin-Zachód, dodaj flagę EPU
+R07;Typ dokumentu;Wezwanie sądowe skierowane do członka zarządu;45;Bardzo silny kandydat;Może oznaczać konieczność reakcji lub udziału w postępowaniu
+R08;Typ dokumentu;Pismo komornicze skierowane do członka zarządu;45;Bardzo silny kandydat;Wskazuje na etap egzekucyjny albo ryzyko majątkowe
+R09;Typ dokumentu;Pozew przeciwko spółce;25;Dokument główny tylko wtedy, gdy brak dokumentu przeciwko członkowi zarządu;Ważny jako kontekst, ale nie zawsze bezpośrednio dotyczy odpowiedzialności osobistej
+R10;Typ dokumentu;Nakaz zapłaty przeciwko spółce;30;Dokument główny tylko wtedy, gdy brak dokumentu przeciwko członkowi zarządu;Może być ważny dla późniejszej odpowiedzialności z art. 299 KSH
+R11;Typ dokumentu;Pismo komornicze dotyczące egzekucji przeciwko spółce;35;Ważny dokument kontekstowy, czasem główny;Szczególnie ważny, jeżeli wskazuje na bezskuteczność egzekucji
+R12;Typ dokumentu;Postanowienie o umorzeniu egzekucji przeciwko spółce z powodu bezskuteczności;45;Bardzo ważny dokument kontekstowy;Może być kluczowy dla sprawy z art. 299 KSH, ale nie zawsze wymaga natychmiastowej reakcji
+R13;Typ dokumentu;Przedsądowe wezwanie do zapłaty skierowane do członka zarządu;35;Kandydat na dokument główny;Ważne, ale zwykle mniej pilne niż pozew lub nakaz
+R14;Typ dokumentu;Przedsądowe wezwanie do zapłaty skierowane do spółki;15;Dokument pomocniczy;Nie powinien wygrywać z dokumentem sądowym
+R15;Typ dokumentu;Decyzja ZUS lub decyzja podatkowa dotycząca odpowiedzialności osoby zarządzającej;45;Silny kandydat na dokument główny;Dotyczy odpowiedzialności osobistej, ale może należeć do ścieżki Audyt 48h, nie tylko art. 299 KSH
+R16;Typ dokumentu;Decyzja ZUS lub US skierowana wyłącznie do spółki;20;Dokument pomocniczy albo kandydat drugiego rzędu;Ważny kontekst, ale niższy priorytet niż decyzja wobec osoby fizycznej
+R17;Termin;Dokument zawiera wyraźny termin reakcji: sprzeciw, zarzuty, odpowiedź, odwołanie, skarga, zażalenie;35;Silny kandydat na dokument główny;Termin reakcji bardzo zwiększa priorytet dokumentu
+R18;Termin;Dokument wskazuje termin 0–3 dni pozostałe na reakcję;40;Dokument krytyczny;Jeżeli termin jest tak krótki, dokument prawie zawsze powinien być główny
+R19;Termin;Dokument wskazuje termin 4–7 dni pozostałe na reakcję;30;Dokument bardzo pilny;Wysoki priorytet
+R20;Termin;Dokument wskazuje termin 8–14 dni pozostałe na reakcję;20;Dokument pilny;Średnio-wysoki priorytet
+R21;Termin;Dokument wskazuje termin powyżej 14 dni;10;Dokument mniej pilny;Priorytet zależy od typu dokumentu
+R22;Termin;Nie udało się ustalić terminu reakcji;10;Kandydat niepewny;AI powinno oznaczyć brak pewności i wskazać konieczność weryfikacji w Audycie 48h
+R23;Etap sprawy;Dokument pochodzi z sądu;25;Wysoki priorytet;Sądowe dokumenty mają wyższy priorytet niż korespondencja prywatna
+R24;Etap sprawy;Dokument pochodzi od komornika;25;Wysoki priorytet;Może wskazywać na etap egzekucji lub bezskuteczność egzekucji
+R25;Etap sprawy;Dokument pochodzi od ZUS, US albo innego organu;25;Wysoki priorytet;Szczególnie gdy dotyczy osoby fizycznej
+R26;Etap sprawy;Dokument pochodzi od wierzyciela albo kancelarii wierzyciela;15;Średni priorytet;Ważne, ale niżej niż sąd/organ/komornik
+R27;Art. 299 KSH;Dokument zawiera frazy: „art. 299 KSH”, „odpowiedzialność członków zarządu”, „bezskuteczność egzekucji”, „zobowiązania spółki”;35;Bardzo silny sygnał zgodności z celem kalkulatora;AI powinno podnieść priorytet dokumentu
+R28;EPU;Dokument zawiera sygnaturę „Nc-e” albo wskazuje Sąd Rejonowy Lublin-Zachód w Lublinie;25;Dodaj flagę EPU;Nie musi samodzielnie przesądzać wyboru, ale podnosi pilność
+R29;Data dokumentu;Dokument jest najnowszy spośród dokumentów o podobnym priorytecie;10;Reguła pomocnicza;Stosować tylko przy remisie albo bardzo zbliżonym wyniku
+R30;Jakość odczytu;Dokument został odczytany z wysoką pewnością OCR/tekstu;5;Podnosi pewność wyboru;Nie powinno decydować samo w sobie
+R31;Jakość odczytu;Dokument został odczytany z niską pewnością OCR/tekstu;-10;Obniża pewność wyboru;AI powinno pokazać ostrzeżenie o konieczności weryfikacji
+R32;Dokument pomocniczy;Dokument jest fakturą, umową, odpisem KRS, korespondencją handlową, potwierdzeniem przelewu albo dokumentem księgowym;-20;Zwykle nie wybierać jako główny;Może być ważny dla Audytu 48h, ale nie jako dokument wymagający reakcji
+R33;Dokument obcy tematycznie;Dokument nie jest dokumentem prawnym albo nie dotyczy odpowiedzialności zarządu/spółki;-100;Nie wybierać jako dokument główny;Pokazać komunikat: „Wczytany dokument wydaje się nie być właściwy dla kalkulatora”
+;Kolejność oceny powinna być następująca:;;;;
+;1. Czy dokument dotyczy członka zarządu?;;;;
+;2. Czy dokument uruchamia termin na reakcję?;;;;
+;3. Czy dokument dotyczy odpowiedzialności z art. 299 KSH albo podobnego ryzyka osobistego?;;;;
+;4. Czy dokument pochodzi z sądu, komornika, organu lub wierzyciela?;;;;
+;5. Czy dokument jest aktualny i ma biegnący termin?;;;;
+;6. Dopiero na końcu — jaka jest data dokumentu.;;;;
+;;;;;
+;;Doprecyzowanie po uwagach;Relacja między punktacją a kolejnością oceny;Kolejność oceny jest hierarchią merytoryczną, a punktacja jest jej technicznym odwzorowaniem. Data dokumentu jest kryterium pomocniczym stosowanym na końcu, zwłaszcza przy remisie.;
+;;Kolejność oceny;1;Czy dokument dotyczy członka zarządu?;
+;;Kolejność oceny;2;Czy dokument uruchamia termin na reakcję?;
+;;Kolejność oceny;3;Czy dokument dotyczy odpowiedzialności z art. 299 k.s.h. albo podobnej odpowiedzialności osoby zarządzającej?;
+;;Kolejność oceny;4;Czy dokument pochodzi z sądu, komornika albo organu publicznego?;
+;;Kolejność oceny;5;Czy dokument jest aktualny i ma bieżący termin?;
+;;Kolejność oceny;6;Dopiero na końcu — jaka jest data dokumentu.;

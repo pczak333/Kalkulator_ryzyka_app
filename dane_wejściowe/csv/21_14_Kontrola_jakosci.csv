@@ -1,0 +1,69 @@
+﻿Kontrola jakości — wersja po przebudowie całego pliku;;;
+obszar;status;wynik kontroli;uwagi
+Czy biblioteka scenariuszy jest czytelniejsza?;OK;Zakładka 6 zawiera scenariusze bazowe bez K3–K6.;Mniej kombinacji, mniej sprzeczności.
+Czy K3–K6 mają jasne miejsce?;OK;Przeniesione do 6A_Moduly_K3_K6 jako moduły tekstowe.;Wymaga synchronizacji kodu z arkuszem 6A.
+Czy zachowano starą bibliotekę?;OK;Stara wersja jest w 6Z_Archiwum_stara_biblioteka.;Można porównywać i odzyskiwać treści.
+Czy pozostałe zakładki są zaktualizowane?;OK;Zaktualizowano 7, 9, 10, 11, 12, 13 i 14.;To była główna poprawka tej wersji.
+Czy użytkownik może zobaczyć techniczne informacje?;DO TESTU;Instrukcje zakazują pokazywania scenariuszy, modułów, risk_level_code i HRxx.;Trzeba przetestować w aplikacji.
+Czy problem BOARD_ACTIVE vs BOARD_RESIGNED został zaadresowany?;OK / DO TESTU;K4 jest modułem i ma pierwszeństwo w wyniku użytkownika.;Test T35 jest testem kluczowym.
+Czy twarde reguły są poprawnie ukryte?;DO TESTU;HRxx mają pozostać tylko w panelu testowym.;Test T05/T32.
+Czy scenariusz bazowy jest poprawnie nazwany w panelu testowym?;DO ZMIANY W APP;Panel powinien pisać „scenariusz bazowy”, nie „wybrany pełny scenariusz”.;Dostosować app.py.
+Czy kod czyta moduły z arkusza 6A?;DO ZMIANY W APP;Excel jest przygotowany, ale app.py musi zostać zsynchronizowany.;Następna wersja app.py = v15.
+Czy OCR i automatyczne rozdzielanie dokumentów są objęte tą zmianą?;NIE — KOLEJNY ETAP;Nie przebudowywano OCR.;Nie mieszać z testami scenariuszy.
+Rekomendacja końcowa;GOTOWE DO TESTÓW PO SYNCHRONIZACJI KODU;Plik Excel jest uporządkowany jako dokumentacja i źródło reguł.;Kolejny krok: app.py czytający 6A.
+;;;
+kontrola_v16;status;opis;oczekiwany efekt
+Język klienta;OK;Wynik nie powinien zawierać słowa „użytkownik” ani instrukcji wewnętrznych.;Ocena brzmi jak komunikat do klienta.
+Termin konkretny;OK;Jeżeli wyliczono konkretną liczbę dni, wynik pokazuje tę liczbę, nie przedział K2.;Przykład: 7 dni kalendarzowych.
+Brak listy audytu;OK;Wynik nie dokleja audit_focus_internal ani listy „co zweryfikować w audycie”.;Na końcu zostaje krótkie CTA do Audytu 48h.
+Opcje niepewności;OK;Odpowiedzi „nie wiem” generują krótkie ostrzeżenie o ryzyku błędnej oceny.;Klient rozumie, co trzeba szybko doprecyzować.
+Nakaz CZ + rezygnacja + KRS nie wiem;OK;Wynik wskazuje KRS, dokument rezygnacji/odwołania i sprzeciw od nakazu zapłaty.;Bez pytania, czy dokument jest do spółki czy członka zarządu.
+v17_EPU_w_glownej_ocenie;EPU / e-Sąd;Jeżeli zaznaczono EPU, główna ocena ryzyka powinna wskazywać, że nakaz/sprawa pochodzi z EPU/e-Sądu i odesłać do bloku dodatkowego.;OK — zaimplementować w app.py v17 i testować na nakazie EPU przeciwko członkowi zarządu.
+v18_K6_cele_klienta;OK;Doprecyzowano opcje K6: ocena podstaw obrony, zyskanie czasu na przygotowanie obrony, pismo procesowe, plan i ocena szans, uporządkowanie sytuacji.;Opcje nie powinny się powielać i nie powinny mylić „zyskania czasu” z terminem na reakcję.
+K6_GOAL_BUY_TIME;OK;Tekst mówi o legalnych środkach procesowych i przygotowaniu obrony.;Bez sformułowania „czas na reakcję”.
+K6_GOAL_PROCEDURAL_LETTER;OK;Dodano osobny cel: przygotowanie właściwego pisma procesowego.;Aplikacja rozróżnia sprzeciw od nakazu i odpowiedź na pozew w zależności od dokumentu.
+v19_termin_zalezny_od_liczby_dni;OK;Ocena różnicuje język w zależności od faktycznego czasu na reakcję.;"0–7 dni: pilnie/szybko; 8–14 dni: bez zwłoki; >14 dni: spokojniejsze uporządkowanie; termin nieznany: potwierdzenie daty i pouczenia."
+Test: 14 dni;OK;Przy 14 dniach nie wolno używać zwrotu „krótki czas reakcji”.;Oczekiwane: „ponieważ na reakcję pozostaje 14 dni kalendarzowych — warto bez zwłoki…”
+Test: 5 dni;OK;Przy 5 dniach komunikat może podkreślać pilność i szybkie działanie.;Oczekiwane: „ponieważ na reakcję pozostaje 5 dni kalendarzowych — najważniejsze jest szybkie…”
+Test: termin nieznany;OK;Przy braku daty/terminu ocena ma wskazywać niepewność terminu.;Oczekiwane: potwierdzić datę doręczenia, pouczenie i dostępne działania procesowe.
+v20;Dodano miękkie uzasadnienie pilności dla pozwu/nakazu skierowanego bezpośrednio do członka zarządu.;Sprawdzić, czy akapit pojawia się tylko dla dokumentów dotyczących członka zarządu i nie pojawia się dla dokumentów spółki.;OK do testów
+v21;Dostosowano uzasadnienie członka zarządu do etykiety wyniku.;Przy „Wysokie ryzyko” tekst zaczyna się od „Wysokie ryzyko wynika między innymi...”, a przy „Sprawa pilna” od „Pilny charakter sprawy...”.;OK do testów
+v22_KRS_kontekst_w_kolejnych_krokach;OK / DO TESTU;Końcowe zdanie o najbliższym kroku jest zależne od odpowiedzi K5: przy aktualnym KRS nie sugeruje ponownej weryfikacji statusu w KRS.;"Test kluczowy: K4=rezygnacja/odwołanie + K5=KRS aktualny + 14 dni; oczekiwane: dokument rezygnacji/odwołania, data skuteczności, dalsza reakcja — bez „zweryfikować aktualny status w KRS”."
+;;;
+;;;
+;;;
+;;;
+;;;
+;;;
+kontrola_v23;status;opis;oczekiwany efekt
+Dni kalendarzowe;OK;W kroku 2 i w ocenie klient widzi, że termin obejmuje soboty, niedziele i święta.;Klient nie myli terminu sądowego z dniami roboczymi.
+0–3 dni członek zarządu;OK;Uzasadnienie pilności wskazuje bardzo ograniczony czas reakcji.;Ocena nie wygląda jak presja sprzedażowa, tylko logiczne uzasadnienie.
+4–5 dni członek zarządu;OK;Uzasadnienie wskazuje ograniczony czas reakcji.;Komunikat mocny, ale nie przesadzony.
+6–7 dni członek zarządu;OK;Uzasadnienie wskazuje krótki czas reakcji łagodniej.;Bez nadużywania słowa „tylko”.
+8–14 dni członek zarządu;OK;Uzasadnienie nie mówi o bardzo ograniczonym czasie.;Pilność wynika z osobistej odpowiedzialności, nie z krótkiego terminu.
+v24;EPU + nakaz zapłaty;Priorytetem w ocenie jest sprzeciw od nakazu zapłaty w EPU, a KRS/dokumenty zarządu są wskazane jako element dalszej strategii obrony.;OK
+v24;EPU + krótki termin;Tekst nie sugeruje, że najpierw trzeba zweryfikować KRS ani że sprzeciw EPU musi być rozbudowany dowodowo.;OK
+v24;Brak technicznych komunikatów;Nie ujawnia kodów scenariuszy, modułów, risk_level_code ani nazw funkcji użytkownikowi.;OK
+v26;Regresja EPU nakaz/pozew + spójność KRS/terminów;OK;Po każdej zmianie językowej należy sprawdzić wszystkie warianty: EPU/nie-EPU, pozew/nakaz, członek zarządu/spółka, KRS aktualny/nieaktualny/nie wiem, progi terminów.
+v27;Reguła członka zarządu dla wszystkich dokumentów;OK;Uzasadnienie pilności / wysokiego ryzyka działa dla wszystkich dokumentów dotyczących członka zarządu, nie tylko pozwu i nakazu.
+v27_check;Wezwanie sądowe do członka zarządu;OK;Przy WEZWANIE_CZLONEK_ZARZADU akapit o osobistym charakterze sprawy powinien pojawić się w ocenie.
+v27_regresja;Zakres kontroli;OK;Sprawdzić: pozew/nakaz/wezwanie, EPU/nie-EPU, KRS aktualny/nieaktualny/nie wiem, progi terminów oraz K3–K6.
+v28;Reguła zgodności EPU z typem dokumentu;OK;EPU aktywne dla nakazu, ostrożne dla pozwu, wyłączone dla wezwania sądowego i dokumentu nieustalonego.
+v28;Test regresyjny: wezwanie sądowe + EPU;OK;"Checkbox EPU jest wyłączony; brak bloku EPU w ocenie i panel wskazuje odrzucenie, jeśli flaga pojawi się technicznie."
+v28;Test regresyjny: nakaz EPU;OK;Reguły sprzeciwu w EPU pozostają aktywne dla nakazu zapłaty.
+v28;Test regresyjny: pozew EPU;OK;Pozew z EPU pokazuje ostrożny komunikat i wymaga potwierdzenia trybu/pouczenia.
+v30;Reguły dokumentów spółki;"Dodano odrębne wyjaśnienia ryzyka pośredniego dla nakazu/pozwu/wezwania dotyczącego spółki; tekst nie może kopiować języka dla dokumentów bezpośrednio przeciwko członkowi zarządu.";OK do testów regresyjnych
+v30;Nakaz spółka 6/14 dni;Dla 6 dni priorytet: sprzeciw spółki i ryzyko uprawomocnienia. Dla 14 dni: jest czas na uporządkowanie, ale trzeba ocenić zaskarżenie i skutki braku reakcji.;OK
+v30;EPU + nakaz spółka;"Priorytetem jest sprzeciw w EPU po stronie spółki; KRS/rezygnacja nie są pierwszym krokiem.";OK
+v31;Nakaz spółka 6 dni;Tekst odróżnia nakaz od pozwu i wskazuje krótki termin;OK
+v31;Nakaz spółka 14 dni;Tekst wyjaśnia wysokie ryzyko bez komunikatu o krótkim terminie;OK
+v31;Pozew spółka 6 dni;Tekst nie kopiuje ciężaru nakazu, ale wskazuje krótki termin;OK
+v31;Pozew spółka 14 dni;Tekst mówi o sporze i strategii obrony spółki;OK
+v31;Dokument członek zarządu;Reguła osobistego ryzyka pozostaje bez zmian;OK
+v32;K7 kwota roszczenia;"Dodano wybór przedziału kwoty roszczenia i punktację W; wynik liczony jako C+P+H+W.";OK do testów regresyjnych
+v32;Tekst kwoty w ocenie;"Ocena użytkownika zawiera krótki moduł o ciężarze kwoty; brak kwoty generuje komunikat o niepewności.";OK
+v32;Regresja termin/dokument/EPU;Kwota nie może zastąpić reguł dotyczących terminu, EPU, nakazu/pozwu oraz adresata dokumentu.;DO TESTÓW
+v32;Nakaz spółka / członek zarządu;Sprawdzić warianty 10k, 50–150k, >500k dla 6 i 14 dni.;DO TESTÓW
+v32;Panel testowy;Panel pokazuje metrykę W oraz kody K1–K7.;OK
+v33;Kwota roszczenia – kontekst adresata dokumentu;OK;"Moduł K7 rozróżnia dokument bezpośrednio do członka zarządu, dokument spółki i dokument niepewny; przy członku zarządu nie używa tekstu o konsekwencjach finansowych dla spółki."
+v33;Regresja: K7 + członek zarządu / spółka;OK;Sprawdzone teksty dla kwot 150–500 tys. zł oraz powyżej 500 tys. zł w wariantach członek zarządu i spółka.

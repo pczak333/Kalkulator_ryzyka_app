@@ -1,0 +1,6 @@
+﻿Interpretacja wyniku;;;;
+score_range;risk_level_code;nazwa_poziomu;interpretacja_dla_AI;kierunek_komunikatu
+S >= 8;RISK_URGENT;Sprawa pilna;Sprawa ma wysoki ciężar, pilny termin albo istotny chaos informacyjny.;Audyt 48h powinien być komunikowany jako pilny i rekomendowany natychmiast.
+S = 6–7;RISK_HIGH;Wysokie ryzyko;Sprawa wymaga szybkiego uporządkowania dokumentów i terminów.;Audyt 48h + plan działania na najbliższe 72 godziny / 7 dni.
+S = 4–5;RISK_MEDIUM;Średnie ryzyko / braki danych;Ryzyko może być istotne, zwłaszcza jeżeli brakuje dokumentów albo terminów.;Audyt 48h jako porządkowanie sprawy i strategii.
+S <= 3;RISK_LOW;Niższe ryzyko / prewencja;Sprawa wygląda mniej pilnie, ale może wymagać prewencyjnego uporządkowania.;"Audyt 48h, gdy istnieje pismo lub termin; ewentualnie usługa prewencyjna KRS Guard."

@@ -1,0 +1,16 @@
+﻿Checklista regresji v35;;;
+wariant;oczekiwany wynik;status;uwagi
+ZUS/urząd + członek zarządu + 0–3 dni;"Sprawa pilna; priorytet: termin na wyjaśnienia i odpowiedź do organu; bez sprzeciwu/pozwu/EPU.";DO TESTU;Krótkie terminy.
+ZUS/urząd + członek zarządu + 8–14 dni;"Wysokie ryzyko lub sprawa pilna zależnie od punktacji; język spokojniejszy, ale nadal wskazuje na odpowiedzialność osobistą.";DO TESTU;Nie używać tekstu dla sądu cywilnego.
+ZUS/urząd + EPU checkbox;"Checkbox wyłączony; komunikat, że ZUS/US nie jest EPU.";DO TESTU;Reguła zgodności EPU.
+ZUS/urząd + kwota nieznana;Ocena mówi o ograniczonej pewności z powodu braku kwoty zaległości/roszczenia.;DO TESTU;K7 unknown.
+ZUS/urząd + wysoka kwota;Ocena mówi o ciężarze sprawy i osobistej odpowiedzialności majątkowej, bez tekstu o konsekwencjach dla spółki jako adresata.;DO TESTU;Regresja po v33.
+Nakaz członek zarządu;Bez zmian: sprzeciw/nakaz i odpowiedzialność osobista.;DO TESTU;Nie zepsuć istniejącego wariantu.
+Nakaz spółka;Bez zmian: ryzyko pośrednie dla zarządu.;DO TESTU;Nie mieszać z ZUS/US.
+Inny dokument / nie mam pewności;Bez zmian: najpierw identyfikacja dokumentu.;DO TESTU;Nie mieszać z ZUS/US, chyba klient wybierze nową kategorię.
+;;;
+;;;
+;;;
+;;;
+;;;
+                                          ;;;

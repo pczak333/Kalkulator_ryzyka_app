@@ -1,0 +1,10 @@
+﻿Reguły pilności członka zarządu;;;;;
+obszar;warunek;tekst dla oceny klienta;gdzie używać;uwaga;status
+pozew/nakaz przeciwko członkowi zarządu;main_document_type_code lub K1 zawiera CZLONEK_ZARZADU oraz POZEW albo NAKAZ;Uzasadnienie powinno wyjaśniać, że podwyższona waga wynika z dokumentu skierowanego bezpośrednio do członka zarządu i możliwej osobistej odpowiedzialności majątkowej.;główna ocena ryzyka, zaraz po pierwszym akapicie;Nie dodawać przy dokumentach dotyczących wyłącznie spółki.;v23
+Sprawa pilna + członek zarządu;final_risk_name = Sprawa pilna;Pilny charakter sprawy wynika między innymi z tego, że dokument dotyczy bezpośrednio członka zarządu.;główna ocena;Początek dopasowany do etykiety wyniku.;v23
+Wysokie ryzyko + członek zarządu;final_risk_name = Wysokie ryzyko;Wysokie ryzyko wynika między innymi z tego, że dokument dotyczy bezpośrednio członka zarządu.;główna ocena;Nie używać „pilny charakter”, gdy etykieta wyniku to „Wysokie ryzyko”.;v23
+0–3 dni + członek zarządu;days_left_exact 0–3;Dodać do uzasadnienia: „a na reakcję pozostaje bardzo ograniczony czas — tylko X dni kalendarzowe”.;główna ocena;Mocniejsze uzasadnienie pilności.;v23
+4–5 dni + członek zarządu;days_left_exact 4–5;Dodać do uzasadnienia: „a czas na reakcję jest ograniczony — pozostaje X dni kalendarzowych”.;główna ocena;Granica, przy której klient powinien rozumieć presję czasu.;v23
+6–7 dni + członek zarządu;days_left_exact 6–7;Można dodać łagodniej: „a na reakcję pozostaje krótki czas — X dni kalendarzowych”.;główna ocena;Bez słowa „tylko”, żeby nie brzmiało jak nadmierna presja.;v23
+8–14 dni + członek zarządu;days_left_exact 8–14;Nie dodawać „bardzo ograniczony czas”. Uzasadnienie wynika głównie z osobistego charakteru odpowiedzialności.;logika oceny;Użytkownik ma więcej czasu, ale sprawa nadal wymaga uporządkowania.;v23
+dni kalendarzowe;każdy wynik terminu;W komunikatach doprecyzować, że dni kalendarzowe obejmują soboty, niedziele i święta.;zielony komunikat + ocena;Edukacyjny komunikat dla laików.;v23

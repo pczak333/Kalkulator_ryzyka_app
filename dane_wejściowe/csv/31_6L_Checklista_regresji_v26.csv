@@ -1,0 +1,10 @@
+﻿Checklista regresji;;;
+Obszar zmiany;Warianty objęte kontrolą;Status v26;Kontrola negatywna
+EPU + nakaz;"spółka / członek zarządu; 0–7 dni, 8–14 dni, >14 dni, termin nieznany";OK;Nie pojawia się priorytet „sprawdzenie KRS” przed sprzeciwem EPU.
+EPU + pozew;"spółka / członek zarządu; 0–7 dni, 8–14 dni, >14 dni, termin nieznany";OK;Nie pojawia się automatycznie „odpowiedź na pozew w oparciu o faktyczną dokumentację” jako pierwszy priorytet.
+Dni kalendarzowe;komunikat zielony + ocena główna;OK;Jest informacja, że termin obejmuje soboty, niedziele i święta.
+Odmiana dni;1, 2–4, 5+, 12–14;OK;Nie generuje „4 dni kalendarzowych” w miejscach z konkretną liczbą dni.
+KRS aktualny;K4 rezygnacja/odwołanie + K5 aktualny;OK;Nie sugeruje „sprawdzenia aktualnego wpisu w KRS” jako kolejnego kroku, gdy użytkownik wskazał aktualność KRS.
+KRS nie wiem;K4 rezygnacja/odwołanie + K5 nie wiem;OK;Może wskazać sprawdzenie wpisu KRS, bo klient nie ma pewności.
+Użytkownik / technikalia;wynik klienta;OK;Nie pokazywać słowa „użytkownik”, kodów HR, risk_level_code, scenariuszy, dynamicznych modułów.
+Członek zarządu;"pozew/nakaz członek zarządu; EPU i nie-EPU";OK;Akapit o osobistej odpowiedzialności tylko dla dokumentów dotyczących członka zarządu.

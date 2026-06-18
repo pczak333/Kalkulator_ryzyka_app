@@ -1,0 +1,9 @@
+﻿Checklista regresji;;
+test;wariant;oczekiwany rezultat
+UNK-01;K1_INNE_NIE_WIEM + kwota nieznana;Ocena mówi o braku pewności co do rodzaju pisma, nie traktuje tego jako dokumentu.
+UNK-02;K1_INNE_NIE_WIEM + 14 dni;Termin jest opisany jako informacja ważna, ale nie jako pierwszy priorytet przed identyfikacją dokumentu.
+UNK-03;K1_INNE_NIE_WIEM + wysoka kwota;Tekst wskazuje, że wysoka kwota zwiększa wagę sprawy, ale bez przesądzania adresata i rodzaju odpowiedzialności.
+UNK-04;K1_INNE_NIE_WIEM + KRS nie wiem / rezygnacja;"Tekst nie skleja automatycznie priorytetów KRS z pozwem/nakazem; zaznacza, że KRS może mieć znaczenie po rozpoznaniu pisma."
+REG-01;Nakaz członek zarządu;Bez zmian: nadal tekst o osobistym charakterze i właściwym sprzeciwie.
+REG-02;Nakaz spółka;Bez zmian: nadal tekst o ryzyku pośrednim i odróżnieniu od członka zarządu.
+REG-03;EPU + nakaz;Bez zmian: priorytet sprzeciwu w EPU.

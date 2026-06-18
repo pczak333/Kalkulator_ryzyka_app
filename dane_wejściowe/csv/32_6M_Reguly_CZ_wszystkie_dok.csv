@@ -1,0 +1,8 @@
+﻿Reguły v27 — uzasadnienie ryzyka dla wszystkich dokumentów dotyczących członka zarządu;;;;
+obszar;zasada;kiedy stosować;przykładowe brzmienie;uwagi testowe
+Zakres reguły;Nie ograniczać uzasadnienia do pozwu i nakazu.;Każdy dokument, którego kod lub K1 zawiera CZLONEK_ZARZADU, np. pozew, nakaz, wezwanie sądowe.;Pilny charakter sprawy / wysokie ryzyko wynika między innymi z tego, że dokument dotyczy bezpośrednio członka zarządu.;Nie stosować dla dokumentów dotyczących wyłącznie spółki.
+Sprawa pilna;Dopasować początek akapitu do etykiety wyniku.;final_risk_name = Sprawa pilna;Pilny charakter sprawy wynika między innymi z tego, że dokument dotyczy bezpośrednio członka zarządu.;Jeżeli 0–7 dni, można dodać presję terminu.
+Wysokie ryzyko;Nie pisać „pilny charakter”, gdy wynik to wysokie ryzyko.;final_risk_name = Wysokie ryzyko;Wysokie ryzyko wynika między innymi z tego, że dokument dotyczy bezpośrednio członka zarządu.;Dotyczy także wezwania sądowego do członka zarządu.
+Pozostałe poziomy;Użyć neutralnej etykiety.;Inny poziom wyniku;Podwyższona waga sprawy wynika między innymi z tego, że dokument dotyczy bezpośrednio członka zarządu.;Bez nadmiernego straszenia klienta.
+Presja terminu;Dodać zależnie od liczby dni.;"0–3, 4–5, 6–7 dni; dla 8–14 łagodniej.";…a na reakcję pozostaje bardzo ograniczony / ograniczony / krótki czas.;Zgodnie z 6D i 6G.
+Test regresyjny;Po każdej zmianie sprawdzić wszystkie typy dokumentów członka zarządu.;POZEW_CZLONEK_ZARZADU, NAKAZ_CZLONEK_ZARZADU, WEZWANIE_CZLONEK_ZARZADU i inne podobne.;Akapit powinien pojawić się w ocenie dla każdego z nich.;Błąd v26: wezwanie sądowe nie dostało tego akapitu.
