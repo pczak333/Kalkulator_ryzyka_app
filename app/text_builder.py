@@ -210,6 +210,9 @@ def build(
     for w in hard_rule_result.warnings[:2]:
         sections.append(f"**Ważne:** {w}")
 
+    if _nonblank(context.k6_text):
+        sections.append(context.k6_text)
+
     if _nonblank(next_step_base):
         sections.append(f"**Co teraz warto zrobić:** {next_step_base}")
 
