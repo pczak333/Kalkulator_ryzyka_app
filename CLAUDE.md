@@ -6,7 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **KRS Guard – Kalkulator Ryzyka Prawnego** is a legal risk calculator for cases involving liability of company board members (odpowiedzialność członków zarządu, art. 299 KSH). The calculator takes court/official documents and a user-filled form as input, and produces an oriented risk assessment with a call to action (typically recommending the paid "Audyt 48h" service).
 
-This repository currently holds the **input data and specification** used to build the calculator. No application code exists yet.
+The application is built and running. The stack is **Python + Streamlit**. Source code lives in `app/`.
+
+## Application structure
+
+```
+app/
+├── app.py               # Streamlit entry point — UI, form flow, result display
+├── data_loader.py       # Reads CSV files from dane_wejściowe/csv/
+├── scoring_engine.py    # Computes S = C+P+H+W, maps score to risk level
+├── hard_rules.py        # Applies hard safety rules (5B_Twarde_reguly) that override score
+├── scenario_selector.py # Selects base scenario from 6_Biblioteka_scenariuszy
+├── context_modules.py   # Collects contextual text snippets (6D–6U sheets)
+├── text_builder.py      # Assembles final output text; sanitize_check() verifies no codes leak
+├── requirements.txt     # streamlit>=1.32.0, pandas>=2.0.0
+└── .streamlit/
+    └── config.toml      # Streamlit theme/config
+```
+
+**To run locally:**
+```bash
+streamlit run app/app.py
+```
+
+The technical panel (scores, raw answers, triggered rules, sanitization check) is hidden behind a password. Default: `krs-test-2024`, overridable via `st.secrets["TEST_PANEL_PASSWORD"]`.
 
 ## Data source hierarchy
 
