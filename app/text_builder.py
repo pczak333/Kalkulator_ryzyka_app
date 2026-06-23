@@ -37,6 +37,11 @@ _K4_BOARD_DOCS_RE = re.compile(
 )
 # "byłego członka zarządu" → "członka zarządu" gdy K4=BOARD_ACTIVE
 _K4_BYLEGO_RE = re.compile(r"by[łl]ego\s+cz[łl]onka\s+zarz[aą]du")
+# Zdanie o ustalaniu pełnomocnika spółki – bez sensu dla aktywnego członka zarządu
+_K4_PELNOMOCNIK_RE = re.compile(
+    r"Kluczowe jest ustalenie,?\s+czy\s+sp[oó][łl]ka\s+ma\s+pe[łl]nomocnika"
+    r"\s+procesowego\s+i\s+czy\s+planuje\s+z[łl]o[żź]y[ćc]\s+sprzeciw\.?"
+)
 _K4_PHRASES_RESIGNED = [
     r"[Ww]skazano rezygnację lub odwołanie\s+oraz aktualny wpis w KRS\.?",
     r"[Dd]odatkowo wskazano rezygnację lub odwołanie.*?KRS\.?",
@@ -87,6 +92,11 @@ def _clean(text: str, k4_code: str = "") -> str:
         text = _K4_RESIGNED_RE.sub("", text)
         text = _K4_BOARD_DOCS_RE.sub(".", text)
         text = _K4_BYLEGO_RE.sub("członka zarządu", text)
+        text = _K4_PELNOMOCNIK_RE.sub(
+            "Jako członek zarządu masz wpływ na decyzję spółki o złożeniu sprzeciwu albo zarzutów "
+            "— warto natychmiast sprawdzić termin doręczenia i podjąć odpowiednie działania procesowe.",
+            text,
+        )
     # Zastąp pozostałe "Użytkownik" formami bezosobowymi
     for pattern, replacement in _UZYTKOWNIK_SUBS:
         text = pattern.sub(replacement, text)
