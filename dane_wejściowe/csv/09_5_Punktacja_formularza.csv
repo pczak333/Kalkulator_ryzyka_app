@@ -26,7 +26,7 @@ K5_KRS_NOT_UPDATED;Nie — brak aktualnego wpisu w KRS;K5_krs_status;0;0;2;Brak 
 K5_KRS_UNKNOWN;Nie wiem;K5_krs_status;0;0;2;Brak wiedzy o wpisie w KRS wymaga weryfikacji.;0
 K5_NOT_APPLICABLE;Nie dotyczy;K5_krs_status;0;0;0;Stosować automatycznie, gdy użytkownik nadal pełni funkcję.;0
 K6_GOAL_DEFENSE;Chcę ocenić, czy mam realne podstawy obrony;K6_goal;0;0;0;Cel dotyczy merytorycznej oceny podstaw obrony i możliwych zarzutów.;0
-K6_GOAL_BUY_TIME;Chcę zyskać czas na przygotowanie obrony;K6_goal;0;0;1;Cel wymaga bezpiecznego języka: tylko legalne środki procesowe i faktyczna dokumentacja.;0
+K6_GOAL_BUY_TIME;Chcę zyskać czas na przygotowanie obrony;K6_goal;0;0;0;Cel wymaga bezpiecznego języka: tylko legalne środki procesowe i faktyczna dokumentacja.;0
 K6_GOAL_PROCEDURAL_LETTER;Chcę przygotować odpowiednie pismo procesowe;K6_goal;0;0;0;Cel praktyczny: dobór właściwego pisma zależnie od dokumentu.;0
 K6_GOAL_PLAN;Potrzebuję planu działania i oceny szans;K6_goal;0;0;0;Cel dotyczy planu kolejnych kroków oraz oceny szans po weryfikacji dokumentów.;0
 K6_GOAL_UNKNOWN;Nie wiem — potrzebuję uporządkowania sytuacji;K6_goal;0;0;1;Niepewność celu zwiększa potrzebę uporządkowania sprawy.;0
