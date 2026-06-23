@@ -256,6 +256,60 @@ def _zus_note(doc_type: str) -> str:
     )
 
 
+def _k6_procedural_text(doc_type: str, generic_text: str) -> str:
+    """Zwraca tekst K6_GOAL_PROCEDURAL_LETTER dopasowany do typu dokumentu."""
+    if "POZEW" in doc_type:
+        return (
+            "Zaznaczono, że głównym celem jest przygotowanie właściwego pisma procesowego. "
+            "W przypadku pozwu właściwą reakcją jest odpowiedź na pozew — jej zakres "
+            "i termin złożenia decydują o możliwości przedstawienia zarzutów i dowodów. "
+            "Źle skonstruowane pismo albo spóźniona reakcja mogą ograniczyć możliwość obrony."
+        )
+    if "NAKAZ" in doc_type:
+        return (
+            "Zaznaczono, że głównym celem jest przygotowanie właściwego pisma procesowego. "
+            "W przypadku nakazu zapłaty właściwą reakcją jest sprzeciw albo zarzuty zależnie "
+            "od trybu postępowania — termin jest ściśle określony i nie podlega przedłużeniu. "
+            "Źle dobrana forma albo spóźniona reakcja może skutkować uprawomocnieniem nakazu."
+        )
+    if "WEZWANIE_SADOWE" in doc_type:
+        return (
+            "Zaznaczono, że głównym celem jest przygotowanie właściwego pisma. "
+            "Wezwanie sądowe może wymagać różnych form reakcji zależnie od jego treści "
+            "i pouczenia — od pisma przygotowawczego, przez złożenie dokumentów, "
+            "po inne działania procesowe. Kluczowe jest dokładne przeczytanie treści "
+            "wezwania i wskazanego terminu."
+        )
+    if doc_type in (
+        "DECYZJA_ZUS_CZLONEK_ZARZADU",
+        "DECYZJA_US_CZLONEK_ZARZADU",
+        "ORGAN_PUBLICZNY_CZLONEK_ZARZADU",
+        "DECYZJA_ZUS_US_SPOLKA",
+    ):
+        return (
+            "Zaznaczono, że głównym celem jest przygotowanie właściwego pisma. "
+            "W przypadku pisma organu publicznego (ZUS, urząd skarbowy) właściwą reakcją "
+            "są wyjaśnienia i dokumenty potwierdzające stanowisko — nie sprzeciw ani "
+            "odpowiedź na pozew. Zakres wyjaśnień i termin określa treść pisma i pouczenie."
+        )
+    if "KOMORNIK" in doc_type:
+        return (
+            "Zaznaczono, że głównym celem jest przygotowanie właściwego pisma. "
+            "W przypadku pisma komorniczego rodzaj reakcji zależy od podstawy egzekucji — "
+            "może to być powództwo przeciwegzekucyjne, wniosek o zawieszenie egzekucji "
+            "albo inne pismo zależnie od tytułu wykonawczego. Właściwy krok wymaga "
+            "wcześniejszego ustalenia treści tytułu."
+        )
+    if "WEZWANIE_PRZEDSADOWE" in doc_type:
+        return (
+            "Zaznaczono, że głównym celem jest przygotowanie właściwego pisma. "
+            "Wezwanie przedsądowe nie jest pismem procesowym — można na nie odpowiedzieć, "
+            "zakwestionować roszczenie lub przygotować się na dalsze kroki wierzyciela. "
+            "Decyzja o formie i treści odpowiedzi powinna uwzględniać podstawę roszczenia."
+        )
+    return generic_text
+
+
 def _unknown_doc_note(doc_type: str) -> str:
     """Zwraca wskazówkę priorytetu dla dokumentu nieustalonego (CSV 38)."""
     if doc_type != "DOKUMENT_NIEUSTALONY_PRAWNY":
@@ -298,7 +352,10 @@ def collect(
     out.k3_text = _get_module(modules_df, state.get("K3", ""))
     out.k4_text = _get_module(modules_df, state.get("K4", ""))
     out.k5_text = _get_module(modules_df, state.get("K5", ""))
-    out.k6_text = _get_module(modules_df, state.get("K6", ""))
+    k6_code = state.get("K6", "")
+    out.k6_text = _get_module(modules_df, k6_code)
+    if k6_code == "K6_GOAL_PROCEDURAL_LETTER":
+        out.k6_text = _k6_procedural_text(doc_type, out.k6_text)
 
     k2_code = state.get("K2", "")
     out.deadline_text, out.calendar_note = _deadline_text(k2_code, days_exact)
