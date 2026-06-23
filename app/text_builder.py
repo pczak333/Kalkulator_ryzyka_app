@@ -35,8 +35,10 @@ _K4_BOARD_DOCS_RE = re.compile(
     r"\s*oraz dokumenty dotycz[aą]ce pe[łl]nienia funkcji w zarz[aą]dzie"
     r" i aktualno[śs]ci wpisu w KRS\.?"
 )
-# "byłego członka zarządu" → "członka zarządu" gdy K4=BOARD_ACTIVE
+# "byłego członka zarządu" → "członka zarządu" gdy K4=BOARD_ACTIVE (dopełniacz)
 _K4_BYLEGO_RE = re.compile(r"by[łl]ego\s+cz[łl]onka\s+zarz[aą]du")
+# "byłemu członkowi zarządu" → "członkowi zarządu" gdy K4=BOARD_ACTIVE (celownik, np. CTA)
+_K4_BYLEMU_RE = re.compile(r"by[łl]emu\s+cz[łl]onkowi\s+zarz[aą]du")
 # Zdanie o ustalaniu pełnomocnika spółki – bez sensu dla aktywnego członka zarządu
 _K4_PELNOMOCNIK_RE = re.compile(
     r"Kluczowe jest ustalenie,?\s+czy\s+sp[oó][łl]ka\s+ma\s+pe[łl]nomocnika"
@@ -67,7 +69,7 @@ _CTA_PERSONAL = (
 )
 _CTA_COMPANY = (
     "Brak reakcji w terminie może otworzyć wierzycielowi drogę do pozwu "
-    "**bezpośrednio przeciwko Tobie** jako członkowi zarządu (art. 299 KSH). "
+    "**bezpośrednio przeciwko Tobie** jako byłemu członkowi zarządu (art. 299 KSH). "
     "**Audyt 48h** to pisemna opinia prawna sporządzona przez radcę prawnego — "
     "nie automatyczna ocena, ale dokument, na którym możesz oprzeć swoją decyzję."
 )
@@ -92,6 +94,7 @@ def _clean(text: str, k4_code: str = "") -> str:
         text = _K4_RESIGNED_RE.sub("", text)
         text = _K4_BOARD_DOCS_RE.sub(".", text)
         text = _K4_BYLEGO_RE.sub("członka zarządu", text)
+        text = _K4_BYLEMU_RE.sub("członkowi zarządu", text)
         text = _K4_PELNOMOCNIK_RE.sub(
             "Jako członek zarządu masz wpływ na decyzję spółki o złożeniu sprzeciwu albo zarzutów "
             "— warto natychmiast sprawdzić termin doręczenia i podjąć odpowiednie działania procesowe.",
