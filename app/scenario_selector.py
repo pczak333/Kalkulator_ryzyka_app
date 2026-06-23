@@ -5,7 +5,8 @@ from data_loader import load_scenarios
 
 # Mapowanie kodu K1 + EPU → main_document_type_code
 _K1_TO_DOC_TYPE: dict[tuple, str] = {
-    ("K1_POZEW_SPOLKA", False):                     "POZEW_SPOLKA",
+    ("K1_POZEW_SPOLKA", False):                      "POZEW_SPOLKA",
+    ("K1_POZEW_SPOLKA", True):                       "POZEW_SPOLKA",  # brak scenariuszy EPU dla tej ścieżki
     ("K1_POZEW_CZLONEK_ZARZADU", False):            "POZEW_CZLONEK_ZARZADU",
     ("K1_POZEW_CZLONEK_ZARZADU", True):             "EPU_POZEW_CZLONEK_ZARZADU",
     ("K1_NAKAZ_SPOLKA", False):                     "NAKAZ_SPOLKA",
@@ -67,7 +68,6 @@ def find_scenario(
         _match(doc_type, k2_code, risk_level_code, epu_val)
         or _match(doc_type, k2_code, risk_level_code, None)
         or _match(_FALLBACK_DOC_TYPE, k2_code, risk_level_code, "NIE")
-        or _match(_FALLBACK_DOC_TYPE, "K2_DAYS_LEFT_UNKNOWN", "RISK_MEDIUM", "NIE")
     )
 
     if row is None:

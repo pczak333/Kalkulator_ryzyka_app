@@ -68,6 +68,9 @@ _RULE_DEFS = [
     },
     {
         "id": "HR05",
+        # CSV 11 pełny warunek: K2_DAYS_LEFT_UNKNOWN AND dokument_glowny_zawiera_termin = TAK.
+        # Drugi człon wymaga OCR – brak go w MVP, reguła działa konserwatywnie
+        # (strzela zawsze gdy deadline nieznany).
         "condition": lambda s: s.get("K2") == "K2_DAYS_LEFT_UNKNOWN",
         "min_risk": "RISK_MEDIUM",
         "warning": (
@@ -129,6 +132,10 @@ _RULE_DEFS = [
         ),
     },
 ]
+
+
+# HR10 (CSV 11): OCR_JAKOSC = NISKA AND (ADRESAT_NIEUSTALONY = TAK OR TERMIN_NIEUSTALONY = TAK)
+# Wymaga modułu OCR – pominięta w MVP. CSV 11 status: NIE — etap OCR.
 
 
 def apply(state: dict, current_risk_code: str) -> tuple[str, HardRuleResult]:

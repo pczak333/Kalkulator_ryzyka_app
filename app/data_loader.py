@@ -88,6 +88,11 @@ def load_unknown_doc_rules() -> pd.DataFrame:
     return _read("38_6S_Dokument_nieustalony_v34.csv")
 
 
+def load_epu_block() -> pd.DataFrame:
+    """CSV 13: blok edukacyjny EPU/e-Sąd (nagłówek + tekst + zastrzeżenie)."""
+    return _read("13_Blok_EPU.csv")
+
+
 def load_tests() -> pd.DataFrame:
     """CSV 17: testy kontrolne."""
     return _read("17_10_Testy_kontrolne.csv")

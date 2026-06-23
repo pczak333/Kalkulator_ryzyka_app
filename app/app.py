@@ -27,7 +27,11 @@ EPU_COMPATIBLE = {
     "K1_NAKAZ_CZLONEK_ZARZADU": "TAK",
     "K1_NAKAZ_SPOLKA": "TAK",
     "K1_POZEW_CZLONEK_ZARZADU": "OSTROZNE",
-    "K1_POZEW_SPOLKA": "OSTROZNE",
+    "K1_POZEW_SPOLKA": "NIE",
+    "K1_WEZWANIE_SADOWE_SPOLKA": "NIE",
+    "K1_WEZWANIE_SADOWE_CZLONEK_ZARZADU": "NIE",
+    "K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU": "NIE",
+    "K1_INNE_NIE_WIEM": "NIE",
 }
 
 RISK_COLORS = {
@@ -57,6 +61,14 @@ def get_answers_for_step(step_id: str) -> list[tuple[str, str]]:
     return [(r["answer_label_user"], r["answer_code_AI"])
             for _, r in rows.iterrows()
             if str(r.get("answer_label_user", "")).strip() not in ("", "nan")]
+
+
+def get_label_for_code(step_id: str, code: str) -> str:
+    """Zwraca polską etykietę dla danego kodu odpowiedzi."""
+    for lbl, c in get_answers_for_step(step_id):
+        if c == code:
+            return lbl
+    return ""
 
 
 def labeled_radio(label: str, step_id: str, key: str) -> str | None:
@@ -89,136 +101,137 @@ st.markdown(
 st.divider()
 
 # ── Formularz ─────────────────────────────────────────────────────────────────
-with st.form("kalkulator_form"):
 
-    # K1 – Rodzaj pisma
-    st.subheader("Krok 1 — Rodzaj pisma")
-    k1 = labeled_radio(
-        "Jakie pismo lub dokument dotyczy Twojej sprawy?",
-        "K1", "k1"
+# K1 – Rodzaj pisma
+st.subheader("Krok 1 — Rodzaj pisma")
+k1 = labeled_radio(
+    "Jakie pismo lub dokument dotyczy Twojej sprawy?",
+    "K1", "k1"
+)
+
+# EPU – checkbox zależny od K1
+st.subheader("Krok 2 — E-Sąd / EPU")
+epu_compat = EPU_COMPATIBLE.get(k1, "NIE")
+epu_disabled = (epu_compat == "NIE")
+
+if epu_disabled:
+    st.info(
+        "Ten typ dokumentu nie jest zgodny z Elektronicznym Postępowaniem "
+        "Upominawczym (EPU/e-Sądem)."
     )
-
-    # EPU – checkbox zależny od K1
-    st.subheader("Krok 2 — E-Sąd / EPU")
-    epu_compat = EPU_COMPATIBLE.get(k1, "NIE")
-    epu_disabled = (epu_compat == "NIE")
-
-    if epu_disabled:
-        st.info(
-            "Ten typ dokumentu nie jest zgodny z Elektronicznym Postępowaniem "
-            "Upominawczym (EPU/e-Sądem)."
+    epu = False
+else:
+    if epu_compat == "OSTROZNE":
+        st.warning(
+            "Pozwy mogą, ale nie zawsze, pochodzić z EPU. "
+            "Sprawdź pouczenie w dokumencie, zanim zaznaczysz tę opcję."
         )
-        epu = False
+    epu = st.checkbox(
+        "Dokument pochodzi z EPU / e-Sądu "
+        "(sygnatura Nc-e lub Sąd Rejonowy Lublin-Zachód w Lublinie)",
+        key="epu",
+    )
+    with st.expander("Jak rozpoznać dokument z EPU / e-Sądu?"):
+        st.markdown(
+            "Zaznacz tę opcję, jeżeli na dokumencie widzisz oznaczenia takie jak: "
+            "e-Sąd; EPU; Elektroniczne Postępowanie Upominawcze; sygnaturę "
+            "z oznaczeniem Nc-e; Sad Rejonowy Lublin-Zachod w Lublinie - "
+            "VI Wydzial Cywilny; albo informacje, ze nakaz zaplaty zostal wydany "
+            "w elektronicznym postepowaniu upominawczym. "
+            "Samo oznaczenie VI Wydzial Cywilny nie musi oznaczac e-Sadu. "
+            "Dokument z EPU / e-Sądu to nie każdy dokument otrzymany elektronicznie."
+        )
+
+# K2 – Czas na reakcję
+st.subheader("Krok 3 — Czas na reakcję")
+use_dates = st.checkbox(
+    "Znam datę doręczenia — oblicz za mnie ile zostało dni", key="use_dates"
+)
+
+days_exact: int | None = None
+k2: str = ""
+
+if use_dates:
+    col1, col2 = st.columns(2)
+    with col1:
+        delivery_date = st.date_input(
+            "Data doręczenia dokumentu", value=date.today(), key="delivery_date"
+        )
+    with col2:
+        deadline_days = st.number_input(
+            "Termin z pouczenia (dni)", min_value=1, max_value=365,
+            value=14, key="deadline_days"
+        )
+    deadline_date = delivery_date + timedelta(days=int(deadline_days))
+    days_exact = (deadline_date - date.today()).days
+    st.info(
+        f"Termin upływa **{deadline_date.strftime('%d.%m.%Y')}** "
+        f"— pozostało **{days_exact} dni** kalendarzowych."
+    )
+    st.caption(
+        "Do tego terminu wliczają się soboty, niedziele i dni świąteczne."
+    )
+    if days_exact < 0:
+        k2 = "K2_DAYS_LEFT_0_3"
+    elif days_exact <= 3:
+        k2 = "K2_DAYS_LEFT_0_3"
+    elif days_exact <= 7:
+        k2 = "K2_DAYS_LEFT_4_7"
+    elif days_exact <= 14:
+        k2 = "K2_DAYS_LEFT_8_14"
     else:
-        if epu_compat == "OSTROZNE":
-            st.warning(
-                "Pozwy mogą, ale nie zawsze, pochodzić z EPU. "
-                "Sprawdź pouczenie w dokumencie, zanim zaznaczysz tę opcję."
-            )
-        epu = st.checkbox(
-            "Dokument pochodzi z EPU / e-Sądu "
-            "(sygnatura Nc-e lub Sąd Rejonowy Lublin-Zachód w Lublinie)",
-            key="epu",
-        )
-        with st.expander("Jak rozpoznać dokument z EPU / e-Sądu?"):
-            st.markdown(
-                "Zaznacz tę opcję, jeżeli na dokumencie widzisz oznaczenia takie jak: "
-                "e-Sąd; EPU; Elektroniczne Postępowanie Upominawcze; sygnaturę "
-                "z oznaczeniem Nc-e; Sad Rejonowy Lublin-Zachod w Lublinie - "
-                "VI Wydzial Cywilny; albo informacje, ze nakaz zaplaty zostal wydany "
-                "w elektronicznym postepowaniu upominawczym. "
-                "Samo oznaczenie VI Wydzial Cywilny nie musi oznaczac e-Sadu. "
-                "Dokument z EPU / e-Sądu to nie każdy dokument otrzymany elektronicznie."
-            )
-
-    # K2 – Czas na reakcję
-    st.subheader("Krok 3 — Czas na reakcję")
-    use_dates = st.checkbox(
-        "Znam datę doręczenia — oblicz za mnie ile zostało dni", key="use_dates"
+        k2 = "K2_DAYS_LEFT_ABOVE_14"
+else:
+    k2 = labeled_radio(
+        "Ile czasu zostało na reakcję?",
+        "K2", "k2"
     )
 
-    days_exact: int | None = None
-    k2: str = ""
+# K3 – Zakres wsparcia
+st.subheader("Krok 4 — Zakres wsparcia")
+k3 = labeled_radio("Czego teraz potrzebujesz?", "K3", "k3")
 
-    if use_dates:
-        col1, col2 = st.columns(2)
-        with col1:
-            delivery_date = st.date_input(
-                "Data doręczenia dokumentu", value=date.today(), key="delivery_date"
-            )
-        with col2:
-            deadline_days = st.number_input(
-                "Termin z pouczenia (dni)", min_value=1, max_value=365,
-                value=14, key="deadline_days"
-            )
-        deadline_date = delivery_date + timedelta(days=int(deadline_days))
-        days_exact = (deadline_date - date.today()).days
-        st.info(
-            f"Termin upływa **{deadline_date.strftime('%d.%m.%Y')}** "
-            f"— pozostało **{days_exact} dni** kalendarzowych."
-        )
-        st.caption(
-            "Do tego terminu wliczają się soboty, niedziele i dni świąteczne."
-        )
-        if days_exact < 0:
-            k2 = "K2_DAYS_LEFT_0_3"
-        elif days_exact <= 3:
-            k2 = "K2_DAYS_LEFT_0_3"
-        elif days_exact <= 7:
-            k2 = "K2_DAYS_LEFT_4_7"
-        elif days_exact <= 14:
-            k2 = "K2_DAYS_LEFT_8_14"
-        else:
-            k2 = "K2_DAYS_LEFT_ABOVE_14"
-    else:
-        k2 = labeled_radio(
-            "Ile czasu zostało na reakcję?",
-            "K2", "k2"
-        )
+# K4 – Status w zarządzie
+st.subheader("Krok 5 — Status w zarządzie")
+k4 = labeled_radio("Jaki jest Twój status w zarządzie?", "K4", "k4")
 
-    # K3 – Zakres wsparcia
-    st.subheader("Krok 4 — Zakres wsparcia")
-    k3 = labeled_radio("Czego teraz potrzebujesz?", "K3", "k3")
-
-    # K4 – Status w zarządzie
-    st.subheader("Krok 5 — Status w zarządzie")
-    k4 = labeled_radio("Jaki jest Twój status w zarządzie?", "K4", "k4")
-
-    # K5 – KRS (tylko gdy rezygnacja/odwołanie lub nieznany)
-    k5: str = "K5_NOT_APPLICABLE"
-    if k4 in ("K4_BOARD_RESIGNED", "K4_BOARD_UNKNOWN"):
-        st.subheader("Krok 5b — Wpis w KRS")
-        k5 = labeled_radio(
-            "Czy zmiana w zarządzie została ujawniona w KRS?", "K5", "k5"
-        )
-    elif k4 == "K4_BOARD_ACTIVE":
-        k5 = "K5_NOT_APPLICABLE"
-
-    # K6 – Cel klienta
-    st.subheader("Krok 6 — Twój cel")
-    k6 = labeled_radio("Czego przede wszystkim potrzebujesz?", "K6", "k6")
-
-    # K7 – Kwota roszczenia
-    st.subheader("Krok 7 — Kwota roszczenia")
-    k7 = labeled_radio(
-        "Jaka kwota roszczenia jest wskazana w dokumencie?", "K7", "k7"
+# K5 – KRS (tylko gdy rezygnacja/odwołanie)
+# Spec: gdy K4_BOARD_UNKNOWN — ustaw K5_KRS_UNKNOWN bez pytania
+k5: str = "K5_NOT_APPLICABLE"
+if k4 == "K4_BOARD_RESIGNED":
+    st.subheader("Krok 5b — Wpis w KRS")
+    k5 = labeled_radio(
+        "Czy zmiana w zarządzie została ujawniona w KRS?", "K5", "k5"
     )
+elif k4 == "K4_BOARD_UNKNOWN":
+    k5 = "K5_KRS_UNKNOWN"
+elif k4 == "K4_BOARD_ACTIVE":
+    k5 = "K5_NOT_APPLICABLE"
 
-    submitted = st.form_submit_button(
-        "Oblicz ryzyko →", use_container_width=True, type="primary"
-    )
+# K6 – Cel klienta
+st.subheader("Krok 6 — Twój cel")
+k6 = labeled_radio("Czego przede wszystkim potrzebujesz?", "K6", "k6")
+
+# K7 – Kwota roszczenia
+st.subheader("Krok 7 — Kwota roszczenia")
+k7 = labeled_radio(
+    "Jaka kwota roszczenia jest wskazana w dokumencie?", "K7", "k7"
+)
+
+st.divider()
+if st.button("Oblicz ryzyko →", use_container_width=True, type="primary"):
+    st.session_state["krs_answers"] = {
+        "K1": k1 or "", "K2": k2 or "", "K3": k3 or "",
+        "K4": k4 or "", "K5": k5 or "", "K6": k6 or "", "K7": k7 or "",
+    }
+    st.session_state["krs_epu"] = epu
+    st.session_state["krs_days_exact"] = days_exact
 
 # ── Obliczenia i wynik ────────────────────────────────────────────────────────
-if submitted:
-    answers = {
-        "K1": k1 or "",
-        "K2": k2 or "",
-        "K3": k3 or "",
-        "K4": k4 or "",
-        "K5": k5 or "",
-        "K6": k6 or "",
-        "K7": k7 or "",
-    }
+if "krs_answers" in st.session_state:
+    answers    = st.session_state["krs_answers"]
+    epu        = st.session_state["krs_epu"]
+    days_exact = st.session_state["krs_days_exact"]
 
     state = {**answers, "EPU": epu}
 
@@ -231,19 +244,27 @@ if submitted:
 
     # 3. Scenariusz bazowy
     scenario = find_scenario(
-        k1_code=k1 or "",
-        k2_code=k2 or "",
+        k1_code=answers["K1"],
+        k2_code=answers["K2"],
         risk_level_code=final_risk_code,
         epu=epu,
     )
 
     # 4. Moduły kontekstowe
-    doc_type = resolve_doc_type(k1 or "", epu)
-    context = collect_context(state, doc_type, days_exact)
+    doc_type = resolve_doc_type(answers["K1"], epu)
+    context = collect_context(state, doc_type, days_exact, risk_code=final_risk_code)
 
     # 5. Tekst końcowy
+    labels = {
+        "K1": get_label_for_code("K1", answers["K1"]),
+        "K4": get_label_for_code("K4", answers["K4"]),
+        "K5": get_label_for_code("K5", answers["K5"]) if answers["K5"] not in (
+            "K5_NOT_APPLICABLE", "K5_KRS_UNKNOWN", ""
+        ) else "",
+        "K7": get_label_for_code("K7", answers["K7"]),
+    }
     output = build_text(scenario, context, hard_result, final_risk_code, days_exact,
-                        k4_code=k4 or "")
+                        k4_code=answers["K4"], labels=labels, doc_type=doc_type)
 
     # ── Wyświetlenie wyniku ────────────────────────────────────────────────
     st.divider()
@@ -251,11 +272,23 @@ if submitted:
     colored_risk_box(final_risk_code, output["risk_label"])
     st.markdown(output["full_text"])
 
+    # ── Blok EPU (uzupełnienie, gdy EPU=TAK) ──────────────────────────────
+    if output.get("epu_block_text"):
+        heading = output.get("epu_block_heading") or "Dodatkowa informacja: EPU / e-Sąd"
+        with st.expander(f"ℹ️ {heading}", expanded=True):
+            st.markdown(output["epu_block_text"])
+            if output.get("epu_block_disclaimer"):
+                st.caption(output["epu_block_disclaimer"])
+
     # ── Panel testowy (ukryty za hasłem) ──────────────────────────────────
     st.divider()
     with st.expander("🔧 Panel techniczny (dla testera / administratora)"):
         pwd = st.text_input("Hasło dostępu", type="password", key="test_pwd")
-        if pwd == st.secrets.get("TEST_PANEL_PASSWORD", "krs-test-2024"):
+        try:
+            panel_pwd = st.secrets.get("TEST_PANEL_PASSWORD", "krs-test-2024")
+        except Exception:
+            panel_pwd = "krs-test-2024"
+        if pwd == panel_pwd:
             st.success("Dostęp przyznany")
 
             st.subheader("Punktacja")
@@ -294,6 +327,7 @@ if submitted:
                 ("K5", context.k5_text), ("K6", context.k6_text),
                 ("Termin", context.deadline_text), ("KRS", context.krs_note),
                 ("ZUS", context.zus_note), ("Pilność", context.urgency_note),
+                ("EPU sprzeciw", context.epu_text), ("Kwota", context.quantity_note),
             ]:
                 if txt:
                     st.write(f"**{lbl}:** {txt}")

@@ -5,8 +5,13 @@ import pandas as pd
 from data_loader import (
     load_k3k6_modules,
     load_deadline_rules,
+    load_urgency_rules,
     load_krs_rules,
+    load_epu_sprzeciw_rules,
+    load_epu_block,
     load_zus_rules,
+    load_quantity_rules,
+    load_unknown_doc_rules,
 )
 
 # Typy dokumentów ZUS/organ
@@ -43,6 +48,12 @@ class ContextOutput:
     krs_note: str = ""
     zus_note: str = ""
     urgency_note: str = ""
+    epu_text: str = ""
+    epu_block_heading: str = ""
+    epu_block_text: str = ""
+    epu_block_disclaimer: str = ""
+    quantity_note: str = ""
+    unknown_doc_note: str = ""
     extra_warnings: list[str] = field(default_factory=list)
 
 
@@ -134,17 +145,108 @@ def _krs_note(k4_code: str, k5_code: str) -> str:
     return str(val).strip() if val and str(val) != "nan" else ""
 
 
+def _urgency_note_from_csv(doc_type: str, risk_code: str) -> str:
+    """Zwraca notę pilności z CSV 25 zależnie od typu dokumentu i poziomu ryzyka."""
+    df = load_urgency_rules()
+    col = "tekst dla oceny klienta"
+    is_czlonek_pozew_nakaz = (
+        "CZLONEK_ZARZADU" in doc_type
+        and ("POZEW" in doc_type or "NAKAZ" in doc_type)
+    )
+    if col in df.columns and is_czlonek_pozew_nakaz:
+        for _, row in df.iterrows():
+            warunek = str(row.get("warunek", "")).strip()
+            tekst = str(row.get(col, "")).strip()
+            if not tekst or tekst == "nan":
+                continue
+            if "Sprawa pilna" in warunek and risk_code == "RISK_URGENT":
+                return tekst
+            if "Wysokie ryzyko" in warunek and risk_code == "RISK_HIGH":
+                return tekst
+    if doc_type in _CZLONEK_ZARZADU_DOC_TYPES:
+        return (
+            "Dokument dotyczy bezpośrednio członka zarządu. "
+            "Brak właściwej reakcji może mieć znaczenie dla osobistej odpowiedzialności majątkowej."
+        )
+    return ""
+
+
+def _epu_sprzeciw_text(k2_code: str) -> str:
+    """Zwraca tekst dotyczący sprzeciwu EPU z CSV 28 zależnie od pozostałego czasu."""
+    df = load_epu_sprzeciw_rules()
+    if df.empty:
+        return ""
+    col = "tekst_dla_uzytkownika"
+    if col not in df.columns:
+        return ""
+    k2_to_idx = {
+        "K2_DAYS_LEFT_0_3":      0,
+        "K2_DAYS_LEFT_4_7":      0,
+        "K2_DAYS_LEFT_8_14":     1,
+        "K2_DAYS_LEFT_ABOVE_14": 2,
+        "K2_DAYS_LEFT_UNKNOWN":  None,  # nieznany termin → brak tekstu sprzeciwu EPU
+    }
+    idx = k2_to_idx.get(k2_code)
+    if idx is None:
+        return ""
+    if idx >= len(df):
+        idx = len(df) - 1
+    val = df.iloc[idx].get(col, "")
+    return str(val).strip() if val and str(val) != "nan" else ""
+
+
+def _quantity_note(k7_code: str) -> str:
+    """Zwraca tekst kontekstowy dla kwoty roszczenia z CSV 36."""
+    df = load_quantity_rules()
+    if df.empty:
+        return ""
+    col = "tekst_dla_klienta"
+    if col not in df.columns:
+        return ""
+    hits = df[df["amount_code"] == k7_code]
+    if hits.empty:
+        return ""
+    val = hits.iloc[0].get(col, "")
+    return str(val).strip() if val and str(val) != "nan" else ""
+
+
+def _load_epu_block() -> tuple[str, str, str]:
+    """Zwraca (nagłówek, tekst, zastrzeżenie) z CSV 13 (Blok_EPU)."""
+    df = load_epu_block()
+    if df.empty:
+        return "", "", ""
+
+    def _cell(field_name: str) -> str:
+        hits = df[df["pole"] == field_name]
+        if hits.empty:
+            return ""
+        val = hits.iloc[0].get("tresc", "")
+        return str(val).strip() if val and str(val) != "nan" else ""
+
+    return _cell("naglowek"), _cell("tekst"), _cell("zastrzezenie")
+
+
 def _zus_note(doc_type: str) -> str:
-    """Dodaje komunikat dla ścieżki ZUS/organ."""
+    """Dodaje komunikat dla ścieżki ZUS/organ — czyta z CSV 40, kolumna 'tekst / znaczenie'."""
     if doc_type not in _ZUS_DOC_TYPES:
         return ""
     df = load_zus_rules()
-    if df.empty:
-        return ""
-    # Pierwsza reguła jako generyczny komunikat
-    for col in ["tekst_dla_klienta", "komunikat_dla_uzytkownika", "zasada_tekstu"]:
-        if col in df.columns:
-            val = df.iloc[0].get(col, "")
+    if df.empty or "obszar" not in df.columns:
+        return (
+            "Pismo organu publicznego dotyczące odpowiedzialności członka zarządu "
+            "wymaga złożenia wyjaśnień i przedstawienia dowodów — nie sprzeciwu "
+            "ani odpowiedzi na pozew."
+        )
+    col = "tekst / znaczenie"
+    hits = df[df["obszar"] == "Priorytet"]
+    if not hits.empty and col in df.columns:
+        val = hits.iloc[0].get(col, "")
+        if val and str(val) != "nan":
+            return str(val).strip()
+    # fallback: pierwsze niepuste pole 'tekst / znaczenie' w całym CSV
+    if col in df.columns:
+        for _, row in df.iterrows():
+            val = row.get(col, "")
             if val and str(val) != "nan":
                 return str(val).strip()
     return (
@@ -154,10 +256,27 @@ def _zus_note(doc_type: str) -> str:
     )
 
 
+def _unknown_doc_note(doc_type: str) -> str:
+    """Zwraca wskazówkę priorytetu dla dokumentu nieustalonego (CSV 38)."""
+    if doc_type != "DOKUMENT_NIEUSTALONY_PRAWNY":
+        return ""
+    df = load_unknown_doc_rules()
+    if df.empty or "obszar" not in df.columns:
+        return ""
+    col = "zasada / treść"
+    hits = df[df["obszar"] == "Priorytet"]
+    if not hits.empty and col in df.columns:
+        val = hits.iloc[0].get(col, "")
+        if val and str(val) != "nan":
+            return str(val).strip()
+    return ""
+
+
 def collect(
     state: dict,
     doc_type: str,
     days_exact: int | None = None,
+    risk_code: str = "",
 ) -> ContextOutput:
     """
     Zbiera wszystkie moduły kontekstowe dla danego stanu formularza.
@@ -170,6 +289,8 @@ def collect(
         main_document_type_code (np. EPU_NAKAZ_CZLONEK_ZARZADU).
     days_exact : int | None
         Dokładna liczba dni pozostałych na reakcję (jeśli wyliczona z dat).
+    risk_code : str
+        Końcowy kod ryzyka (po twardych regułach) – potrzebny dla CSV 25.
     """
     modules_df = load_k3k6_modules()
     out = ContextOutput()
@@ -188,11 +309,17 @@ def collect(
         out.krs_note = _krs_note(k4, k5)
 
     out.zus_note = _zus_note(doc_type)
+    out.urgency_note = _urgency_note_from_csv(doc_type, risk_code)
 
-    if doc_type in _CZLONEK_ZARZADU_DOC_TYPES:
-        out.urgency_note = (
-            "Dokument dotyczy bezpośrednio członka zarządu. "
-            "Brak właściwej reakcji może mieć znaczenie dla osobistej odpowiedzialności majątkowej."
-        )
+    if state.get("EPU"):
+        out.epu_block_heading, out.epu_block_text, out.epu_block_disclaimer = _load_epu_block()
+        if "NAKAZ" in doc_type:
+            out.epu_text = _epu_sprzeciw_text(k2_code)
+
+    k7_code = state.get("K7", "")
+    if k7_code:
+        out.quantity_note = _quantity_note(k7_code)
+
+    out.unknown_doc_note = _unknown_doc_note(doc_type)
 
     return out
