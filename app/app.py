@@ -81,6 +81,13 @@ def labeled_radio(label: str, step_id: str, key: str) -> str | None:
     return codes[idx] if idx is not None else None
 
 
+def reset_calculator():
+    for key in ["krs_answers", "krs_epu", "krs_days_exact",
+                "k1", "epu", "use_dates", "k2", "k3", "k4", "k5", "k6", "k7",
+                "delivery_date", "deadline_days", "test_pwd"]:
+        st.session_state.pop(key, None)
+
+
 def colored_risk_box(risk_code: str, risk_label: str):
     color = RISK_COLORS.get(risk_code, "#1a3a5c")
     icon = RISK_ICONS.get(risk_code, "⚖️")
@@ -279,6 +286,14 @@ if "krs_answers" in st.session_state:
             st.markdown(output["epu_block_text"])
             if output.get("epu_block_disclaimer"):
                 st.caption(output["epu_block_disclaimer"])
+
+    # ── Reset ─────────────────────────────────────────────────────────────
+    st.divider()
+    st.button(
+        "🔄 Wyczyść kalkulator i wprowadź nowe dane",
+        on_click=reset_calculator,
+        use_container_width=True,
+    )
 
     # ── Panel testowy (ukryty za hasłem) ──────────────────────────────────
     st.divider()
