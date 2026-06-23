@@ -44,6 +44,11 @@ _K4_PELNOMOCNIK_RE = re.compile(
     r"Kluczowe jest ustalenie,?\s+czy\s+sp[oó][łl]ka\s+ma\s+pe[łl]nomocnika"
     r"\s+procesowego\s+i\s+czy\s+planuje\s+z[łl]o[żź]y[ćc]\s+sprzeciw\.?"
 )
+# Wariant dla wezwania sądowego ("zareagować na wezwanie" zamiast "złożyć sprzeciw")
+_K4_PELNOMOCNIK_WEZWANIE_RE = re.compile(
+    r"Kluczowe jest ustalenie,?\s+czy\s+sp[oó][łl]ka\s+ma\s+pe[łl]nomocnika"
+    r"\s+procesowego\s+i\s+czy\s+planuje\s+zareagowa[ćc]\s+na\s+wezwanie\.?"
+)
 _K4_PHRASES_RESIGNED = [
     r"[Ww]skazano rezygnację lub odwołanie\s+oraz aktualny wpis w KRS\.?",
     r"[Dd]odatkowo wskazano rezygnację lub odwołanie.*?KRS\.?",
@@ -98,6 +103,11 @@ def _clean(text: str, k4_code: str = "") -> str:
         text = _K4_PELNOMOCNIK_RE.sub(
             "Jako członek zarządu masz wpływ na decyzję spółki o złożeniu sprzeciwu albo zarzutów "
             "— warto natychmiast sprawdzić termin doręczenia i podjąć odpowiednie działania procesowe.",
+            text,
+        )
+        text = _K4_PELNOMOCNIK_WEZWANIE_RE.sub(
+            "Jako członek zarządu masz wpływ na decyzję spółki o reakcji na wezwanie sądowe "
+            "— warto natychmiast ustalić czego wymaga sąd i podjąć odpowiednie działania procesowe.",
             text,
         )
     # Zastąp pozostałe "Użytkownik" formami bezosobowymi
@@ -250,15 +260,15 @@ def build(
     full_text = "\n\n".join(s for s in sections if s)
     full_text = _clean(full_text, k4_code)
     if "Audyt 48h" not in full_text:
-        full_text += "\n\n" + cta
+        full_text += "\n\n" + _clean(cta, k4_code)
 
     return {
         "risk_label": risk_label,
         "lead": lead,
         "practical": _clean(base_prac, k4_code),
-        "warnings": [_clean(w) for w in hard_rule_result.warnings],
+        "warnings": [_clean(w, k4_code) for w in hard_rule_result.warnings],
         "next_steps": _clean(next_step_base),
-        "cta": cta,
+        "cta": _clean(cta, k4_code),
         "disclaimer": _LEGAL_DISCLAIMER,
         "full_text": full_text,
         "epu_block_heading": context.epu_block_heading,
