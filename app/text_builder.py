@@ -160,10 +160,13 @@ def build(
     # 1. Spersonalizowany nagłówek z konkretnych wyborów formularza
     lead = _lead_paragraph(lbl, days_exact, k4_code)
 
-    # 2. Kontekst praktyczny z CSV 12 (najkonkretniejsza sekcja scenariusza)
+    # 2. Wyjaśnienie poziomu ryzyka z CSV 12
+    risk_explanation = str(scenario.get("user_risk_explanation_base", "") or "").strip()
+
+    # 3. Kontekst praktyczny z CSV 12 (najkonkretniejsza sekcja scenariusza)
     base_prac = str(scenario.get("user_practical_meaning_base", "") or "").strip()
 
-    # 3. Kluczowy kontekst — jeden najważniejszy (priorytet: ZUS > KRS > pilność > nieznany dok.)
+    # 4. Kluczowy kontekst — jeden najważniejszy (priorytet: ZUS > KRS > pilność > nieznany dok.)
     key_context = (
         context.zus_note
         or context.krs_note
@@ -172,19 +175,19 @@ def build(
         or ""
     )
 
-    # 4. EPU sprzeciw — tylko przy krótkim lub nieznanym terminie
+    # 5. EPU sprzeciw — tylko przy krótkim lub nieznanym terminie
     epu_note = ""
     if context.epu_text and (days_exact is None or days_exact <= 14):
         epu_note = context.epu_text
 
-    # 5. Kwota — tylko gdy konkretna (nie "nie wiem")
+    # 6. Kwota — tylko gdy konkretna (nie "nie wiem")
     qty_note = ""
     if context.quantity_note and not any(
         x in context.quantity_note.lower() for x in ("nie wskazano", "nie wiem")
     ):
         qty_note = context.quantity_note
 
-    # 6. Następny krok z CSV 12
+    # 7. Następny krok z CSV 12
     next_step_base = str(scenario.get("user_next_step_base", "") or "").strip()
 
     # --- Składanie sekcji (max 8) ---
@@ -192,6 +195,9 @@ def build(
 
     if lead:
         sections.append(lead)
+
+    if _nonblank(risk_explanation):
+        sections.append(risk_explanation)
 
     if _nonblank(base_prac):
         sections.append(base_prac)
