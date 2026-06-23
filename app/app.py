@@ -122,10 +122,23 @@ epu_compat = EPU_COMPATIBLE.get(k1, "NIE")
 epu_disabled = (epu_compat == "NIE")
 
 if epu_disabled:
-    st.info(
-        "Ten typ dokumentu nie jest zgodny z Elektronicznym Postępowaniem "
-        "Upominawczym (EPU/e-Sądem)."
-    )
+    if k1 in ("K1_POZEW_SPOLKA", "K1_POZEW_CZLONEK_ZARZADU"):
+        st.info(
+            "Pozew pochodzi z sądu tradycyjnego — nie jest wydawany "
+            "przez e-Sąd ani Elektroniczne Postępowanie Upominawcze (EPU). "
+            "To pytanie Cię nie dotyczy."
+        )
+    elif k1 in ("K1_WEZWANIE_SADOWE_SPOLKA", "K1_WEZWANIE_SADOWE_CZLONEK_ZARZADU"):
+        st.info(
+            "Wezwania sądowe są doręczane przez sąd tradycyjny — "
+            "nie dotyczą e-Sądu ani EPU. To pytanie Cię nie dotyczy."
+        )
+    else:
+        st.info(
+            "Ten typ dokumentu nie jest wydawany przez e-Sąd "
+            "ani Elektroniczne Postępowanie Upominawcze (EPU). "
+            "To pytanie Cię nie dotyczy."
+        )
     epu = False
 else:
     if epu_compat == "OSTROZNE":
