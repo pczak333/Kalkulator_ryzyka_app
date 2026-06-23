@@ -35,6 +35,8 @@ _K4_BOARD_DOCS_RE = re.compile(
     r"\s*oraz dokumenty dotycz[aą]ce pe[łl]nienia funkcji w zarz[aą]dzie"
     r" i aktualno[śs]ci wpisu w KRS\.?"
 )
+# "byłego członka zarządu" → "członka zarządu" gdy K4=BOARD_ACTIVE
+_K4_BYLEGO_RE = re.compile(r"by[łl]ego\s+cz[łl]onka\s+zarz[aą]du")
 _K4_PHRASES_RESIGNED = [
     r"[Ww]skazano rezygnację lub odwołanie\s+oraz aktualny wpis w KRS\.?",
     r"[Dd]odatkowo wskazano rezygnację lub odwołanie.*?KRS\.?",
@@ -84,6 +86,7 @@ def _clean(text: str, k4_code: str = "") -> str:
     elif k4_code == "K4_BOARD_ACTIVE":
         text = _K4_RESIGNED_RE.sub("", text)
         text = _K4_BOARD_DOCS_RE.sub(".", text)
+        text = _K4_BYLEGO_RE.sub("członka zarządu", text)
     # Zastąp pozostałe "Użytkownik" formami bezosobowymi
     for pattern, replacement in _UZYTKOWNIK_SUBS:
         text = pattern.sub(replacement, text)
