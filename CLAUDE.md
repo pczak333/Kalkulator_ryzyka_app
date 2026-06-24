@@ -8,6 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The application is built and running. The stack is **Python + Streamlit**. Source code lives in `app/`.
 
+## Branch strategy
+
+| Branch | Purpose |
+|---|---|
+| `main` | Production — Etap 1 (manual form). Deployed on share.streamlit.io for testers. Do NOT push Stage 2 code here until Stage 2 is fully tested. |
+| `etap2` | Development — Stage 2 (document upload + OCR). Active development branch. |
+
+Tag `v1.0-etap1` marks the stable Stage 1 checkpoint.
+
 ## Application structure
 
 ```
@@ -15,18 +24,34 @@ app/
 ├── app.py               # Streamlit entry point — UI, form flow, result display
 ├── data_loader.py       # Reads CSV files from dane_wejściowe/csv/
 ├── scoring_engine.py    # Computes S = C+P+H+W, maps score to risk level
-├── hard_rules.py        # Applies hard safety rules (5B_Twarde_reguly) that override score
+├── hard_rules.py        # Applies hard safety rules (5B_Twarde_reguly) that override score; HR10 active in etap2
 ├── scenario_selector.py # Selects base scenario from 6_Biblioteka_scenariuszy
 ├── context_modules.py   # Collects contextual text snippets (6D–6U sheets)
 ├── text_builder.py      # Assembles final output text; sanitize_check() verifies no codes leak
-├── requirements.txt     # streamlit>=1.32.0, pandas>=2.0.0
+│
+│   ── Etap 2: document processing modules ──
+├── doc_ingestion.py     # Reads uploaded file (PDF/DOCX/JPG/PNG) → list of PageDict per page
+├── doc_ocr.py           # OCR for scans via Claude Vision API (claude-haiku-4-5-20251001)
+├── doc_extractor.py     # Regex extraction: EPU signals, delivery date, deadline, amount, addressee
+├── doc_classifier.py    # Classifies document type using keywords from CSV 07
+├── doc_selector.py      # Scores candidates (CSV 02) + tie-breaking (CSV 04) → main document
+├── doc_processor.py     # Orchestrator: returns ProcessedDocument dataclass
+│
+├── requirements.txt     # All dependencies including pdfplumber, python-docx, Pillow, anthropic
 └── .streamlit/
-    └── config.toml      # Streamlit theme/config
+    ├── config.toml      # Streamlit theme/config
+    └── secrets.toml     # LOCAL ONLY (in .gitignore): TEST_PANEL_PASSWORD, ANTHROPIC_API_KEY
 ```
 
 **To run locally:**
 ```bash
 streamlit run app/app.py
+```
+
+**Secrets required** (`app/.streamlit/secrets.toml`, never commit this file):
+```toml
+TEST_PANEL_PASSWORD = "krs-test-2024"
+ANTHROPIC_API_KEY = "sk-ant-..."
 ```
 
 The technical panel (scores, raw answers, triggered rules, sanitization check) is hidden behind a password. Default: `krs-test-2024`, overridable via `st.secrets["TEST_PANEL_PASSWORD"]`.
@@ -100,10 +125,12 @@ After every meaningful change — new file, updated spec, working feature, confi
 ```bash
 git add <specific files>
 git commit -m "short description of what changed and why"
-git push origin main
+git push origin etap2   # use etap2 during Stage 2 development; main is for production only
 ```
 
 Use clear, descriptive commit messages in English or Polish (match the language of the changed content). Never bundle unrelated changes into one commit.
+
+**Important:** All Stage 2 development goes to `etap2` branch. Merge to `main` only when Stage 2 is fully tested.
 
 ## Communication rules (non-negotiable)
 
