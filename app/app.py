@@ -260,6 +260,7 @@ else:
         "Dokument pochodzi z EPU / e-Sądu "
         "(sygnatura Nc-e lub Sąd Rejonowy Lublin-Zachód w Lublinie)",
         key="epu",
+        value=prefill.epu if prefill else False,
     )
     with st.expander("Jak rozpoznać dokument z EPU / e-Sądu?"):
         st.markdown(

@@ -74,9 +74,9 @@ def score_candidate(doc: dict) -> int:
     if "art. 299" in doc.get("raw_text", "") or "art.299" in doc.get("raw_text", ""):
         total += 35
 
-    # Sygnatura Nc-e / Lublin-Zachód (R28) - już w klasyfikacji EPU
+    # Sygnatura Nc-e / Lublin-Zachód (R28) — +25 pkt per CSV 02
     if doc.get("epu"):
-        total += 10
+        total += 25
 
     return total
 

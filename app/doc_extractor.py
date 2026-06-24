@@ -11,7 +11,6 @@ _EPU_PATTERNS = [
     r"\bEPU\b",
     r"Elektroniczne\s+Post[eę]powanie\s+Upominawcze",
     r"S[aą]d\s+Rejonowy\s+Lublin.Zach[oó]d",
-    r"VI\s+Wydzia[łl]\s+Cywilny",
 ]
 
 # ── Adresat ───────────────────────────────────────────────────────────────────
@@ -161,20 +160,21 @@ def extract_fields(text: str) -> dict:
             except (ValueError, IndexError):
                 continue
 
-    # Kwota
-    best_amount: float | None = None
-    best_raw: str | None = None
-    for pattern in _KWOTA_PATTERNS:
-        for m in re.finditer(pattern, text, re.IGNORECASE):
+    # Kwota — najpierw wzorce najbardziej specyficzne (od końca listy)
+    found_amount: float | None = None
+    found_raw: str | None = None
+    for pattern in reversed(_KWOTA_PATTERNS):
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
             raw = m.group(1)
             val = _parse_amount(raw)
             if val and val > 0:
-                if best_amount is None or val > best_amount:
-                    best_amount = val
-                    best_raw = raw
-    if best_amount is not None:
-        result["amount"] = best_amount
-        result["amount_raw"] = best_raw
-        result["k7_code"] = _amount_to_k7(best_amount)
+                found_amount = val
+                found_raw = raw
+                break
+    if found_amount is not None:
+        result["amount"] = found_amount
+        result["amount_raw"] = found_raw
+        result["k7_code"] = _amount_to_k7(found_amount)
 
     return result

@@ -120,26 +120,10 @@ def _process_single_doc(
 
 
 def _segment_pages(pages: list[PageDict], api_key: str | None) -> list[dict]:
-    """
-    Dzieli strony na logiczne dokumenty.
-    Prosta heurystyka: każda strona klasyfikowana osobno, sąsiednie o tym samym typie grupowane.
-    """
+    """Traktuje cały plik jako jeden logiczny dokument."""
     if not pages:
         return []
-
-    # Dla uproszczenia: 1-3 strony → jeden dokument; dłuższe pliki → po 3 strony
-    # Właściwa segmentacja wymaga szybkiej wstępnej klasyfikacji per strona
-    if len(pages) <= 3:
-        return [_process_single_doc(pages, api_key)]
-
-    # Podziel na grupy po 3 strony i sprawdź czy są różne typy
-    candidates = []
-    chunk_size = 3
-    for i in range(0, len(pages), chunk_size):
-        chunk = pages[i:i + chunk_size]
-        candidates.append(_process_single_doc(chunk, api_key))
-
-    return candidates
+    return [_process_single_doc(pages, api_key)]
 
 
 def process_files(
