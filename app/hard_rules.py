@@ -134,10 +134,6 @@ _RULE_DEFS = [
 ]
 
 
-# HR10 (CSV 11): OCR_JAKOSC = NISKA AND (ADRESAT_NIEUSTALONY = TAK OR TERMIN_NIEUSTALONY = TAK)
-# Wymaga modułu OCR – pominięta w MVP. CSV 11 status: NIE — etap OCR.
-
-
 def apply(state: dict, current_risk_code: str) -> tuple[str, HardRuleResult]:
     """
     Stosuje twarde reguły i zwraca (nowy_kod_ryzyka, HardRuleResult).
@@ -163,6 +159,14 @@ def apply(state: dict, current_risk_code: str) -> tuple[str, HardRuleResult]:
             result.warnings.append(rule["warning"])
             if rule["min_risk"]:
                 final_risk = elevate_risk(final_risk, rule["min_risk"])
+
+    # HR10 — niska jakość OCR (aktywna od etapu 2)
+    if state.get("OCR_QUALITY") == "LOW":
+        result.triggered.append("HR10")
+        result.warnings.append(
+            "Jakość odczytu dokumentu jest niepewna. "
+            "Dane powinny zostać zweryfikowane ręcznie przed wyciągnięciem wniosków."
+        )
 
     result.minimum_risk_code = final_risk
     return final_risk, result

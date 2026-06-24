@@ -12,6 +12,7 @@ from hard_rules import apply as apply_hard_rules
 from scenario_selector import find_scenario, resolve_doc_type
 from context_modules import collect as collect_context
 from text_builder import build as build_text, sanitize_check
+from doc_processor import process_files, ProcessedDocument
 
 # ── Konfiguracja strony ────────────────────────────────────────────────────────
 st.set_page_config(
@@ -71,21 +72,93 @@ def get_label_for_code(step_id: str, code: str) -> str:
     return ""
 
 
-def labeled_radio(label: str, step_id: str, key: str) -> str | None:
+def labeled_radio(
+    label: str, step_id: str, key: str, prefill_code: str | None = None
+) -> str | None:
     options = get_answers_for_step(step_id)
     if not options:
         return None
     labels = [o[0] for o in options]
     codes = [o[1] for o in options]
-    idx = st.radio(label, range(len(labels)), format_func=lambda i: labels[i], key=key, index=None)
+    # Ustaw indeks na podstawie prefill (jeśli kod pasuje do opcji)
+    default_idx = None
+    if prefill_code and prefill_code in codes:
+        default_idx = codes.index(prefill_code)
+    idx = st.radio(
+        label, range(len(labels)),
+        format_func=lambda i: labels[i],
+        key=key,
+        index=default_idx,
+    )
     return codes[idx] if idx is not None else None
 
 
 def reset_calculator():
     for key in ["krs_answers", "krs_epu", "krs_days_exact",
                 "k1", "epu", "use_dates", "k2", "k3", "k4", "k5", "k6", "k7",
-                "delivery_date", "deadline_days", "test_pwd"]:
+                "delivery_date", "deadline_days", "test_pwd",
+                "doc_prefill", "doc_aux"]:
         st.session_state.pop(key, None)
+
+
+def _confidence_indicator(label: str, confidence: float, value: str):
+    """Wyświetla pole z wykrytą wartością i wskaźnikiem pewności."""
+    if confidence >= 0.75:
+        st.success(f"**{label}:** {value} ✓ _(wykryto automatycznie)_")
+    elif confidence >= 0.5:
+        st.warning(f"**{label}:** {value} _(sprawdź — nie jestem pewny)_")
+    else:
+        st.error(f"**{label}:** {value} _(niska pewność — uzupełnij ręcznie)_")
+
+
+def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
+    """Pokazuje podsumowanie analizy dokumentów po wgraniu."""
+    st.markdown("### Wyniki analizy dokumentu")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        _confidence_indicator(
+            "Typ dokumentu", main.classifier_confidence,
+            main.doc_type_code.replace("_", " ").title()
+        )
+        if main.epu:
+            st.info("EPU / e-Sąd: wykryto oznaczenia e-Sądu")
+        if main.delivery_date:
+            _confidence_indicator(
+                "Data doręczenia", 0.8,
+                main.delivery_date.strftime("%d.%m.%Y")
+            )
+        if main.deadline_days:
+            _confidence_indicator(
+                "Termin z pouczenia", 0.8,
+                f"{main.deadline_days} dni"
+            )
+    with col2:
+        if main.amount:
+            _confidence_indicator(
+                "Kwota roszczenia", 0.85,
+                f"{main.amount:,.0f} zł".replace(",", " ")
+            )
+        if main.days_left is not None:
+            days = main.days_left
+            if days <= 3:
+                st.error(f"Pozostało **{days} dni** do terminu!")
+            elif days <= 7:
+                st.warning(f"Pozostało **{days} dni** do terminu")
+            else:
+                st.info(f"Pozostało **{days} dni** do terminu")
+
+    if aux:
+        with st.expander(f"Wykryto {len(aux)} dodatkowych dokumentów w pliku"):
+            for i, doc in enumerate(aux, 1):
+                st.markdown(
+                    f"**Dokument {i}:** {doc.doc_type_code.replace('_', ' ').title()} "
+                    f"— status: _{doc.status}_"
+                )
+
+    st.markdown(
+        "_Sprawdź wykryte dane i popraw w formularzu poniżej jeśli coś jest nie tak._"
+    )
 
 
 def colored_risk_box(risk_code: str, risk_label: str):
@@ -107,13 +180,50 @@ st.markdown(
 )
 st.divider()
 
+# ── Krok 0: Wgraj dokumenty (opcjonalnie) ────────────────────────────────────
+st.subheader("Krok 0 — Wgraj dokumenty (opcjonalnie)")
+st.caption(
+    "Wgraj pismo, nakaz lub inny dokument — kalkulator spróbuje wypełnić "
+    "formularz automatycznie. Możesz też pominąć ten krok i wypełnić ręcznie."
+)
+
+with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
+    uploaded_files = st.file_uploader(
+        "Wybierz plik lub pliki",
+        type=["pdf", "docx", "jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        key="doc_upload",
+    )
+    if uploaded_files:
+        if st.button("Analizuj dokumenty", type="primary"):
+            api_key = st.secrets.get("ANTHROPIC_API_KEY", None)
+            with st.spinner("Analizuję dokumenty..."):
+                try:
+                    main_doc, aux_docs = process_files(uploaded_files, api_key)
+                    st.session_state["doc_prefill"] = main_doc
+                    st.session_state["doc_aux"] = aux_docs
+                    st.success("Analiza zakończona — dane zostały wstępnie wypełnione poniżej.")
+                except Exception as e:
+                    st.error(f"Błąd analizy dokumentu: {e}")
+
+if "doc_prefill" in st.session_state:
+    prefill: ProcessedDocument = st.session_state["doc_prefill"]
+    aux_docs: list[ProcessedDocument] = st.session_state.get("doc_aux", [])
+    _show_doc_summary(prefill, aux_docs)
+    st.divider()
+else:
+    prefill = None
+
+st.divider()
+
 # ── Formularz ─────────────────────────────────────────────────────────────────
 
 # K1 – Rodzaj pisma
 st.subheader("Krok 1 — Rodzaj pisma")
 k1 = labeled_radio(
     "Jakie pismo lub dokument dotyczy Twojej sprawy?",
-    "K1", "k1"
+    "K1", "k1",
+    prefill_code=prefill.k1_code if prefill else None,
 )
 
 # EPU – checkbox zależny od K1
@@ -164,8 +274,12 @@ else:
 
 # K2 – Czas na reakcję
 st.subheader("Krok 3 — Czas na reakcję")
+# Jeśli prefill znalazł datę i termin — automatycznie zaznacz checkbox
+_prefill_has_dates = prefill and prefill.delivery_date and prefill.deadline_days
 use_dates = st.checkbox(
-    "Znam datę doręczenia — oblicz za mnie ile zostało dni", key="use_dates"
+    "Znam datę doręczenia — oblicz za mnie ile zostało dni",
+    key="use_dates",
+    value=bool(_prefill_has_dates),
 )
 
 days_exact: int | None = None
@@ -175,12 +289,15 @@ if use_dates:
     col1, col2 = st.columns(2)
     with col1:
         delivery_date = st.date_input(
-            "Data doręczenia dokumentu", value=date.today(), key="delivery_date"
+            "Data doręczenia dokumentu",
+            value=prefill.delivery_date if _prefill_has_dates else date.today(),
+            key="delivery_date",
         )
     with col2:
         deadline_days = st.number_input(
             "Termin z pouczenia (dni)", min_value=1, max_value=365,
-            value=14, key="deadline_days"
+            value=int(prefill.deadline_days) if _prefill_has_dates else 14,
+            key="deadline_days",
         )
     deadline_date = delivery_date + timedelta(days=int(deadline_days))
     days_exact = (deadline_date - date.today()).days
@@ -235,7 +352,8 @@ k6 = labeled_radio("Czego przede wszystkim potrzebujesz?", "K6", "k6")
 # K7 – Kwota roszczenia
 st.subheader("Krok 7 — Kwota roszczenia")
 k7 = labeled_radio(
-    "Jaka kwota roszczenia jest wskazana w dokumencie?", "K7", "k7"
+    "Jaka kwota roszczenia jest wskazana w dokumencie?", "K7", "k7",
+    prefill_code=prefill.k7_code if prefill else None,
 )
 
 st.divider()
@@ -259,10 +377,14 @@ if st.button("Oblicz ryzyko →", use_container_width=True, type="primary"):
     if missing_labels:
         st.warning("Zaznacz brakujące opcje w: " + ", ".join(missing_labels))
     else:
+        _ocr_quality = (
+            prefill.ocr_quality if prefill else "HIGH"
+        )
         st.session_state["krs_answers"] = {
             "K1": k1 or "", "K2": k2 or "", "K3": k3 or "",
             "K4": k4 or "", "K5": k5 or "", "K6": k6 or "", "K7": k7 or "",
             "K2A": "K2A_DELIVERY_DATE_KNOWN" if use_dates else "K2A_DELIVERY_DATE_UNKNOWN",
+            "OCR_QUALITY": _ocr_quality,
         }
         st.session_state["krs_epu"] = epu
         st.session_state["krs_days_exact"] = days_exact
