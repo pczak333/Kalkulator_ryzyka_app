@@ -243,6 +243,7 @@ if st.button("Oblicz ryzyko →", use_container_width=True, type="primary"):
     st.session_state["krs_answers"] = {
         "K1": k1 or "", "K2": k2 or "", "K3": k3 or "",
         "K4": k4 or "", "K5": k5 or "", "K6": k6 or "", "K7": k7 or "",
+        "K2A": "K2A_DELIVERY_DATE_KNOWN" if use_dates else "K2A_DELIVERY_DATE_UNKNOWN",
     }
     st.session_state["krs_epu"] = epu
     st.session_state["krs_days_exact"] = days_exact

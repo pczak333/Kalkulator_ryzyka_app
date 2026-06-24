@@ -325,7 +325,7 @@ def build(
         "lead": lead,
         "practical": _clean(base_prac, k4_code),
         "warnings": [_clean(w, k4_code) for w in hard_rule_result.warnings],
-        "next_steps": _clean(next_step_base),
+        "next_steps": _clean(next_step_base, k4_code),
         "cta": _clean(cta, k4_code),
         "disclaimer": _LEGAL_DISCLAIMER,
         "full_text": full_text,
