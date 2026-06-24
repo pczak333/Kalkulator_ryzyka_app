@@ -78,10 +78,18 @@ _CTA_COMPANY = (
     "**Audyt 48h** to pisemna opinia prawna sporządzona przez radcę prawnego — "
     "nie automatyczna ocena, ale dokument, na którym możesz oprzeć swoją decyzję."
 )
+_CTA_UNKNOWN = (
+    "**Audyt 48h** w tym wariancie służy przede wszystkim ustaleniu, z jakim pismem "
+    "masz do czynienia, sprawdzeniu terminów i ocenie, jaką formę reakcji należy rozważyć. "
+    "To pisemna opinia prawna sporządzona przez radcę prawnego — "
+    "nie automatyczna ocena, ale dokument, na którym możesz oprzeć swoją decyzję."
+)
 
 
 def _cta_for_doc_type(doc_type: str) -> str:
     """Wybiera CTA zależnie od tego, czy dokument jest już skierowany do członka zarządu."""
+    if doc_type == "DOKUMENT_NIEUSTALONY_PRAWNY":
+        return _CTA_UNKNOWN
     if "CZLONEK_ZARZADU" in doc_type:
         return _CTA_PERSONAL
     return _CTA_COMPANY
@@ -135,7 +143,7 @@ def _as_sentence(text: str) -> str:
     return text
 
 
-def _lead_paragraph(labels: dict, days_exact: int | None, k4_code: str = "") -> str:
+def _lead_paragraph(labels: dict, days_exact: int | None, k4_code: str = "", doc_type: str = "") -> str:
     """Generuje spersonalizowany nagłówek z konkretnych wyborów formularza."""
     parts = []
     k1_label = labels.get("K1", "")
@@ -143,7 +151,22 @@ def _lead_paragraph(labels: dict, days_exact: int | None, k4_code: str = "") -> 
     k4_label = labels.get("K4", "")
     k5_label = labels.get("K5", "")
 
-    if k1_label:
+    if doc_type == "DOKUMENT_NIEUSTALONY_PRAWNY":
+        if days_exact is not None and days_exact < 0:
+            parts.append(
+                "Termin na reakcję mógł już **upłynąć** — "
+                "konieczne jest pilne ustalenie, z jakim dokumentem masz do czynienia."
+            )
+        elif days_exact is not None:
+            day_word = "dzień" if days_exact == 1 else "dni"
+            cal = " Termin wlicza soboty, niedziele i święta." if days_exact <= 14 else ""
+            parts.append(
+                f"Rodzaj pisma nie został jednoznacznie ustalony. "
+                f"Szacowany czas na reakcję: **{days_exact} {day_word}** kalendarzowych.{cal}"
+            )
+        else:
+            parts.append("Rodzaj pisma nie został jednoznacznie ustalony.")
+    elif k1_label:
         if days_exact is not None and days_exact < 0:
             parts.append(
                 f"Termin na reakcję na **{k1_label.lower()}** mógł już **upłynąć** — "
@@ -184,7 +207,7 @@ def build(
     cta = _cta_for_doc_type(doc_type)
 
     # 1. Spersonalizowany nagłówek z konkretnych wyborów formularza
-    lead = _lead_paragraph(lbl, days_exact, k4_code)
+    lead = _lead_paragraph(lbl, days_exact, k4_code, doc_type=doc_type)
 
     # 2. Wyjaśnienie poziomu ryzyka z CSV 12
     risk_explanation = str(scenario.get("user_risk_explanation_base", "") or "").strip()
@@ -192,14 +215,16 @@ def build(
     # 3. Kontekst praktyczny z CSV 12 (najkonkretniejsza sekcja scenariusza)
     base_prac = str(scenario.get("user_practical_meaning_base", "") or "").strip()
 
-    # 4. Kluczowy kontekst — jeden najważniejszy (priorytet: ZUS > KRS > pilność > nieznany dok.)
-    key_context = (
-        context.zus_note
-        or context.krs_note
-        or context.urgency_note
-        or context.unknown_doc_note
-        or ""
-    )
+    # 4. Kluczowy kontekst — dla nieznanego dok. identyfikacja jest bezwzględnie pierwsza
+    if doc_type == "DOKUMENT_NIEUSTALONY_PRAWNY":
+        key_context = context.unknown_doc_note or ""
+    else:
+        key_context = (
+            context.zus_note
+            or context.krs_note
+            or context.urgency_note
+            or ""
+        )
 
     # 5. EPU sprzeciw — tylko przy krótkim lub nieznanym terminie
     epu_note = ""
