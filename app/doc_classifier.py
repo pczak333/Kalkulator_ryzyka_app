@@ -56,14 +56,14 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
         if fields.get("epu") and code.startswith("EPU_"):
             base += 5
 
-        # Bonus za adresata
+        # Bonus za adresata — główny wyróżnik między _CZLONEK_ZARZADU i _SPOLKA
         adresat = fields.get("adresat")
         if adresat == "czlonek_zarzadu" and "_CZLONEK_ZARZADU" in code:
-            base += 4
+            base += 15
         elif adresat == "spolka" and ("_SPOLKA" in code or code.endswith("_SPOLKA")):
-            base += 4
+            base += 15
         elif adresat == "organ" and ("ZUS" in code or "ORGAN" in code or "US_" in code):
-            base += 4
+            base += 15
 
         if base > 0:
             scores[code] = base
