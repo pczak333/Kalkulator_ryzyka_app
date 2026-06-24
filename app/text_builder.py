@@ -84,12 +84,30 @@ _CTA_UNKNOWN = (
     "To pisemna opinia prawna sporządzona przez radcę prawnego — "
     "nie automatyczna ocena, ale dokument, na którym możesz oprzeć swoją decyzję."
 )
+_CTA_ZUS = (
+    "Pismo z ZUS lub urzędu skarbowego wymaga **wyjaśnień i dokumentów** — "
+    "nie sprzeciwu ani odpowiedzi na pozew. "
+    "**Audyt 48h** to pisemna opinia prawna sporządzona przez radcę prawnego, "
+    "która wskaże termin, zakres żądania organu i właściwy tryb odpowiedzi."
+)
+_ZUS_LEAD_DOC_TYPES = {
+    "ORGAN_PUBLICZNY_CZLONEK_ZARZADU",
+    "DECYZJA_ZUS_CZLONEK_ZARZADU",
+    "DECYZJA_US_CZLONEK_ZARZADU",
+}
 
 
 def _cta_for_doc_type(doc_type: str) -> str:
     """Wybiera CTA zależnie od tego, czy dokument jest już skierowany do członka zarządu."""
     if doc_type == "DOKUMENT_NIEUSTALONY_PRAWNY":
         return _CTA_UNKNOWN
+    if doc_type in {
+        "ORGAN_PUBLICZNY_CZLONEK_ZARZADU",
+        "DECYZJA_ZUS_CZLONEK_ZARZADU",
+        "DECYZJA_US_CZLONEK_ZARZADU",
+        "DECYZJA_ZUS_US_SPOLKA",
+    }:
+        return _CTA_ZUS
     if "CZLONEK_ZARZADU" in doc_type:
         return _CTA_PERSONAL
     return _CTA_COMPANY
@@ -166,6 +184,21 @@ def _lead_paragraph(labels: dict, days_exact: int | None, k4_code: str = "", doc
             )
         else:
             parts.append("Rodzaj pisma nie został jednoznacznie ustalony.")
+    elif doc_type in _ZUS_LEAD_DOC_TYPES:
+        if days_exact is not None and days_exact < 0:
+            parts.append(
+                "Termin na odpowiedź na **pismo z ZUS lub urzędu skarbowego** "
+                "mógł już **upłynąć** — konieczne jest pilne sprawdzenie sytuacji."
+            )
+        elif days_exact is not None:
+            day_word = "dzień" if days_exact == 1 else "dni"
+            cal = " Termin wlicza soboty, niedziele i święta." if days_exact <= 14 else ""
+            parts.append(
+                f"Na **pismo z ZUS lub urzędu skarbowego** masz "
+                f"**{days_exact} {day_word}** kalendarzowych na odpowiedź.{cal}"
+            )
+        else:
+            parts.append("Dokument: **pismo z ZUS lub urzędu skarbowego**.")
     elif k1_label:
         if days_exact is not None and days_exact < 0:
             parts.append(
