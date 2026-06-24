@@ -77,7 +77,7 @@ def labeled_radio(label: str, step_id: str, key: str) -> str | None:
         return None
     labels = [o[0] for o in options]
     codes = [o[1] for o in options]
-    idx = st.radio(label, range(len(labels)), format_func=lambda i: labels[i], key=key)
+    idx = st.radio(label, range(len(labels)), format_func=lambda i: labels[i], key=key, index=None)
     return codes[idx] if idx is not None else None
 
 
@@ -240,13 +240,32 @@ k7 = labeled_radio(
 
 st.divider()
 if st.button("Oblicz ryzyko →", use_container_width=True, type="primary"):
-    st.session_state["krs_answers"] = {
-        "K1": k1 or "", "K2": k2 or "", "K3": k3 or "",
-        "K4": k4 or "", "K5": k5 or "", "K6": k6 or "", "K7": k7 or "",
-        "K2A": "K2A_DELIVERY_DATE_KNOWN" if use_dates else "K2A_DELIVERY_DATE_UNKNOWN",
-    }
-    st.session_state["krs_epu"] = epu
-    st.session_state["krs_days_exact"] = days_exact
+    missing_labels = []
+    if not k1:
+        missing_labels.append("Krok 1 — Rodzaj pisma")
+    if not use_dates and not k2:
+        missing_labels.append("Krok 3 — Czas na reakcję")
+    if not k3:
+        missing_labels.append("Krok 4 — Zakres wsparcia")
+    if not k4:
+        missing_labels.append("Krok 5 — Status w zarządzie")
+    if k4 == "K4_BOARD_RESIGNED" and not k5:
+        missing_labels.append("Krok 5b — Wpis w KRS")
+    if not k6:
+        missing_labels.append("Krok 6 — Twój cel")
+    if not k7:
+        missing_labels.append("Krok 7 — Kwota roszczenia")
+
+    if missing_labels:
+        st.warning("Zaznacz brakujące opcje w: " + ", ".join(missing_labels))
+    else:
+        st.session_state["krs_answers"] = {
+            "K1": k1 or "", "K2": k2 or "", "K3": k3 or "",
+            "K4": k4 or "", "K5": k5 or "", "K6": k6 or "", "K7": k7 or "",
+            "K2A": "K2A_DELIVERY_DATE_KNOWN" if use_dates else "K2A_DELIVERY_DATE_UNKNOWN",
+        }
+        st.session_state["krs_epu"] = epu
+        st.session_state["krs_days_exact"] = days_exact
 
 # ── Obliczenia i wynik ────────────────────────────────────────────────────────
 if "krs_answers" in st.session_state:
