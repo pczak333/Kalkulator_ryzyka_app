@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from doc_ingestion import extract_pages, PageDict
-from doc_ocr import ocr_page
+from doc_ocr import ocr_with_fallback
 from doc_extractor import extract_fields
 from doc_classifier import classify_document
 from doc_selector import select_main_document
@@ -55,6 +55,7 @@ class ProcessedDocument:
     addressee: str | None
     confidence: float
     ocr_quality: str          # "HIGH" | "LOW"
+    ocr_engine: str           # "azure" | "tesseract" | "claude" | "native" | "none"
     raw_text: str
     status: str               # "GLOWNY" | "POMOCNICZY" | ...
     page_range: tuple[int, int] = field(default_factory=lambda: (1, 1))
@@ -63,22 +64,24 @@ class ProcessedDocument:
 
 def _process_single_doc(
     pages: list[PageDict],
-    api_key: str | None,
+    raw_bytes: bytes,
+    ext: str,
+    secrets: dict,
 ) -> dict:
     """Przetwarza listę stron jako jeden logiczny dokument."""
-    full_text = ""
-    ocr_confidence = 1.0
+    has_scans = any(p["is_scan"] for p in pages)
 
-    for page in pages:
-        if page["is_scan"] and api_key:
-            text, conf = ocr_page(page, api_key)
-            full_text += "\n" + text
-            ocr_confidence = min(ocr_confidence, conf)
-        else:
-            full_text += "\n" + page["text"]
+    if has_scans:
+        full_text, ocr_confidence, ocr_engine = ocr_with_fallback(
+            pages, raw_bytes, ext, secrets
+        )
+    else:
+        full_text = "\n".join(p["text"] for p in pages)
+        ocr_confidence = 1.0
+        ocr_engine = "native"
 
     full_text = full_text.strip()
-    ocr_quality = "LOW" if ocr_confidence < 0.6 else "HIGH"
+    ocr_quality = "LOW" if ocr_confidence < 0.75 else "HIGH"
 
     fields = extract_fields(full_text)
     doc_type, clf_conf = classify_document(full_text, fields)
@@ -113,33 +116,34 @@ def _process_single_doc(
         "addressee": fields["adresat"],
         "confidence": confidence,
         "ocr_quality": ocr_quality,
+        "ocr_engine": ocr_engine,
         "raw_text": full_text,
         "classifier_confidence": clf_conf,
         "page_range": (pages[0]["page_num"], pages[-1]["page_num"]),
     }
 
 
-def _segment_pages(pages: list[PageDict], api_key: str | None) -> list[dict]:
-    """Traktuje cały plik jako jeden logiczny dokument."""
-    if not pages:
-        return []
-    return [_process_single_doc(pages, api_key)]
-
-
 def process_files(
     uploaded_files,
-    api_key: str | None = None,
+    secrets: dict | None = None,
 ) -> tuple[ProcessedDocument, list[ProcessedDocument]]:
     """
     Główna funkcja etapu 2. Przyjmuje listę UploadedFile ze Streamlit.
     Zwraca (dokument_główny, [dokumenty_pomocnicze]) jako ProcessedDocument.
+    secrets: słownik z kluczami AZURE_DI_KEY, AZURE_DI_ENDPOINT, ANTHROPIC_API_KEY.
     """
+    if secrets is None:
+        secrets = {}
     all_candidates: list[dict] = []
 
     for uf in uploaded_files:
+        raw_bytes = uf.read()
+        uf.seek(0)
+        ext = uf.name.rsplit(".", 1)[-1].lower()
         pages = extract_pages(uf)
-        candidates = _segment_pages(pages, api_key)
-        all_candidates.extend(candidates)
+        if pages:
+            candidate = _process_single_doc(pages, raw_bytes, ext, secrets)
+            all_candidates.append(candidate)
 
     if not all_candidates:
         # Fallback — pusty dokument nieustalony
@@ -157,6 +161,7 @@ def process_files(
             addressee=None,
             confidence=0.0,
             ocr_quality="LOW",
+            ocr_engine="none",
             raw_text="",
             status="GLOWNY",
         )
@@ -179,6 +184,7 @@ def process_files(
             addressee=d.get("addressee"),
             confidence=d.get("confidence", 0.0),
             ocr_quality=d.get("ocr_quality", "HIGH"),
+            ocr_engine=d.get("ocr_engine", "none"),
             raw_text=d.get("raw_text", ""),
             status=d.get("status", "GLOWNY"),
             page_range=d.get("page_range", (1, 1)),

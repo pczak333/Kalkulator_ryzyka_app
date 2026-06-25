@@ -196,10 +196,14 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
     )
     if uploaded_files:
         if st.button("Analizuj dokumenty", type="primary"):
-            api_key = st.secrets.get("ANTHROPIC_API_KEY", None)
+            secrets = {
+                "AZURE_DI_KEY": st.secrets.get("AZURE_DI_KEY", ""),
+                "AZURE_DI_ENDPOINT": st.secrets.get("AZURE_DI_ENDPOINT", ""),
+                "ANTHROPIC_API_KEY": st.secrets.get("ANTHROPIC_API_KEY", ""),
+            }
             with st.spinner("Analizuję dokumenty..."):
                 try:
-                    main_doc, aux_docs = process_files(uploaded_files, api_key)
+                    main_doc, aux_docs = process_files(uploaded_files, secrets)
                     st.session_state["doc_prefill"] = main_doc
                     st.session_state["doc_aux"] = aux_docs
                     st.success("Analiza zakończona — dane zostały wstępnie wypełnione poniżej.")
