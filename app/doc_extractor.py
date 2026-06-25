@@ -13,6 +13,10 @@ _EPU_PATTERNS = [
     r"S[aą]d\s+Rejonowy\s+Lublin.Zach[oó]d",
 ]
 
+# Adresat wykrywany tylko w nagłówku dokumentu — pouczenie (str. 3+) zaburza wynik
+# (np. "osobą fizyczną" w pouczeniu fałszywie wskazuje czlonek_zarzadu)
+_HEADER_MAX_CHARS = 2000
+
 # ── Adresat ───────────────────────────────────────────────────────────────────
 _ADRESAT: dict[str, list[str]] = {
     "czlonek_zarzadu": [
@@ -24,10 +28,11 @@ _ADRESAT: dict[str, list[str]] = {
         r"art\.\s*299\s*[Kk][Ss][Hh]",
     ],
     "spolka": [
-        r"[Ss]p[oó][łl]k[aą]\b",
+        # [ck] bo w polskim celowniku/miejscowniku k→c: spółk-a ale spółc-e
+        r"[Ss]p[oó][łl][ck][a-z]*\b",
         r"[Ss]p\.\s*z\s*o\.o",
         r"\bS\.A\.\b",
-        r"sp[oó][łl]k[aą]\s+z\s+ograniczon",
+        r"[Ss]p[oó][łl][ck][a-z]*\s+z\s+ograniczon",
     ],
     "organ": [
         r"\bZUS\b",
@@ -47,6 +52,18 @@ _DORECZENIE_PATTERNS = [
     r"odebra[łl]em[:\s]+dnia\s+(\d{1,2}[\.\-/]\d{1,2}[\.\-/]\d{4})",
     r"data\s+odbioru[:\s]+(\d{1,2}[\.\-/]\d{1,2}[\.\-/]\d{4})",
     r"(\d{1,2}[\.\-/]\d{1,2}[\.\-/]\d{4})\s*–?\s*data\s+dor[eę]czenia",
+]
+
+# Terminy słowne → liczba dni (sprawdzane PRZED wzorcami cyfrowymi)
+# Polskie pisma sądowe często używają formy słownej: "dwóch tygodni", "miesiąca" itp.
+_TERMIN_WRITTEN: list[tuple[str, int]] = [
+    (r"w\s+terminie\s+trzech\s+miesi[eę]cy",      90),
+    (r"w\s+terminie\s+jednego\s+miesi[aą]ca",     30),
+    (r"w\s+terminie\s+miesi[aą]ca",               30),
+    (r"w\s+terminie\s+czterech\s+tygodni",        28),
+    (r"w\s+terminie\s+dw[oó]ch\s+tygodni",       14),  # nakaz zapłaty: sprzeciw w 2 tygodnie
+    (r"w\s+terminie\s+jednego\s+tygodnia",         7),
+    (r"w\s+terminie\s+tygodnia",                   7),
 ]
 
 _TERMIN_PATTERNS = [
@@ -126,10 +143,14 @@ def extract_fields(text: str) -> dict:
         result["epu"] = True
         result["epu_confidence"] = min(0.6 + epu_hits * 0.15, 1.0)
 
-    # Adresat — liczymy trafienia dla każdej kategorii
+    # Adresat — tylko nagłówek dokumentu (przed sekcją POUCZENIE lub max 2000 znaków)
+    # Pouczenie zawiera "osobą fizyczną" i inne zwroty, które fałszywie wskazują czlonek_zarzadu
+    pouczenie_idx = text.upper().find("POUCZENIE")
+    header_end = pouczenie_idx if pouczenie_idx > 0 else _HEADER_MAX_CHARS
+    header_text = text[:min(header_end, _HEADER_MAX_CHARS)]
     adresat_scores: dict[str, int] = {}
     for category, patterns in _ADRESAT.items():
-        score = sum(1 for p in patterns if re.search(p, text, re.IGNORECASE))
+        score = sum(1 for p in patterns if re.search(p, header_text, re.IGNORECASE))
         if score:
             adresat_scores[category] = score
 
@@ -148,17 +169,23 @@ def extract_fields(text: str) -> dict:
                 result["delivery_date"] = parsed
                 break
 
-    # Termin z pouczenia (liczba dni)
-    for pattern in _TERMIN_PATTERNS:
-        m = re.search(pattern, text, re.IGNORECASE)
-        if m:
-            try:
-                days = int(m.group(1))
-                if 1 <= days <= 365:
-                    result["deadline_days"] = days
-                    break
-            except (ValueError, IndexError):
-                continue
+    # Termin z pouczenia — najpierw wzorce słowne (tygodnie/miesiące), potem cyfrowe
+    for pattern, days in _TERMIN_WRITTEN:
+        if re.search(pattern, text, re.IGNORECASE):
+            result["deadline_days"] = days
+            break
+
+    if result["deadline_days"] is None:
+        for pattern in _TERMIN_PATTERNS:
+            m = re.search(pattern, text, re.IGNORECASE)
+            if m:
+                try:
+                    days = int(m.group(1))
+                    if 1 <= days <= 365:
+                        result["deadline_days"] = days
+                        break
+                except (ValueError, IndexError):
+                    continue
 
     # Kwota — najpierw wzorce najbardziej specyficzne (od końca listy)
     found_amount: float | None = None
