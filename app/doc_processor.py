@@ -65,6 +65,7 @@ class ProcessedDocument:
     powod: str | None = None
     pozwany: str | None = None
     ocr_notes: str = ""
+    file_ext: str = ""
 
 
 def _process_single_doc(
@@ -72,6 +73,7 @@ def _process_single_doc(
     raw_bytes: bytes,
     ext: str,
     secrets: dict,
+    file_ext: str = "",
 ) -> dict:
     """Przetwarza listę stron jako jeden logiczny dokument."""
     has_scans = any(p["is_scan"] for p in pages)
@@ -131,6 +133,7 @@ def _process_single_doc(
         "powod": fields.get("powod"),
         "pozwany": fields.get("pozwany"),
         "ocr_notes": ocr_notes,
+        "file_ext": file_ext,
     }
 
 
@@ -153,7 +156,7 @@ def process_files(
         ext = uf.name.rsplit(".", 1)[-1].lower()
         pages = extract_pages(uf)
         if pages:
-            candidate = _process_single_doc(pages, raw_bytes, ext, secrets)
+            candidate = _process_single_doc(pages, raw_bytes, ext, secrets, file_ext=ext)
             all_candidates.append(candidate)
 
     if not all_candidates:
@@ -205,6 +208,7 @@ def process_files(
             powod=d.get("powod"),
             pozwany=d.get("pozwany"),
             ocr_notes=d.get("ocr_notes", ""),
+            file_ext=d.get("file_ext", ""),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]

@@ -181,18 +181,47 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
     """Pokazuje wyniki odczytu dokumentów — układ tabelaryczny."""
     st.markdown("## Wyniki odczytu dokumentów")
 
-    is_scan = main.ocr_engine in ("azure", "tesseract", "claude")
-    if is_scan:
+    _needs_ocr = main.ocr_engine in ("azure", "tesseract", "claude")
+    _ext = (main.file_ext or "").lower()
+    _IMAGE_EXTS = {"jpg", "jpeg", "png", "bmp", "tiff", "tif", "gif", "webp"}
+
+    if _needs_ocr:
+        if _ext in _IMAGE_EXTS:
+            _doc_type_label = "📷 Dokument to zdjęcie lub obraz (JPG/PNG)"
+            _ocr_note = (
+                "Tekst był odczytywany przez OCR ze zdjęcia. Jakość zależy od "
+                "ostrości, oświetlenia i kąta fotografii — mogą wystąpić błędy "
+                "w nazwach, sygnaturach i kwotach."
+            )
+        elif _ext == "pdf":
+            _doc_type_label = "🖨️ Dokument to skan PDF"
+            _ocr_note = (
+                "Tekst był odczytywany przez OCR ze zeskanowanego PDF. "
+                "Mogą wystąpić drobne błędy w nazwach, sygnaturach i kwotach."
+            )
+        else:
+            _doc_type_label = "🖨️ Dokument wymagał OCR"
+            _ocr_note = (
+                "Tekst był odczytywany automatycznie. "
+                "Mogą wystąpić drobne błędy w nazwach, sygnaturach i kwotach."
+            )
         st.markdown(
             "<div style='background:#fff8e1;border:1px solid #f9a825;border-radius:6px;"
             "padding:12px 16px;margin-bottom:12px;'>"
-            "🖨️ <strong>Dokument to skan PDF</strong> — tekst był odczytywany przez OCR, "
-            "co może powodować drobne błędy w nazwach, sygnaturach i kwotach.<br>"
+            f"<strong>{_doc_type_label}</strong> — {_ocr_note}<br>"
             "<span style='color:#b45309;'>⚠️ <strong>Pola wymagające ręcznej weryfikacji:</strong> "
             "Powód, Pozwany, Sygnatura akt, Kwota roszczenia</span> "
             "— sprawdź je bezpośrednio w dokumencie przed wypełnieniem formularza.<br>"
             "<span style='font-size:0.9em;'>Możesz poprawić błędne wartości klikając "
             "✏️ <strong>Popraw dane odczytu</strong> poniżej.</span></div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div style='background:#e8f5e9;border:1px solid #43a047;border-radius:6px;"
+            "padding:12px 16px;margin-bottom:12px;'>"
+            "📄 <strong>Oryginalny dokument cyfrowy</strong> — tekst odczytany natywnie "
+            "(PDF/DOCX z warstwą tekstową). Dane są w pełni wiarygodne.</div>",
             unsafe_allow_html=True,
         )
 
