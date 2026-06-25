@@ -187,20 +187,20 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
 
     if _needs_ocr:
         if _ext in _IMAGE_EXTS:
-            _doc_type_label = "📷 Dokument to zdjęcie lub obraz (JPG/PNG)"
+            _src_label = "📷 Dokument to zdjęcie lub obraz (JPG/PNG)"
             _ocr_note = (
                 "Tekst był odczytywany przez OCR ze zdjęcia. Jakość zależy od "
                 "ostrości, oświetlenia i kąta fotografii — mogą wystąpić błędy "
                 "w nazwach, sygnaturach i kwotach."
             )
         elif _ext == "pdf":
-            _doc_type_label = "🖨️ Dokument to skan PDF"
+            _src_label = "🖨️ Dokument to skan PDF"
             _ocr_note = (
                 "Tekst był odczytywany przez OCR ze zeskanowanego PDF. "
                 "Mogą wystąpić drobne błędy w nazwach, sygnaturach i kwotach."
             )
         else:
-            _doc_type_label = "🖨️ Dokument wymagał OCR"
+            _src_label = "🖨️ Dokument wymagał OCR"
             _ocr_note = (
                 "Tekst był odczytywany automatycznie. "
                 "Mogą wystąpić drobne błędy w nazwach, sygnaturach i kwotach."
@@ -208,7 +208,7 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
         st.markdown(
             "<div style='background:#fff8e1;border:1px solid #f9a825;border-radius:6px;"
             "padding:12px 16px;margin-bottom:12px;'>"
-            f"<strong>{_doc_type_label}</strong> — {_ocr_note}<br>"
+            f"<strong>{_src_label}</strong> — {_ocr_note}<br>"
             "<span style='color:#b45309;'>⚠️ <strong>Pola wymagające ręcznej weryfikacji:</strong> "
             "Powód, Pozwany, Sygnatura akt, Kwota roszczenia</span> "
             "— sprawdź je bezpośrednio w dokumencie przed wypełnieniem formularza.<br>"
