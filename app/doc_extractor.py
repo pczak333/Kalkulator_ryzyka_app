@@ -105,14 +105,33 @@ _SAD_PATTERNS = [
 
 # ── Powód / Pozwany ───────────────────────────────────────────────────────────
 _POWOD_PATTERNS = [
-    r"[Pp]ow[oó]d(?:em)?[:\s]+([^\n\r,;]{4,150})",
+    # Nakaz zapłaty: "zapłacił powodowi [Firma] kwotę"
+    r"zap[łl]aci[łl]\s+powodowi\s+([^\n\r,;]{4,100}?)\s+kwot",
+    # "na rzecz powoda [Firma]"
+    r"na\s+rzecz\s+powoda\s+([^\n\r,;]{4,100})",
+    # Nagłówek "Powód:" lub "Powód\n"
+    r"[Pp]ow[oó]d(?:em)?[:\s]*\n?\s*([^\n\r,;]{4,150})",
+    # Linia po słowie "Powód"
     r"[Pp]ow[oó]d\s*\n\s*([^\n\r,;]{4,150})",
 ]
 
 _POZWANY_PATTERNS = [
-    r"[Pp]ozwan[yąa](?:ch|m|emu)?[:\s]+([^\n\r,;]{4,150})",
+    # Nakaz zapłaty: "nakazuję pozwanemu [Imię]" lub "nakazuję pozwanej [Firma]"
+    r"nakazuj[eę]\s+pozwane(?:mu|j)\s+([^\n\r,;]{4,150})",
+    # "od pozwanego [Firma]"
+    r"od\s+pozwanego\s+([^\n\r,;]{4,100})",
+    # Nagłówek "Pozwany:" lub "Pozwany\n"
+    r"[Pp]ozwan[yąa](?:ch|m|emu)?[:\s]*\n?\s*([^\n\r,;]{4,150})",
+    # Linia po słowie "Pozwany"
     r"[Pp]ozwan[yąa]\s*\n\s*([^\n\r,;]{4,150})",
 ]
+
+# Wzorzec do odfiltrowania fałszywych wyników (zdania z treści dokumentu)
+_FALSZY_WYNIK = re.compile(
+    r"\b(jest\s+obowi[aą]zany|powinien|zobowi[aą]zany|mo[zż]e\s+wnie[sś][cć]|"
+    r"nale[zż]y|uprawniony|wskaza[cć]|powo[łl]a[cć]|podnie[sś][cć])\b",
+    re.IGNORECASE,
+)
 
 # Progi bucket K7
 _K7_BUCKETS = [
@@ -302,21 +321,21 @@ def extract_fields(text: str) -> dict:
                 result["sad_organ"] = sad
                 break
 
-    # Powód
+    # Powód — z filtrem fałszywych wyników (zdania z treści dokumentu)
     for pattern in _POWOD_PATTERNS:
-        m = re.search(pattern, text)
+        m = re.search(pattern, text, re.IGNORECASE)
         if m:
             val = _clean_extracted_name(m.group(1))
-            if len(val) >= 3:
+            if len(val) >= 3 and not _FALSZY_WYNIK.search(val):
                 result["powod"] = val
                 break
 
-    # Pozwany
+    # Pozwany — z filtrem fałszywych wyników
     for pattern in _POZWANY_PATTERNS:
-        m = re.search(pattern, text)
+        m = re.search(pattern, text, re.IGNORECASE)
         if m:
             val = _clean_extracted_name(m.group(1))
-            if len(val) >= 3:
+            if len(val) >= 3 and not _FALSZY_WYNIK.search(val):
                 result["pozwany"] = val
                 break
 

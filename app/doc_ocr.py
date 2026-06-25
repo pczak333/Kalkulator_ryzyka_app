@@ -18,36 +18,47 @@ def ocr_with_fallback(
     raw_bytes: bytes,
     ext: str,
     secrets: dict,
-) -> tuple[str, float, str]:
+) -> tuple[str, float, str, str]:
     """
     Kaskada OCR: Azure DI → Tesseract → Claude Haiku.
-    Zwraca (full_text, confidence, engine_used).
+    Zwraca (full_text, confidence, engine_used, notes).
     engine_used: 'azure' | 'tesseract' | 'claude' | 'none'
+    notes: log dlaczego silniki były pomijane
     """
+    notes: list[str] = []
+
     # Silnik 1: Azure Document Intelligence (cały plik naraz)
     azure_key = secrets.get("AZURE_DI_KEY", "")
     azure_endpoint = secrets.get("AZURE_DI_ENDPOINT", "")
     if azure_key and azure_endpoint:
-        result = _ocr_azure(raw_bytes, azure_key, azure_endpoint, pages)
-        if result is not None:
-            text, conf = result
+        azure_result, azure_error = _ocr_azure(raw_bytes, azure_key, azure_endpoint, pages)
+        if azure_result is not None:
+            text, conf = azure_result
             if conf >= 0.6:
-                return text, conf, "azure"
+                return text, conf, "azure", ""
+            else:
+                notes.append(f"Azure: niska pewność ({conf:.2f} < 0.6)")
+        else:
+            notes.append(f"Azure: błąd — {azure_error}")
+    else:
+        notes.append("Azure: brak klucza/endpointu w secrets")
 
     # Silnik 2: Tesseract z polskim pakietem (per strona)
-    result = _ocr_tesseract(pages)
-    if result is not None:
-        text, conf = result
+    tess_result = _ocr_tesseract(pages)
+    if tess_result is not None:
+        text, conf = tess_result
         if text.strip():
-            return text, conf, "tesseract"
+            return text, conf, "tesseract", " | ".join(notes)
+
+    notes.append("Tesseract: brak tekstu lub błąd")
 
     # Silnik 3: Claude Haiku (ostatni resort, per strona)
     claude_key = secrets.get("ANTHROPIC_API_KEY", "")
     if claude_key:
         text, conf = _ocr_claude(pages, claude_key)
-        return text, conf, "claude"
+        return text, conf, "claude", " | ".join(notes)
 
-    return "", 0.0, "none"
+    return "", 0.0, "none", " | ".join(notes) + " | Claude: brak klucza"
 
 
 def _ocr_tesseract_pages(scan_pages: list[PageDict]) -> str:
@@ -75,11 +86,12 @@ def _ocr_azure(
     key: str,
     endpoint: str,
     pages: list[PageDict],
-) -> tuple[str, float] | None:
+) -> tuple[tuple[str, float] | None, str]:
     """
     Azure Document Intelligence — przyjmuje surowe bajty pliku.
     Jeśli plan darmowy zwrócił mniej stron niż ma dokument, brakujące strony
     przetwarza Tesseract i doklejamy wynik do tekstu Azure.
+    Zwraca ((text, conf), "") w razie sukcesu lub (None, error_msg) w razie błędu.
     """
     try:
         from azure.ai.documentintelligence import DocumentIntelligenceClient
@@ -115,9 +127,9 @@ def _ocr_azure(
             if extra_text.strip():
                 full_text = full_text + "\n--- [strony OCR Tesseract] ---\n" + extra_text
 
-        return full_text, avg_conf
-    except Exception:
-        return None
+        return (full_text, avg_conf), ""
+    except Exception as exc:
+        return None, str(exc)
 
 
 def _ocr_tesseract(pages: list[PageDict]) -> tuple[str, float] | None:

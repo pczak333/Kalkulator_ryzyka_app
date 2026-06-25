@@ -64,6 +64,7 @@ class ProcessedDocument:
     sad_organ: str | None = None
     powod: str | None = None
     pozwany: str | None = None
+    ocr_notes: str = ""
 
 
 def _process_single_doc(
@@ -75,8 +76,9 @@ def _process_single_doc(
     """Przetwarza listę stron jako jeden logiczny dokument."""
     has_scans = any(p["is_scan"] for p in pages)
 
+    ocr_notes = ""
     if has_scans:
-        full_text, ocr_confidence, ocr_engine = ocr_with_fallback(
+        full_text, ocr_confidence, ocr_engine, ocr_notes = ocr_with_fallback(
             pages, raw_bytes, ext, secrets
         )
     else:
@@ -128,6 +130,7 @@ def _process_single_doc(
         "sad_organ": fields.get("sad_organ"),
         "powod": fields.get("powod"),
         "pozwany": fields.get("pozwany"),
+        "ocr_notes": ocr_notes,
     }
 
 
@@ -201,6 +204,7 @@ def process_files(
             sad_organ=d.get("sad_organ"),
             powod=d.get("powod"),
             pozwany=d.get("pozwany"),
+            ocr_notes=d.get("ocr_notes", ""),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]

@@ -366,9 +366,10 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
                 "AZURE_DI_ENDPOINT": st.secrets.get("AZURE_DI_ENDPOINT", ""),
                 "ANTHROPIC_API_KEY": st.secrets.get("ANTHROPIC_API_KEY", ""),
             }
-            # Wyczyść stan formularza i korekty — prefill z nowej analizy zastąpi
-            for _k in ("k1", "k7", "k2", "epu", "delivery_date", "deadline_days",
-                       "use_dates", "corr_kwota", "corr_powod", "corr_pozwany"):
+            # Wyczyść cały stan formularza — prefill z nowej analizy zastąpi auto-pola
+            for _k in ("k1", "k7", "k2", "k3", "k4", "k5", "k6",
+                       "epu", "delivery_date", "deadline_days", "use_dates",
+                       "corr_kwota", "corr_powod", "corr_pozwany"):
                 st.session_state.pop(_k, None)
             with st.spinner("Analizuję dokumenty..."):
                 try:
@@ -656,11 +657,9 @@ if "krs_answers" in st.session_state:
 
     # ── Reset ─────────────────────────────────────────────────────────────
     st.divider()
-    st.button(
-        "🔄 Wyczyść kalkulator i wprowadź nowe dane",
-        on_click=reset_calculator,
-        use_container_width=True,
-    )
+    if st.button("🔄 Wyczyść kalkulator i wprowadź nowe dane", use_container_width=True):
+        reset_calculator()
+        st.rerun()
 
     # ── Panel testowy (ukryty za hasłem) ──────────────────────────────────
     st.divider()
@@ -697,13 +696,17 @@ if "krs_answers" in st.session_state:
                     "pozwany": prefill.pozwany,
                     "addressee": prefill.addressee,
                 })
-                with st.expander("Surowy tekst OCR (pierwsze 3000 znaków)"):
-                    st.code(prefill.raw_text[:3000] if prefill.raw_text else "(brak)", language=None)
+                if prefill.ocr_notes:
+                    st.info(f"ℹ️ Notatki OCR: {prefill.ocr_notes}")
+                st.markdown("**Surowy tekst OCR (pierwsze 3000 znaków):**")
+                st.code(prefill.raw_text[:3000] if prefill.raw_text else "(brak)", language=None)
                 _panel_aux = st.session_state.get("doc_aux", [])
                 for _i, _aux in enumerate(_panel_aux, 1):
-                    with st.expander(f"Dokument pomocniczy {_i}: `{_aux.doc_type_code}`"):
-                        st.write(f"Silnik: `{_aux.ocr_engine}` | Jakość: `{_aux.ocr_quality}` | Strony: {_aux.page_range}")
-                        st.code(_aux.raw_text[:1500] if _aux.raw_text else "(brak)", language=None)
+                    st.markdown(f"**Dokument pomocniczy {_i}: `{_aux.doc_type_code}`**")
+                    st.write(f"Silnik: `{_aux.ocr_engine}` | Jakość: `{_aux.ocr_quality}` | Strony: {_aux.page_range}")
+                    if _aux.ocr_notes:
+                        st.info(f"ℹ️ {_aux.ocr_notes}")
+                    st.code(_aux.raw_text[:1500] if _aux.raw_text else "(brak)", language=None)
                 st.divider()
 
             st.subheader("Punktacja")
