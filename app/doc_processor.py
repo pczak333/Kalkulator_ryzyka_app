@@ -60,6 +60,10 @@ class ProcessedDocument:
     status: str               # "GLOWNY" | "POMOCNICZY" | ...
     page_range: tuple[int, int] = field(default_factory=lambda: (1, 1))
     classifier_confidence: float = 0.0
+    sygnatura: str | None = None
+    sad_organ: str | None = None
+    powod: str | None = None
+    pozwany: str | None = None
 
 
 def _process_single_doc(
@@ -120,6 +124,10 @@ def _process_single_doc(
         "raw_text": full_text,
         "classifier_confidence": clf_conf,
         "page_range": (pages[0]["page_num"], pages[-1]["page_num"]),
+        "sygnatura": fields.get("sygnatura"),
+        "sad_organ": fields.get("sad_organ"),
+        "powod": fields.get("powod"),
+        "pozwany": fields.get("pozwany"),
     }
 
 
@@ -189,6 +197,10 @@ def process_files(
             status=d.get("status", "GLOWNY"),
             page_range=d.get("page_range", (1, 1)),
             classifier_confidence=d.get("classifier_confidence", 0.0),
+            sygnatura=d.get("sygnatura"),
+            sad_organ=d.get("sad_organ"),
+            powod=d.get("powod"),
+            pozwany=d.get("pozwany"),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]

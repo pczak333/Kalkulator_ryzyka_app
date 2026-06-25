@@ -28,7 +28,7 @@ def ocr_with_fallback(
     azure_key = secrets.get("AZURE_DI_KEY", "")
     azure_endpoint = secrets.get("AZURE_DI_ENDPOINT", "")
     if azure_key and azure_endpoint:
-        result = _ocr_azure(raw_bytes, azure_key, azure_endpoint)
+        result = _ocr_azure(raw_bytes, azure_key, azure_endpoint, pages)
         if result is not None:
             text, conf = result
             if conf >= 0.6:
@@ -50,8 +50,37 @@ def ocr_with_fallback(
     return "", 0.0, "none"
 
 
-def _ocr_azure(raw_bytes: bytes, key: str, endpoint: str) -> tuple[str, float] | None:
-    """Azure Document Intelligence — przyjmuje surowe bajty pliku, bez konwersji do PNG."""
+def _ocr_tesseract_pages(scan_pages: list[PageDict]) -> str:
+    """Tesseract na podanej liście stron. Zwraca połączony tekst lub ''."""
+    try:
+        import pytesseract
+        from PIL import Image
+
+        texts: list[str] = []
+        for page in scan_pages:
+            img_bytes = page.get("image_bytes")
+            if not img_bytes:
+                continue
+            img = Image.open(io.BytesIO(img_bytes))
+            text = pytesseract.image_to_string(img, lang="pol+eng")
+            if text.strip():
+                texts.append(text)
+        return "\n".join(texts)
+    except Exception:
+        return ""
+
+
+def _ocr_azure(
+    raw_bytes: bytes,
+    key: str,
+    endpoint: str,
+    pages: list[PageDict],
+) -> tuple[str, float] | None:
+    """
+    Azure Document Intelligence — przyjmuje surowe bajty pliku.
+    Jeśli plan darmowy zwrócił mniej stron niż ma dokument, brakujące strony
+    przetwarza Tesseract i doklejamy wynik do tekstu Azure.
+    """
     try:
         from azure.ai.documentintelligence import DocumentIntelligenceClient
         from azure.core.credentials import AzureKeyCredential
@@ -66,7 +95,9 @@ def _ocr_azure(raw_bytes: bytes, key: str, endpoint: str) -> tuple[str, float] |
 
         lines: list[str] = []
         confidences: list[float] = []
+        azure_page_count = 0
         for page in (result.pages or []):
+            azure_page_count += 1
             for line in (page.lines or []):
                 lines.append(line.content)
             for word in (page.words or []):
@@ -75,6 +106,15 @@ def _ocr_azure(raw_bytes: bytes, key: str, endpoint: str) -> tuple[str, float] |
 
         full_text = "\n".join(lines)
         avg_conf = sum(confidences) / len(confidences) if confidences else 0.5
+
+        # Uzupełnij brakujące strony Tesseractem (limit planu darmowego Azure)
+        total_pages = len(pages)
+        if azure_page_count < total_pages:
+            remaining = pages[azure_page_count:]
+            extra_text = _ocr_tesseract_pages(remaining)
+            if extra_text.strip():
+                full_text = full_text + "\n--- [strony OCR Tesseract] ---\n" + extra_text
+
         return full_text, avg_conf
     except Exception:
         return None
@@ -82,24 +122,8 @@ def _ocr_azure(raw_bytes: bytes, key: str, endpoint: str) -> tuple[str, float] |
 
 def _ocr_tesseract(pages: list[PageDict]) -> tuple[str, float] | None:
     """Tesseract per strona. Wymaga: binarki Tesseract + pakietu językowego pol."""
-    try:
-        import pytesseract
-        from PIL import Image
-
-        texts: list[str] = []
-        for page in pages:
-            img_bytes = page.get("image_bytes")
-            if not img_bytes:
-                continue
-            img = Image.open(io.BytesIO(img_bytes))
-            text = pytesseract.image_to_string(img, lang="pol+eng")
-            if text.strip():
-                texts.append(text)
-
-        combined = "\n".join(texts)
-        return (combined, 0.75) if combined.strip() else None
-    except Exception:
-        return None
+    combined = _ocr_tesseract_pages(pages)
+    return (combined, 0.75) if combined.strip() else None
 
 
 def _ocr_claude(pages: list[PageDict], api_key: str) -> tuple[str, float]:

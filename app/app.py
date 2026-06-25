@@ -49,6 +49,36 @@ RISK_ICONS = {
     "RISK_URGENT": "🚨",
 }
 
+_DOC_TYPE_LABELS: dict[str, str] = {
+    "NAKAZ_CZLONEK_ZARZADU":           "Nakaz zapłaty",
+    "NAKAZ_SPOLKA":                    "Nakaz zapłaty",
+    "EPU_NAKAZ_SPOLKA":                "Nakaz zapłaty (e-Sąd / EPU)",
+    "EPU_NAKAZ_CZLONEK_ZARZADU":       "Nakaz zapłaty (e-Sąd / EPU)",
+    "POZEW_CZLONEK_ZARZADU":           "Pozew",
+    "POZEW_SPOLKA":                    "Pozew",
+    "EPU_POZEW_SPOLKA":                "Pozew (e-Sąd / EPU)",
+    "EPU_POZEW_CZLONEK_ZARZADU":       "Pozew (e-Sąd / EPU)",
+    "WEZWANIE_SADOWE_CZLONEK_ZARZADU": "Wezwanie sądowe",
+    "WEZWANIE_SADOWE_SPOLKA":          "Wezwanie sądowe",
+    "DECYZJA_ZUS_CZLONEK_ZARZADU":     "Decyzja ZUS",
+    "DECYZJA_US_CZLONEK_ZARZADU":      "Decyzja urzędu skarbowego",
+    "ORGAN_PUBLICZNY_CZLONEK_ZARZADU": "Pismo organu publicznego",
+}
+
+_K7_BUCKETS_UI = [
+    (10_000,  "K7_AMOUNT_UP_TO_10K"),
+    (50_000,  "K7_AMOUNT_10K_50K"),
+    (150_000, "K7_AMOUNT_50K_150K"),
+    (500_000, "K7_AMOUNT_150K_500K"),
+]
+
+
+def _compute_k7_code(amount: float) -> str:
+    for threshold, code in _K7_BUCKETS_UI:
+        if amount <= threshold:
+            return code
+    return "K7_AMOUNT_ABOVE_500K"
+
 
 @st.cache_data
 def get_form_data():
@@ -97,68 +127,172 @@ def reset_calculator():
     for key in ["krs_answers", "krs_epu", "krs_days_exact",
                 "k1", "epu", "use_dates", "k2", "k3", "k4", "k5", "k6", "k7",
                 "delivery_date", "deadline_days", "test_pwd",
-                "doc_prefill", "doc_aux"]:
+                "doc_prefill", "doc_aux",
+                "corr_kwota", "corr_powod", "corr_pozwany"]:
         st.session_state.pop(key, None)
 
 
-def _confidence_indicator(label: str, confidence: float, value: str):
-    """Wyświetla pole z wykrytą wartością i wskaźnikiem pewności."""
-    if confidence >= 0.75:
-        st.success(f"**{label}:** {value} ✓ _(wykryto automatycznie)_")
-    elif confidence >= 0.5:
-        st.warning(f"**{label}:** {value} _(sprawdź — nie jestem pewny)_")
-    else:
-        st.error(f"**{label}:** {value} _(niska pewność — uzupełnij ręcznie)_")
+def _ai_extract_fields(text: str, api_key: str) -> dict:
+    """Wyciąga pola dokumentu przez Claude Haiku → słownik z polami."""
+    import re as _re
+    import json as _json
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = (
+            "Masz przed sobą tekst polskiego pisma sądowego lub prawnego (po OCR).\n"
+            "Wyciągnij następujące informacje w formacie JSON (null jeśli nie znaleziono):\n"
+            '{"sygnatura":"sygnatura akt np. V GNc 2034/22/S","sad_organ":"pełna nazwa sądu lub organu",'
+            '"powod":"imię i nazwisko lub nazwa powoda","pozwany":"imię i nazwisko lub nazwa pozwanego",'
+            '"termin_dni":liczba_lub_null,"kwota_zl":liczba_lub_null}\n'
+            "Odpowiedź TYLKO w formacie JSON, bez komentarzy.\n\nTekst dokumentu:\n"
+            + text[:4000]
+        )
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text.strip()
+        raw = _re.sub(r"^```\w*\n?", "", raw)
+        raw = _re.sub(r"\n?```$", "", raw)
+        return _json.loads(raw)
+    except Exception:
+        return {}
+
+
+def _doc_type_label(doc_type_code: str) -> str:
+    return _DOC_TYPE_LABELS.get(
+        doc_type_code,
+        doc_type_code.replace("_", " ").title()
+    )
 
 
 def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
-    """Pokazuje podsumowanie analizy dokumentów po wgraniu."""
-    st.markdown("### Wyniki analizy dokumentu")
+    """Pokazuje wyniki odczytu dokumentów — układ tabelaryczny."""
+    st.markdown("## Wyniki odczytu dokumentów")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        _confidence_indicator(
-            "Typ dokumentu", main.classifier_confidence,
-            main.doc_type_code.replace("_", " ").title()
+    is_scan = main.ocr_engine in ("azure", "tesseract", "claude")
+    if is_scan:
+        st.markdown(
+            "<div style='background:#fff8e1;border:1px solid #f9a825;border-radius:6px;"
+            "padding:12px 16px;margin-bottom:12px;'>"
+            "🖨️ <strong>Dokument to skan PDF</strong> — tekst był odczytywany przez OCR, "
+            "co może powodować drobne błędy w nazwach, sygnaturach i kwotach.<br>"
+            "<span style='color:#b45309;'>⚠️ <strong>Pola wymagające ręcznej weryfikacji:</strong> "
+            "Powód, Pozwany, Sygnatura akt, Kwota roszczenia</span> "
+            "— sprawdź je bezpośrednio w dokumencie przed wypełnieniem formularza.<br>"
+            "<span style='font-size:0.9em;'>Możesz poprawić błędne wartości klikając "
+            "✏️ <strong>Popraw dane odczytu</strong> poniżej.</span></div>",
+            unsafe_allow_html=True,
         )
-        if main.epu:
-            st.info("EPU / e-Sąd: wykryto oznaczenia e-Sądu")
-        if main.delivery_date:
-            _confidence_indicator(
-                "Data doręczenia", 0.8,
-                main.delivery_date.strftime("%d.%m.%Y")
-            )
-        if main.deadline_days:
-            _confidence_indicator(
-                "Termin z pouczenia", 0.8,
-                f"{main.deadline_days} dni"
-            )
-    with col2:
-        if main.amount:
-            _confidence_indicator(
-                "Kwota roszczenia", 0.85,
-                f"{main.amount:,.0f} zł".replace(",", " ")
-            )
-        if main.days_left is not None:
-            days = main.days_left
-            if days <= 3:
-                st.error(f"Pozostało **{days} dni** do terminu!")
-            elif days <= 7:
-                st.warning(f"Pozostało **{days} dni** do terminu")
-            else:
-                st.info(f"Pozostało **{days} dni** do terminu")
 
-    if aux:
-        with st.expander(f"Wykryto {len(aux)} dodatkowych dokumentów w pliku"):
-            for i, doc in enumerate(aux, 1):
-                st.markdown(
-                    f"**Dokument {i}:** {doc.doc_type_code.replace('_', ' ').title()} "
-                    f"— status: _{doc.status}_"
-                )
+    # Bieżące wartości z uwzględnieniem korekt
+    corr_kwota = st.session_state.get("corr_kwota")
+    corr_powod = st.session_state.get("corr_powod")
+    corr_pozwany = st.session_state.get("corr_pozwany")
+    disp_amount  = corr_kwota  if corr_kwota  else main.amount
+    disp_powod   = corr_powod  if corr_powod  else main.powod
+    disp_pozwany = corr_pozwany if corr_pozwany else main.pozwany
 
-    st.markdown(
-        "_Sprawdź wykryte dane i popraw w formularzu poniżej jeśli coś jest nie tak._"
+    doc_label = _doc_type_label(main.doc_type_code)
+
+    termin_str = (
+        f"{main.deadline_days} dni (liczony od dnia dostarczenia dokumentu)"
+        if main.deadline_days else None
     )
+    kwota_str = (
+        f"{disp_amount:,.2f} zł".replace(",", " ").replace(".", ",")
+        if disp_amount else None
+    )
+
+    def _row(label: str, value: str | None, color: str = "#1a1a1a") -> str:
+        if not value:
+            return ""
+        return (
+            f"<tr>"
+            f"<td style='color:#6b7280;padding:8px 12px;width:38%;"
+            f"border-bottom:1px solid #e5e7eb;font-size:0.9rem;'>{label}</td>"
+            f"<td style='padding:8px 12px;border-bottom:1px solid #e5e7eb;"
+            f"font-weight:500;color:{color};'>{value}</td>"
+            f"</tr>"
+        )
+
+    rows = (
+        _row("Sygnatura akt", main.sygnatura)
+        + _row("Sąd / organ", main.sad_organ)
+        + _row("Kwota roszczenia", kwota_str, "#c62828")
+        + _row("Termin na reakcję", termin_str, "#c62828")
+        + _row("Powód", disp_powod)
+        + _row("Pozwany", disp_pozwany)
+    )
+
+    if rows:
+        st.markdown(
+            f"<div style='border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;"
+            f"margin-bottom:12px;'>"
+            f"<div style='background:#f8fafc;padding:10px 16px;"
+            f"border-bottom:1px solid #e5e7eb;font-weight:600;'>📄 {doc_label}</div>"
+            f"<table style='width:100%;border-collapse:collapse;'>{rows}</table>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.info(f"📄 {doc_label} — nie udało się wyciągnąć szczegółów automatycznie.")
+
+    # Popraw dane odczytu
+    with st.expander("✏️ Popraw dane odczytu", expanded=False):
+        st.caption("Uzupełnij lub popraw pola, które kalkulator odczytał błędnie.")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.number_input(
+                "Kwota roszczenia (zł)",
+                min_value=0.0,
+                value=float(main.amount) if main.amount else 0.0,
+                step=100.0,
+                format="%.2f",
+                key="corr_kwota",
+            )
+        with c2:
+            st.text_input("Powód", value=main.powod or "", key="corr_powod")
+        with c3:
+            st.text_input("Pozwany", value=main.pozwany or "", key="corr_pozwany")
+
+    # Ochrona danych
+    st.markdown(
+        "<div style='background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;"
+        "padding:8px 14px;font-size:0.85rem;margin-top:8px;margin-bottom:4px;'>"
+        "🔒 <strong>Ochrona Twoich danych:</strong> Przesłane dokumenty są przetwarzane "
+        "wyłącznie w celu wstępnej analizy i "
+        "<strong>automatycznie usuwane po 48 godzinach</strong>. "
+        "Nie są przechowywane ani udostępniane osobom trzecim.</div>",
+        unsafe_allow_html=True,
+    )
+
+    # Zestawienie wszystkich dokumentów
+    all_docs = [main] + aux
+    total = len(all_docs)
+    with st.expander(f"📋 Zestawienie dokumentów w pliku ({total})", expanded=False):
+        for i, doc in enumerate(all_docs, 1):
+            lbl = _doc_type_label(doc.doc_type_code)
+            p_start, p_end = doc.page_range
+            page_info = f"str. {p_start}–{p_end}" if p_start != p_end else f"str. {p_start}"
+            date_info = doc.delivery_date.strftime("%d.%m.%Y r.") if doc.delivery_date else ""
+            syg_info = f"Sygn.: **{doc.sygnatura}**" if doc.sygnatura else ""
+            kwota_info = (
+                f"Kwota: **{doc.amount:,.0f} zł**".replace(",", " ")
+                if doc.amount else ""
+            )
+            badge = " ⚠️ **WYMAGA REAKCJI**" if doc.status == "GLOWNY" and doc.deadline_days else ""
+            meta_parts = [x for x in [date_info, syg_info, kwota_info] if x]
+            meta = " · ".join(meta_parts)
+            st.markdown(
+                f"**[{i}/{total}] {lbl}**{badge}  \n"
+                f"<span style='font-size:0.85rem;color:#6b7280;'>{page_info}"
+                + (f" · {meta}" if meta else "")
+                + "</span>",
+                unsafe_allow_html=True,
+            )
 
 
 def colored_risk_box(risk_code: str, risk_label: str):
@@ -195,20 +329,74 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
         key="doc_upload",
     )
     if uploaded_files:
-        if st.button("Analizuj dokumenty", type="primary"):
+        try:
+            _secrets_obj = st.secrets
+            _has_anthropic = bool(_secrets_obj.get("ANTHROPIC_API_KEY", ""))
+        except Exception:
+            _has_anthropic = False
+
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            _do_analyze = st.button(
+                "Analizuj dokumenty", type="primary", use_container_width=True
+            )
+        with btn_col2:
+            _prefill_ready = "doc_prefill" in st.session_state
+            _do_ai = st.button(
+                "Uruchom analizę AI pliku głównego",
+                disabled=not (_prefill_ready and _has_anthropic),
+                use_container_width=True,
+            )
+
+        if _do_analyze:
             secrets = {
                 "AZURE_DI_KEY": st.secrets.get("AZURE_DI_KEY", ""),
                 "AZURE_DI_ENDPOINT": st.secrets.get("AZURE_DI_ENDPOINT", ""),
                 "ANTHROPIC_API_KEY": st.secrets.get("ANTHROPIC_API_KEY", ""),
             }
+            # Wyczyść korekty z poprzedniej analizy
+            for _k in ("corr_kwota", "corr_powod", "corr_pozwany"):
+                st.session_state.pop(_k, None)
             with st.spinner("Analizuję dokumenty..."):
                 try:
                     main_doc, aux_docs = process_files(uploaded_files, secrets)
                     st.session_state["doc_prefill"] = main_doc
                     st.session_state["doc_aux"] = aux_docs
-                    st.success("Analiza zakończona — dane zostały wstępnie wypełnione poniżej.")
+                    st.success(f"Przeanalizowano {len(uploaded_files)} plik(ów). Formularz wyczyszczony.")
                 except Exception as e:
                     st.error(f"Błąd analizy dokumentu: {e}")
+
+        if _do_ai and _prefill_ready:
+            _prefill_ai: ProcessedDocument = st.session_state["doc_prefill"]
+            _api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
+            with st.spinner("Analizuję plik przez AI..."):
+                _ai_result = _ai_extract_fields(_prefill_ai.raw_text, _api_key)
+            if _ai_result:
+                if _ai_result.get("sygnatura"):
+                    _prefill_ai.sygnatura = _ai_result["sygnatura"]
+                if _ai_result.get("sad_organ"):
+                    _prefill_ai.sad_organ = _ai_result["sad_organ"]
+                if _ai_result.get("powod"):
+                    _prefill_ai.powod = _ai_result["powod"]
+                if _ai_result.get("pozwany"):
+                    _prefill_ai.pozwany = _ai_result["pozwany"]
+                if _ai_result.get("termin_dni"):
+                    try:
+                        _prefill_ai.deadline_days = int(_ai_result["termin_dni"])
+                    except (ValueError, TypeError):
+                        pass
+                if _ai_result.get("kwota_zl"):
+                    try:
+                        _prefill_ai.amount = float(_ai_result["kwota_zl"])
+                        _prefill_ai.k7_code = _compute_k7_code(_prefill_ai.amount)
+                    except (ValueError, TypeError):
+                        pass
+                # Wyczyść korekty ręczne — AI nadpisuje
+                for _k in ("corr_kwota", "corr_powod", "corr_pozwany"):
+                    st.session_state.pop(_k, None)
+                st.success("Analiza AI zakończona — dane zaktualizowane.")
+            else:
+                st.warning("Analiza AI nie zwróciła wyników. Sprawdź klucz API.")
 
 if "doc_prefill" in st.session_state:
     prefill: ProcessedDocument = st.session_state["doc_prefill"]
@@ -354,11 +542,17 @@ elif k4 == "K4_BOARD_ACTIVE":
 st.subheader("Krok 6 — Twój cel")
 k6 = labeled_radio("Czego przede wszystkim potrzebujesz?", "K6", "k6")
 
-# K7 – Kwota roszczenia
+# K7 – Kwota roszczenia (uwzględnij korektę kwoty jeśli użytkownik ją zmienił)
 st.subheader("Krok 7 — Kwota roszczenia")
+_corr_kwota_val = st.session_state.get("corr_kwota")
+_k7_prefill = None
+if _corr_kwota_val and float(_corr_kwota_val) > 0:
+    _k7_prefill = _compute_k7_code(float(_corr_kwota_val))
+elif prefill:
+    _k7_prefill = prefill.k7_code
 k7 = labeled_radio(
     "Jaka kwota roszczenia jest wskazana w dokumencie?", "K7", "k7",
-    prefill_code=prefill.k7_code if prefill else None,
+    prefill_code=_k7_prefill,
 )
 
 st.divider()
