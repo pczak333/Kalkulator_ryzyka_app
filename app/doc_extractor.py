@@ -133,6 +133,12 @@ _FALSZY_WYNIK = re.compile(
     re.IGNORECASE,
 )
 
+# Spójniki na początku wartości = fragment zdania złapany przez regex, nie nazwa własna
+_SPOJNIK_START = re.compile(
+    r"^(a\s|i\s|oraz\s|dla\s|do\s|od\s|ze\s|ku\s|czy\s|lub\s)",
+    re.IGNORECASE,
+)
+
 # Progi bucket K7
 _K7_BUCKETS = [
     (10_000, "K7_AMOUNT_UP_TO_10K"),
@@ -326,7 +332,9 @@ def extract_fields(text: str) -> dict:
         m = re.search(pattern, text, re.IGNORECASE)
         if m:
             val = _clean_extracted_name(m.group(1))
-            if len(val) >= 3 and not _FALSZY_WYNIK.search(val):
+            if (len(val) >= 3
+                    and not _FALSZY_WYNIK.search(val)
+                    and not _SPOJNIK_START.search(val)):
                 result["powod"] = val
                 break
 
@@ -335,7 +343,9 @@ def extract_fields(text: str) -> dict:
         m = re.search(pattern, text, re.IGNORECASE)
         if m:
             val = _clean_extracted_name(m.group(1))
-            if len(val) >= 3 and not _FALSZY_WYNIK.search(val):
+            if (len(val) >= 3
+                    and not _FALSZY_WYNIK.search(val)
+                    and not _SPOJNIK_START.search(val)):
                 result["pozwany"] = val
                 break
 

@@ -124,13 +124,21 @@ def labeled_radio(
 
 
 def reset_calculator():
-    for key in ["krs_answers", "krs_epu", "krs_days_exact",
-                "k1", "epu", "use_dates", "k2", "k3", "k4", "k5", "k6", "k7",
-                "delivery_date", "deadline_days", "test_pwd",
+    # Usuń całkowicie dane niebędące kluczami widżetów
+    for key in ["krs_answers", "krs_epu", "krs_days_exact", "test_pwd",
                 "doc_prefill", "doc_aux",
                 "corr_kwota", "corr_powod", "corr_pozwany",
-                "_last_uploaded_names"]:
+                "_last_uploaded_names",
+                "k1", "k2", "k7", "epu", "delivery_date", "deadline_days"]:
         st.session_state.pop(key, None)
+    # Klucze widżetów bez prefill — ustaw explicite na None/False, NIE pop.
+    # Streamlit cachuje wewnętrznie ostatnią wartość widżetu; gdy klucz jest
+    # nieobecny, używa cache zamiast parametru index=. Explicite None wymusza reset.
+    st.session_state["k3"] = None
+    st.session_state["k4"] = None
+    st.session_state["k5"] = None
+    st.session_state["k6"] = None
+    st.session_state["use_dates"] = False
 
 
 def _ai_extract_fields(text: str, api_key: str) -> dict:
@@ -366,17 +374,25 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
                 "AZURE_DI_ENDPOINT": st.secrets.get("AZURE_DI_ENDPOINT", ""),
                 "ANTHROPIC_API_KEY": st.secrets.get("ANTHROPIC_API_KEY", ""),
             }
-            # Wyczyść cały stan formularza — prefill z nowej analizy zastąpi auto-pola
-            for _k in ("k1", "k7", "k2", "k3", "k4", "k5", "k6",
-                       "epu", "delivery_date", "deadline_days", "use_dates",
-                       "corr_kwota", "corr_powod", "corr_pozwany"):
+            # Klucze z prefill — usuń, prefill zastąpi przez index=
+            for _k in ("k1", "k7", "k2", "epu", "delivery_date", "deadline_days",
+                       "use_dates", "corr_kwota", "corr_powod", "corr_pozwany"):
                 st.session_state.pop(_k, None)
+            # Klucze bez prefill — ustaw None (nie pop), żeby Streamlit nie użył cache
+            st.session_state["k3"] = None
+            st.session_state["k4"] = None
+            st.session_state["k5"] = None
+            st.session_state["k6"] = None
             with st.spinner("Analizuję dokumenty..."):
                 try:
                     main_doc, aux_docs = process_files(uploaded_files, secrets)
                     st.session_state["doc_prefill"] = main_doc
                     st.session_state["doc_aux"] = aux_docs
+                    st.session_state["_last_uploaded_names"] = frozenset(
+                        f.name for f in uploaded_files
+                    )
                     st.success(f"Przeanalizowano {len(uploaded_files)} plik(ów). Formularz wyczyszczony.")
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Błąd analizy dokumentu: {e}")
 

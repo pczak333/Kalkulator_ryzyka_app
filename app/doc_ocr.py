@@ -100,7 +100,7 @@ def _ocr_azure(
         client = DocumentIntelligenceClient(endpoint, AzureKeyCredential(key))
         poller = client.begin_analyze_document(
             "prebuilt-read",
-            analyze_request=raw_bytes,
+            body=raw_bytes,
             content_type="application/octet-stream",
         )
         result = poller.result()
