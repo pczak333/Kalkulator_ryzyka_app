@@ -24,7 +24,7 @@ app/
 ├── app.py               # Streamlit entry point — UI, form flow, result display
 ├── data_loader.py       # Reads CSV files from dane_wejściowe/csv/
 ├── scoring_engine.py    # Computes S = C+P+H+W, maps score to risk level
-├── hard_rules.py        # Applies hard safety rules (5B_Twarde_reguly) that override score; HR10 active in etap2
+├── hard_rules.py        # Applies hard safety rules (5B_Twarde_reguly) that override score; HR10 (low OCR quality) + HR11 (pismo procesowe — incomplete docs) active in etap2; requires DOC_TYPE key in state dict
 ├── scenario_selector.py # Selects base scenario from 6_Biblioteka_scenariuszy
 ├── context_modules.py   # Collects contextual text snippets (6D–6U sheets)
 ├── text_builder.py      # Assembles final output text; sanitize_check() verifies no codes leak
@@ -33,9 +33,9 @@ app/
 ├── doc_ingestion.py     # Reads uploaded file (PDF/DOCX/JPG/PNG) → list of PageDict per page
 ├── doc_ocr.py           # OCR kaskada: Azure Document Intelligence → Tesseract (pol) → Claude Haiku (ostatni resort)
 ├── doc_extractor.py     # Regex extraction: EPU signals, delivery date, deadline (also word-form: "dwóch tygodni"), amount, addressee (header-only detection)
-├── doc_classifier.py    # Classifies document type using keywords from CSV 07
+├── doc_classifier.py    # Classifies document type using keywords from CSV 07; uses sad_organ to disambiguate court vs. bailiff; no module-level CSV cache (always reads fresh)
 ├── doc_selector.py      # Scores candidates (CSV 02) + tie-breaking (CSV 04) → main document
-├── doc_processor.py     # Orchestrator: returns ProcessedDocument dataclass
+├── doc_processor.py     # Orchestrator: returns ProcessedDocument dataclass; maps doc_type_code → k1_code via _DOC_TYPE_TO_K1
 │
 ├── requirements.txt     # All dependencies including pdfplumber, python-docx, Pillow, anthropic, azure-ai-documentintelligence, pytesseract
 └── .streamlit/
@@ -110,7 +110,7 @@ Risk level codes must never be shown to the client — only the user-facing labe
 |---|---|---|
 | `1_Slownik_pojec_KRS_Guard` | `01_…csv` | Term definitions — what the AI must not confuse |
 | `2_Reguly_wyboru_dok_glownego` + `2A/2B/2C/2D` | `02–06_…csv` | Main document selection rules and tie-breaking |
-| `3_Typy_dokumentow` | `07_…csv` | Document type codes, EPU compatibility, scoring |
+| `3_Typy_dokumentow` | `07_…csv` | Document type codes, EPU compatibility, scoring. Custom type `PISMO_PROCESOWE_SADOWE` added (not in Excel — managed directly in CSV) |
 | `4_Formularz_6_krokow` | `08_…csv` | Form questions, answer codes, labels |
 | `5_Punktacja_formularza` | `09_…csv` | C/P/H/W point values per answer |
 | `5A_Interpretacja_wyniku` | `10_…csv` | Score-to-risk-level mapping |
@@ -134,6 +134,12 @@ git push origin etap2   # use etap2 during Stage 2 development; main is for prod
 Use clear, descriptive commit messages in English or Polish (match the language of the changed content). Never bundle unrelated changes into one commit.
 
 **Important:** All Stage 2 development goes to `etap2` branch. Merge to `main` only when Stage 2 is fully tested.
+
+## Test documents
+
+Test files used during Stage 2 development are stored in `C:\Users\User\Desktop\testy\` (outside the repo):
+- `art.299_pismow_przygot._powoda.pdf` — preparatory letter from plaintiff in art. 299 KSH case (V GC 860/23/S, Sąd Rejonowy Kraków); should classify as `PISMO_PROCESOWE_SADOWE`
+- `obraz1.png` — screenshot of the app showing classification result
 
 ## Communication rules (non-negotiable)
 
