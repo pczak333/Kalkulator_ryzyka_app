@@ -128,7 +128,8 @@ def reset_calculator():
                 "k1", "epu", "use_dates", "k2", "k3", "k4", "k5", "k6", "k7",
                 "delivery_date", "deadline_days", "test_pwd",
                 "doc_prefill", "doc_aux",
-                "corr_kwota", "corr_powod", "corr_pozwany"]:
+                "corr_kwota", "corr_powod", "corr_pozwany",
+                "_last_uploaded_names"]:
         st.session_state.pop(key, None)
 
 
@@ -328,6 +329,17 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
         accept_multiple_files=True,
         key="doc_upload",
     )
+
+    # Detekcja usunięcia pliku → wyczyść prefill i formularz
+    _cur_names = frozenset(f.name for f in (uploaded_files or []))
+    _prev_names = st.session_state.get("_last_uploaded_names", frozenset())
+    if _prev_names and not _cur_names:
+        reset_calculator()
+        st.session_state.pop("_last_uploaded_names", None)
+        st.rerun()
+    elif _cur_names != _prev_names:
+        st.session_state["_last_uploaded_names"] = _cur_names
+
     if uploaded_files:
         try:
             _secrets_obj = st.secrets
@@ -354,8 +366,9 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
                 "AZURE_DI_ENDPOINT": st.secrets.get("AZURE_DI_ENDPOINT", ""),
                 "ANTHROPIC_API_KEY": st.secrets.get("ANTHROPIC_API_KEY", ""),
             }
-            # Wyczyść korekty z poprzedniej analizy
-            for _k in ("corr_kwota", "corr_powod", "corr_pozwany"):
+            # Wyczyść stan formularza i korekty — prefill z nowej analizy zastąpi
+            for _k in ("k1", "k7", "k2", "epu", "delivery_date", "deadline_days",
+                       "use_dates", "corr_kwota", "corr_powod", "corr_pozwany"):
                 st.session_state.pop(_k, None)
             with st.spinner("Analizuję dokumenty..."):
                 try:
@@ -659,6 +672,39 @@ if "krs_answers" in st.session_state:
             panel_pwd = "krs-test-2024"
         if pwd == panel_pwd:
             st.success("Dostęp przyznany")
+
+            # ── Analiza dokumentu (Etap 2) ────────────────────────────────
+            if prefill:
+                st.subheader("Analiza dokumentu (Etap 2)")
+                c1, c2 = st.columns(2)
+                c1.write(f"**Silnik OCR:** `{prefill.ocr_engine}`")
+                c2.write(f"**Jakość OCR:** `{prefill.ocr_quality}`")
+                c1.write(f"**Pewność klasyfikacji:** {prefill.classifier_confidence:.2f}")
+                c2.write(f"**Pewność ogólna:** {prefill.confidence:.2f}")
+                c1.write(f"**Typ dokumentu:** `{prefill.doc_type_code}`")
+                c2.write(f"**Kod K1:** `{prefill.k1_code}`")
+                c1.write(f"**Zakres stron:** {prefill.page_range}")
+                c2.write(f"**Status:** `{prefill.status}`")
+                st.json({
+                    "epu": prefill.epu,
+                    "delivery_date": str(prefill.delivery_date),
+                    "deadline_days": prefill.deadline_days,
+                    "amount": prefill.amount,
+                    "k7_code": prefill.k7_code,
+                    "sygnatura": prefill.sygnatura,
+                    "sad_organ": prefill.sad_organ,
+                    "powod": prefill.powod,
+                    "pozwany": prefill.pozwany,
+                    "addressee": prefill.addressee,
+                })
+                with st.expander("Surowy tekst OCR (pierwsze 3000 znaków)"):
+                    st.code(prefill.raw_text[:3000] if prefill.raw_text else "(brak)", language=None)
+                _panel_aux = st.session_state.get("doc_aux", [])
+                for _i, _aux in enumerate(_panel_aux, 1):
+                    with st.expander(f"Dokument pomocniczy {_i}: `{_aux.doc_type_code}`"):
+                        st.write(f"Silnik: `{_aux.ocr_engine}` | Jakość: `{_aux.ocr_quality}` | Strony: {_aux.page_range}")
+                        st.code(_aux.raw_text[:1500] if _aux.raw_text else "(brak)", language=None)
+                st.divider()
 
             st.subheader("Punktacja")
             cols = st.columns(5)
