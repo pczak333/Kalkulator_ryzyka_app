@@ -349,24 +349,9 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
         st.session_state["_last_uploaded_names"] = _cur_names
 
     if uploaded_files:
-        try:
-            _secrets_obj = st.secrets
-            _has_anthropic = bool(_secrets_obj.get("ANTHROPIC_API_KEY", ""))
-        except Exception:
-            _has_anthropic = False
-
-        btn_col1, btn_col2 = st.columns(2)
-        with btn_col1:
-            _do_analyze = st.button(
-                "Analizuj dokumenty", type="primary", use_container_width=True
-            )
-        with btn_col2:
-            _prefill_ready = "doc_prefill" in st.session_state
-            _do_ai = st.button(
-                "Uruchom analizę AI pliku głównego",
-                disabled=not (_prefill_ready and _has_anthropic),
-                use_container_width=True,
-            )
+        _do_analyze = st.button(
+            "Analizuj dokumenty", type="primary", use_container_width=True
+        )
 
         if _do_analyze:
             secrets = {
@@ -383,50 +368,44 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
             st.session_state["k4"] = None
             st.session_state["k5"] = None
             st.session_state["k6"] = None
-            with st.spinner("Analizuję dokumenty..."):
-                try:
+            try:
+                with st.spinner("Krok 1/2 — Odczytuję dokument (OCR)..."):
                     main_doc, aux_docs = process_files(uploaded_files, secrets)
-                    st.session_state["doc_prefill"] = main_doc
-                    st.session_state["doc_aux"] = aux_docs
-                    st.session_state["_last_uploaded_names"] = frozenset(
-                        f.name for f in uploaded_files
-                    )
-                    st.success(f"Przeanalizowano {len(uploaded_files)} plik(ów). Formularz wyczyszczony.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Błąd analizy dokumentu: {e}")
 
-        if _do_ai and _prefill_ready:
-            _prefill_ai: ProcessedDocument = st.session_state["doc_prefill"]
-            _api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
-            with st.spinner("Analizuję plik przez AI..."):
-                _ai_result = _ai_extract_fields(_prefill_ai.raw_text, _api_key)
-            if _ai_result:
-                if _ai_result.get("sygnatura"):
-                    _prefill_ai.sygnatura = _ai_result["sygnatura"]
-                if _ai_result.get("sad_organ"):
-                    _prefill_ai.sad_organ = _ai_result["sad_organ"]
-                if _ai_result.get("powod"):
-                    _prefill_ai.powod = _ai_result["powod"]
-                if _ai_result.get("pozwany"):
-                    _prefill_ai.pozwany = _ai_result["pozwany"]
-                if _ai_result.get("termin_dni"):
-                    try:
-                        _prefill_ai.deadline_days = int(_ai_result["termin_dni"])
-                    except (ValueError, TypeError):
-                        pass
-                if _ai_result.get("kwota_zl"):
-                    try:
-                        _prefill_ai.amount = float(_ai_result["kwota_zl"])
-                        _prefill_ai.k7_code = _compute_k7_code(_prefill_ai.amount)
-                    except (ValueError, TypeError):
-                        pass
-                # Wyczyść korekty ręczne — AI nadpisuje
-                for _k in ("corr_kwota", "corr_powod", "corr_pozwany"):
-                    st.session_state.pop(_k, None)
-                st.success("Analiza AI zakończona — dane zaktualizowane.")
-            else:
-                st.warning("Analiza AI nie zwróciła wyników. Sprawdź klucz API.")
+                # Automatyczna ekstrakcja AI — jeśli klucz Anthropic dostępny
+                _api_key = secrets.get("ANTHROPIC_API_KEY", "")
+                if _api_key and main_doc.raw_text:
+                    with st.spinner("Krok 2/2 — Wyciągam dane przez AI (Claude Haiku)..."):
+                        _ai_result = _ai_extract_fields(main_doc.raw_text, _api_key)
+                    if _ai_result:
+                        if _ai_result.get("sygnatura"):
+                            main_doc.sygnatura = _ai_result["sygnatura"]
+                        if _ai_result.get("sad_organ"):
+                            main_doc.sad_organ = _ai_result["sad_organ"]
+                        if _ai_result.get("powod"):
+                            main_doc.powod = _ai_result["powod"]
+                        if _ai_result.get("pozwany"):
+                            main_doc.pozwany = _ai_result["pozwany"]
+                        if _ai_result.get("termin_dni"):
+                            try:
+                                main_doc.deadline_days = int(_ai_result["termin_dni"])
+                            except (ValueError, TypeError):
+                                pass
+                        if _ai_result.get("kwota_zl"):
+                            try:
+                                main_doc.amount = float(_ai_result["kwota_zl"])
+                                main_doc.k7_code = _compute_k7_code(main_doc.amount)
+                            except (ValueError, TypeError):
+                                pass
+
+                st.session_state["doc_prefill"] = main_doc
+                st.session_state["doc_aux"] = aux_docs
+                st.session_state["_last_uploaded_names"] = frozenset(
+                    f.name for f in uploaded_files
+                )
+                st.rerun()
+            except Exception as e:
+                st.error(f"Błąd analizy dokumentu: {e}")
 
 if "doc_prefill" in st.session_state:
     prefill: ProcessedDocument = st.session_state["doc_prefill"]
