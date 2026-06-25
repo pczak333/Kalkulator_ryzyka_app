@@ -61,6 +61,18 @@ def ocr_with_fallback(
     return "", 0.0, "none", " | ".join(notes) + " | Claude: brak klucza"
 
 
+def _preprocess_for_tesseract(img):
+    """Upscaling + autokontrast + odszum — poprawia wyniki Tesseract dla zdjęć i skanów."""
+    from PIL import ImageOps, ImageFilter
+    img = img.convert("L")
+    if max(img.size) < 2200:
+        w, h = img.size
+        img = img.resize((int(w * 1.5), int(h * 1.5)), img.Resampling.LANCZOS)
+    img = ImageOps.autocontrast(img)
+    img = img.filter(ImageFilter.MedianFilter(3)).filter(ImageFilter.SHARPEN)
+    return img
+
+
 def _ocr_tesseract_pages(scan_pages: list[PageDict]) -> str:
     """Tesseract na podanej liście stron. Zwraca połączony tekst lub ''."""
     try:
@@ -73,6 +85,7 @@ def _ocr_tesseract_pages(scan_pages: list[PageDict]) -> str:
             if not img_bytes:
                 continue
             img = Image.open(io.BytesIO(img_bytes))
+            img = _preprocess_for_tesseract(img)
             text = pytesseract.image_to_string(img, lang="pol+eng")
             if text.strip():
                 texts.append(text)

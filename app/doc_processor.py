@@ -9,6 +9,8 @@ from doc_ocr import ocr_with_fallback
 from doc_extractor import extract_fields
 from doc_classifier import classify_document
 from doc_selector import select_main_document
+from ocr_cleanup import clean_ocr_text
+from calendar_utils import compute_deadline_date
 
 # Mapowanie doc_type_code → kod K1 formularza
 _DOC_TYPE_TO_K1: dict[str, str] = {
@@ -58,6 +60,7 @@ class ProcessedDocument:
     ocr_engine: str           # "azure" | "tesseract" | "claude" | "native" | "none"
     raw_text: str
     status: str               # "GLOWNY" | "POMOCNICZY" | ...
+    deadline_date: date | None = None
     page_range: tuple[int, int] = field(default_factory=lambda: (1, 1))
     classifier_confidence: float = 0.0
     sygnatura: str | None = None
@@ -89,18 +92,24 @@ def _process_single_doc(
         ocr_engine = "native"
 
     full_text = full_text.strip()
+    # Czyść tekst OCR przed ekstrakcją (tylko skany — natywny PDF nie wymaga)
+    if ocr_engine != "native":
+        full_text = clean_ocr_text(full_text)
     ocr_quality = "LOW" if ocr_confidence < 0.75 else "HIGH"
 
     fields = extract_fields(full_text)
     doc_type, clf_conf = classify_document(full_text, fields)
     k1_code = _DOC_TYPE_TO_K1.get(doc_type, "K1_INNE_NIE_WIEM")
 
-    # Oblicz dni pozostałe
+    # Oblicz termin końcowy z uwzględnieniem polskich świąt (art. 115 KPC)
     days_left: int | None = None
+    deadline_date_val: date | None = None
     k2_code = "K2_DAYS_LEFT_UNKNOWN"
     if fields["delivery_date"] and fields["deadline_days"]:
-        delta = (fields["delivery_date"] + timedelta(days=fields["deadline_days"])) - date.today()
-        days_left = delta.days
+        deadline_date_val = compute_deadline_date(
+            fields["delivery_date"], fields["deadline_days"]
+        )
+        days_left = (deadline_date_val - date.today()).days
         k2_code = _days_to_k2(days_left)
 
     confidence = round(
@@ -134,6 +143,7 @@ def _process_single_doc(
         "pozwany": fields.get("pozwany"),
         "ocr_notes": ocr_notes,
         "file_ext": file_ext,
+        "deadline_date": deadline_date_val,
     }
 
 
@@ -209,6 +219,7 @@ def process_files(
             pozwany=d.get("pozwany"),
             ocr_notes=d.get("ocr_notes", ""),
             file_ext=d.get("file_ext", ""),
+            deadline_date=d.get("deadline_date"),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]

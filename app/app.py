@@ -530,14 +530,21 @@ if use_dates:
             value=int(prefill.deadline_days) if _prefill_has_dates else 14,
             key="deadline_days",
         )
-    deadline_date = delivery_date + timedelta(days=int(deadline_days))
+    from calendar_utils import compute_deadline_date, is_working_day
+    deadline_date = compute_deadline_date(delivery_date, int(deadline_days))
     days_exact = (deadline_date - date.today()).days
+    _was_shifted = not is_working_day(
+        delivery_date + timedelta(days=int(deadline_days))
+    )
+    _shift_note = " *(przesunięty z dnia wolnego — art. 115 KPC)*" if _was_shifted else ""
     st.info(
-        f"Termin upływa **{deadline_date.strftime('%d.%m.%Y')}** "
+        f"Termin upływa **{deadline_date.strftime('%d.%m.%Y')}**{_shift_note} "
         f"— pozostało **{days_exact} dni** kalendarzowych."
     )
     st.caption(
-        "Do tego terminu wliczają się soboty, niedziele i dni świąteczne."
+        "Do tego terminu wliczają się soboty, niedziele i dni świąteczne. "
+        "Jeśli ostatni dzień wypada w dzień wolny, termin przesuwa się na "
+        "następny dzień roboczy (art. 115 KPC)."
     )
     if days_exact < 0:
         k2 = "K2_DAYS_LEFT_0_3"
@@ -668,6 +675,37 @@ if "krs_answers" in st.session_state:
     # ── Wyświetlenie wyniku ────────────────────────────────────────────────
     st.divider()
     st.header("Twoja ocena ryzyka")
+
+    # Wykrycie "zagubionego klienta" — brak daty + brak statusu + brak celu
+    _lost_client = (
+        answers.get("K2A") == "K2A_DELIVERY_DATE_UNKNOWN"
+        and answers.get("K4") in ("K4_BOARD_UNKNOWN", "", None)
+        and answers.get("K6") in ("K6_GOAL_UNKNOWN", "", None)
+    )
+    if _lost_client:
+        _deadline_hint = {
+            "K2_DAYS_LEFT_0_3": "3 dni",
+            "K2_DAYS_LEFT_4_7": "7 dni",
+            "K2_DAYS_LEFT_8_14": "14 dni",
+        }.get(answers.get("K2", ""), "")
+        _time_pressure = (
+            f" Z dokumentu wynika termin {_deadline_hint} — jeśli pismo leży "
+            f"kilka dni, czas może być bardzo krótki."
+            if _deadline_hint else ""
+        )
+        st.warning(
+            "**⚠️ Nie znasz jeszcze kluczowych faktów tej sprawy.**\n\n"
+            f"Nie wiesz kiedy dokument został Ci doręczony — a od tej daty biegnie termin "
+            f"na reakcję.{_time_pressure} "
+            "Nie wiesz też jaki jest Twój status prawny w zarządzie — "
+            "a to wpływa bezpośrednio na zakres Twojej odpowiedzialności.\n\n"
+            "**Co zrobić TERAZ (zanim cokolwiek innego):**\n"
+            "1. Sprawdź datę na kopercie lub potwierdzeniu odbioru — to wyznacza termin.\n"
+            "2. Sprawdź w KRS czy widniejesz jako aktualny lub były członek zarządu.\n"
+            "3. Skontaktuj się z nami — **Audyt 48h** pozwoli ustalić te fakty i ułożyć "
+            "plan działania zanim termin minie."
+        )
+
     colored_risk_box(final_risk_code, output["risk_label"])
     st.markdown(output["full_text"])
 
