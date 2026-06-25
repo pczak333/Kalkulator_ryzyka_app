@@ -7,14 +7,8 @@ import pandas as pd
 _CSV_PATH = "../dane_wejściowe/csv/07_3_Typy_dokumentow.csv"
 _EXCLUDE_TYPES = {"DOKUMENT_NIECZYTELNY", "DOKUMENT_NIEPRAWNY", "DOKUMENT_NIEUSTALONY_PRAWNY"}
 
-_DOC_TYPES_CACHE: pd.DataFrame | None = None
-
-
 def _load_doc_types() -> pd.DataFrame:
-    global _DOC_TYPES_CACHE
-    if _DOC_TYPES_CACHE is None:
-        _DOC_TYPES_CACHE = pd.read_csv(_CSV_PATH, sep=";", encoding="utf-8-sig", header=1)
-    return _DOC_TYPES_CACHE
+    return pd.read_csv(_CSV_PATH, sep=";", encoding="utf-8-sig", header=1)
 
 
 def _score_text(text: str, keywords_raw: str, signals_raw: str) -> int:
@@ -64,9 +58,25 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
             base += 15
         elif adresat == "organ" and ("ZUS" in code or "ORGAN" in code or "US_" in code):
             base += 15
+        elif code == "PISMO_PROCESOWE_SADOWE" and adresat in ("czlonek_zarzadu", "spolka"):
+            base += 10
 
         if base > 0:
             scores[code] = base
+
+    # Disambiguacja: sąd vs. komornik na podstawie wyciągniętego sad_organ
+    _sad_organ = (fields.get("sad_organ") or "").lower()
+    if _sad_organ:
+        _is_court   = "sąd" in _sad_organ or "sad" in _sad_organ
+        _is_bailiff = "komornik" in _sad_organ
+        if _is_court and not _is_bailiff:
+            for _c in list(scores):
+                if "KOMORNIK" in _c:
+                    scores[_c] = max(0, scores[_c] - 25)
+        elif _is_bailiff and not _is_court:
+            for _c in list(scores):
+                if "KOMORNIK" not in _c and "UMORZENIE" not in _c:
+                    scores[_c] = max(0, scores[_c] - 15)
 
     if not scores:
         return "DOKUMENT_NIEUSTALONY_PRAWNY", 0.0
