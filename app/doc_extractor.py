@@ -83,15 +83,20 @@ _PRIMARY_ACTION_KEYWORDS = [
 _CONTEXT_WINDOW = 400
 
 # ── Kwota ─────────────────────────────────────────────────────────────────────
-# Wzorzec polskiego formatu liczby: "2.331,59" (kropka=sep. tysięcy, przecinek=decimal)
-_POLISH_NUM = r"\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?"
+# Wzorzec polskiego formatu liczby: "2.331,59" lub "5000,00" lub "19.142,36"
+# Alternatywa: z separatorem tysięcy (2.331) | bez separatora (5000)
+_POLISH_NUM = r"(?:\d{1,3}(?:[.\s]\d{3})+|\d+)(?:,\d{1,2})?"
+
+_WALUTA = r"(?:z[łl](?:otych?|ote)?|PLN)"   # zł, zl, złotych, złote, PLN
 
 _KWOTA_PATTERNS = [
-    rf"({_POLISH_NUM})\s*(?:z[łl]|PLN)\b",
-    rf"kwot[ęa]\s+({_POLISH_NUM})",
-    rf"roszczeni[ae].*?({_POLISH_NUM})\s*(?:z[łl]|PLN)",
-    # Nakaz zapłaty: "nakazuję...kwotę X zł" — najwyższy priorytet (sprawdzany pierwszy)
-    rf"nakazuj[eę].*?kwot[ęa]\s+({_POLISH_NUM})\s*(?:z[łl]|PLN)",
+    rf"({_POLISH_NUM})\s*{_WALUTA}\b",
+    rf"kwot[ęayo]\s+({_POLISH_NUM})",                         # kwotę/kwota/kwoty/kwoto
+    rf"roszczeni[ae].*?({_POLISH_NUM})\s*{_WALUTA}",
+    # Nakaz zapłaty: "nakazuję...kwotę X zł" — wysoki priorytet
+    rf"nakazuj[eę].*?kwot[ęayo]\s+({_POLISH_NUM})\s*{_WALUTA}",
+    # Pismo procesowe: "zasądzenie od pozwanego kwoty X złotych" — najwyższy priorytet
+    rf"zasądzen\w{{0,4}}[^\n]{{0,150}}?kwot\w{{0,3}}\s+({_POLISH_NUM})\s*{_WALUTA}",
 ]
 
 # ── Sygnatura akt ─────────────────────────────────────────────────────────────

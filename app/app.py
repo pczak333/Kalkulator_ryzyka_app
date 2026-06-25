@@ -317,10 +317,11 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             page_info = f"str. {p_start}–{p_end}" if p_start != p_end else f"str. {p_start}"
             date_info = doc.delivery_date.strftime("%d.%m.%Y r.") if doc.delivery_date else ""
             syg_info = f"Sygn.: **{doc.sygnatura}**" if doc.sygnatura else ""
-            kwota_info = (
-                f"Kwota: **{doc.amount:,.0f} zł**".replace(",", " ")
-                if doc.amount else ""
-            )
+            if doc.amount:
+                _kf = f"{doc.amount:,.2f}".replace(",", " ").replace(".", ",")
+                kwota_info = f"Kwota: **{_kf} zł**"
+            else:
+                kwota_info = ""
             badge = " ⚠️ **WYMAGA REAKCJI**" if doc.status == "GLOWNY" and doc.deadline_days else ""
             meta_parts = [x for x in [date_info, syg_info, kwota_info] if x]
             meta = " · ".join(meta_parts)
