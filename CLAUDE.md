@@ -31,13 +31,13 @@ app/
 │
 │   ── Etap 2: document processing modules ──
 ├── doc_ingestion.py     # Reads uploaded file (PDF/DOCX/JPG/PNG) → list of PageDict per page
-├── doc_ocr.py           # OCR for scans via Claude Vision API (claude-haiku-4-5-20251001)
-├── doc_extractor.py     # Regex extraction: EPU signals, delivery date, deadline, amount, addressee
+├── doc_ocr.py           # OCR kaskada: Azure Document Intelligence → Tesseract (pol) → Claude Haiku (ostatni resort)
+├── doc_extractor.py     # Regex extraction: EPU signals, delivery date, deadline (also word-form: "dwóch tygodni"), amount, addressee (header-only detection)
 ├── doc_classifier.py    # Classifies document type using keywords from CSV 07
 ├── doc_selector.py      # Scores candidates (CSV 02) + tie-breaking (CSV 04) → main document
 ├── doc_processor.py     # Orchestrator: returns ProcessedDocument dataclass
 │
-├── requirements.txt     # All dependencies including pdfplumber, python-docx, Pillow, anthropic
+├── requirements.txt     # All dependencies including pdfplumber, python-docx, Pillow, anthropic, azure-ai-documentintelligence, pytesseract
 └── .streamlit/
     ├── config.toml      # Streamlit theme/config
     └── secrets.toml     # LOCAL ONLY (in .gitignore): TEST_PANEL_PASSWORD, ANTHROPIC_API_KEY
@@ -52,7 +52,10 @@ streamlit run app/app.py
 ```toml
 TEST_PANEL_PASSWORD = "krs-test-2024"
 ANTHROPIC_API_KEY = "sk-ant-..."
+AZURE_DI_KEY = "..."
+AZURE_DI_ENDPOINT = "https://krs-guard.cognitiveservices.azure.com/"
 ```
+WAŻNE: każdy klucz i wartość muszą być na tej samej linii (format TOML).
 
 The technical panel (scores, raw answers, triggered rules, sanitization check) is hidden behind a password. Default: `krs-test-2024`, overridable via `st.secrets["TEST_PANEL_PASSWORD"]`.
 
