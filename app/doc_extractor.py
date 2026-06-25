@@ -83,10 +83,15 @@ _PRIMARY_ACTION_KEYWORDS = [
 _CONTEXT_WINDOW = 400
 
 # ── Kwota ─────────────────────────────────────────────────────────────────────
+# Wzorzec polskiego formatu liczby: "2.331,59" (kropka=sep. tysięcy, przecinek=decimal)
+_POLISH_NUM = r"\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?"
+
 _KWOTA_PATTERNS = [
-    r"(\d[\d\s]{0,12}[\d,]+)\s*(?:z[łl]|PLN)\b",
-    r"kwot[ęa]\s+(\d[\d\s]{0,12}[\d,]+)",
-    r"roszczeni[ae].*?(\d[\d\s]{0,12}[\d,]+)\s*(?:z[łl]|PLN)",
+    rf"({_POLISH_NUM})\s*(?:z[łl]|PLN)\b",
+    rf"kwot[ęa]\s+({_POLISH_NUM})",
+    rf"roszczeni[ae].*?({_POLISH_NUM})\s*(?:z[łl]|PLN)",
+    # Nakaz zapłaty: "nakazuję...kwotę X zł" — najwyższy priorytet (sprawdzany pierwszy)
+    rf"nakazuj[eę].*?kwot[ęa]\s+({_POLISH_NUM})\s*(?:z[łl]|PLN)",
 ]
 
 # ── Sygnatura akt ─────────────────────────────────────────────────────────────
@@ -161,7 +166,14 @@ def _parse_date(s: str) -> date | None:
 
 
 def _parse_amount(s: str) -> float | None:
-    s = re.sub(r"\s", "", s).replace(",", ".")
+    s = re.sub(r"\s", "", s)
+    # Polski format: "2.331,59" → kropka=sep. tysięcy, przecinek=decimal
+    if re.match(r"^\d{1,3}(\.\d{3})+,\d{1,2}$", s):
+        s = s.replace(".", "").replace(",", ".")
+    elif re.match(r"^\d{1,3}(\.\d{3})+$", s):
+        s = s.replace(".", "")
+    else:
+        s = s.replace(",", ".")
     try:
         return float(s)
     except ValueError:
