@@ -225,6 +225,17 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             unsafe_allow_html=True,
         )
 
+    # Baner dla pisma procesowego — brak pełnej dokumentacji
+    if main.doc_type_code == "PISMO_PROCESOWE_SADOWE":
+        st.warning(
+            "**Uwaga: dokumentacja niekompletna.**\n\n"
+            "Przesłane pismo wskazuje na toczące się postępowanie sądowe, "
+            "lecz bez pełnej dokumentacji sprawy (pozwu, sprzeciwu, wcześniejszych pism) "
+            "nie jest możliwa rzetelna ocena ryzyka.\n\n"
+            "**Zdecydowanie zalecamy przesłanie pełnej dokumentacji w ramach Audytu 48h**, "
+            "który pozwoli na kompleksową analizę Twojej sytuacji."
+        )
+
     # Bieżące wartości z uwzględnieniem korekt
     corr_kwota = st.session_state.get("corr_kwota")
     corr_powod = st.session_state.get("corr_powod")
@@ -640,7 +651,12 @@ if "krs_answers" in st.session_state:
     epu        = st.session_state["krs_epu"]
     days_exact = st.session_state["krs_days_exact"]
 
-    state = {**answers, "EPU": epu}
+    _prefill = st.session_state.get("doc_prefill")
+    state = {
+        **answers,
+        "EPU": epu,
+        "DOC_TYPE": _prefill.doc_type_code if _prefill else "",
+    }
 
     # 1. Punktacja
     score_result = calculate(answers)

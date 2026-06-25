@@ -160,6 +160,17 @@ def apply(state: dict, current_risk_code: str) -> tuple[str, HardRuleResult]:
             if rule["min_risk"]:
                 final_risk = elevate_risk(final_risk, rule["min_risk"])
 
+    # HR11 — pismo procesowe w toku sprawy: brak pełnej dokumentacji
+    if state.get("DOC_TYPE") == "PISMO_PROCESOWE_SADOWE":
+        result.triggered.append("HR11")
+        result.warnings.append(
+            "Przesłana dokumentacja wskazuje na toczące się postępowanie sądowe. "
+            "Bez dostępu do kompletnych akt sprawy (pozwu, odpowiedzi na pozew, "
+            "sprzeciwu i wcześniejszych pism) rzetelna ocena nie jest możliwa. "
+            "Zalecamy przesłanie pełnej dokumentacji w ramach Audytu 48h."
+        )
+        final_risk = elevate_risk(final_risk, "RISK_HIGH")
+
     # HR10 — niska jakość OCR (aktywna od etapu 2)
     if state.get("OCR_QUALITY") == "LOW":
         result.triggered.append("HR10")
