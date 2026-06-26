@@ -80,6 +80,14 @@ def clean_ocr_text(text: str) -> str:
     t = re.sub(r" +\n", "\n", t)
     t = re.sub(r"\n{3,}", "\n\n", t)
 
+    # Normalizacja PESEL — Tesseract czasem gubi "L" lub zastępuje je artefaktem
+    t = re.sub(r"\bPESE[^\w\s]", "PESEL", t)
+
+    # OCR artifacts przy polskich samogłoskach ą/ó → spacja (typowe dla skanów B&W)
+    # Np. "ciągu" → "ci gu",  "dwóch" → "dw ch"
+    t = re.sub(r"\bci\s+gu\b", "ciągu", t)
+    t = re.sub(r"\bdw\s+ch\b", "dwóch", t)
+
     # Normalizacja sygnatur
     t = re.sub(r"(?i)sygnatura\s+akt", "Sygnatura akt", t)
     t = re.sub(r"(?i)\bN[eę]-e\b", "Nc-e", t)

@@ -25,6 +25,8 @@ _ADRESAT: dict[str, list[str]] = {
         r"\bWiceprezes[a-z\s]*[Zz]arz[aą]du\b",
         r"osob[aą]\s+fizyczn",
         r"art\.\s*299\s*[Kk][Ss][Hh]",
+        r"\bPESEL\b",           # numer PESEL = osoba fizyczna, nie spółka
+        r"[Oo]bywatelstwo",     # pole obywatelstwa = wyłącznie osoby fizyczne
     ],
     "spolka": [
         r"[Ss]p[oó][łl][ck][a-z]*\b",
@@ -53,14 +55,22 @@ _DORECZENIE_PATTERNS = [
 ]
 
 # Terminy słowne → liczba dni (sprawdzane PRZED wzorcami cyfrowymi)
+# Dwie serie: "w terminie..." i "w ciągu..." (nakaz EPU używa drugiej formy)
 _TERMIN_WRITTEN: list[tuple[str, int]] = [
     (r"w\s+terminie\s+trzech\s+miesi[eę]cy",      90),
+    (r"w\s+ci[aą]gu\s+trzech\s+miesi[eę]cy",      90),
     (r"w\s+terminie\s+jednego\s+miesi[aą]ca",     30),
+    (r"w\s+ci[aą]gu\s+jednego\s+miesi[aą]ca",     30),
     (r"w\s+terminie\s+miesi[aą]ca",               30),
+    (r"w\s+ci[aą]gu\s+miesi[aą]ca",               30),
     (r"w\s+terminie\s+czterech\s+tygodni",        28),
-    (r"w\s+terminie\s+dw[oó]ch\s+tygodni",       14),
-    (r"w\s+terminie\s+jednego\s+tygodnia",         7),
-    (r"w\s+terminie\s+tygodnia",                   7),
+    (r"w\s+ci[aą]gu\s+czterech\s+tygodni",        28),
+    (r"w\s+terminie\s+dw[oó]ch\s+tygodni",        14),
+    (r"w\s+ci[aą]gu\s+dw[oó]ch\s+tygodni",        14),  # forma operatywna nakazu EPU
+    (r"w\s+terminie\s+jednego\s+tygodnia",          7),
+    (r"w\s+ci[aą]gu\s+jednego\s+tygodnia",          7),
+    (r"w\s+terminie\s+tygodnia",                    7),
+    (r"w\s+ci[aą]gu\s+tygodnia",                    7),
 ]
 
 _TERMIN_PATTERNS = [
@@ -72,8 +82,12 @@ _TERMIN_PATTERNS = [
     r"termin\s+(\d+)\s+dni",
 ]
 
-# Słowa kluczowe akcji — szukamy terminu w ich pobliżu (±400 znaków)
+# Słowa kluczowe akcji — szukamy terminu w ich pobliżu (±400 znaków).
+# "nakazuje pozwanemu" MUSI być pierwsze: termin "w ciągu dwóch tygodni" jest bezpośrednio
+# po formule operatywnej nakazu (str. 1 nakazu). "sprzeciw" pojawia się też w pouczeniu
+# (str. 3-4 nakazu) gdzie w oknie ±400 zn. może być "w terminie tygodnia" (termin zażalenia) = 7 dni.
 _PRIMARY_ACTION_KEYWORDS = [
+    "nakazuje pozwanemu",
     "sprzeciw",
     "odpowiedź na pozew",
     "zarzuty od nakazu",
@@ -261,9 +275,13 @@ def extract_fields(text: str) -> dict:
         result["epu"] = True
         result["epu_confidence"] = min(0.6 + epu_hits * 0.15, 1.0)
 
-    # Adresat — tylko nagłówek dokumentu (przed sekcją POUCZENIE lub max 2000 znaków)
+    # Adresat — tylko nagłówek dokumentu (strony, wartość sporu, sąd).
+    # Kończymy przed POUCZENIE lub UZASADNIENIE — uzasadnienie pozwu wymienia
+    # spółkę-pierwotnego dłużnika, co fałszywie podnosi score "spolka".
     pouczenie_idx = text.upper().find("POUCZENIE")
-    header_end = pouczenie_idx if pouczenie_idx > 0 else _HEADER_MAX_CHARS
+    uzasadnienie_idx = text.upper().find("UZASADNIENIE")
+    section_delimiters = [i for i in [pouczenie_idx, uzasadnienie_idx] if i > 100]
+    header_end = min(section_delimiters) if section_delimiters else _HEADER_MAX_CHARS
     header_text = text[:min(header_end, _HEADER_MAX_CHARS)]
     adresat_scores: dict[str, int] = {}
     for category, patterns in _ADRESAT.items():
