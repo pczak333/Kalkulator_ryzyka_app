@@ -5,6 +5,27 @@ from datetime import date
 
 _REMIS_THRESHOLD = 10  # różnica punktów poniżej której stosujemy reguły remisu
 
+# Źródło dokumentu — używane przez R23–R26 w score_candidate()
+_COURT_TYPES = {
+    "POZEW_CZLONEK_ZARZADU", "NAKAZ_CZLONEK_ZARZADU",
+    "EPU_NAKAZ_CZLONEK_ZARZADU", "EPU_POZEW_CZLONEK_ZARZADU",
+    "WEZWANIE_SADOWE_CZLONEK_ZARZADU",
+    "POZEW_SPOLKA", "NAKAZ_SPOLKA",
+    "EPU_NAKAZ_SPOLKA", "EPU_POZEW_SPOLKA",
+    "WEZWANIE_SADOWE_SPOLKA", "PISMO_PROCESOWE_SADOWE",
+}
+_BAILIFF_TYPES = {
+    "PISMO_KOMORNIK_CZLONEK_ZARZADU", "PISMO_KOMORNIK_SPOLKA",
+    "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC",
+}
+_ORGAN_TYPES = {
+    "DECYZJA_ZUS_CZLONEK_ZARZADU", "DECYZJA_US_CZLONEK_ZARZADU",
+    "ORGAN_PUBLICZNY_CZLONEK_ZARZADU", "DECYZJA_ZUS_US_SPOLKA",
+}
+_CREDITOR_TYPES = {
+    "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU", "WEZWANIE_PRZEDSADOWE_SPOLKA",
+}
+
 # Punktacja typów dokumentów (z CSV 02 reguły R04–R16)
 _TYPE_SCORES: dict[str, int] = {
     "EPU_NAKAZ_CZLONEK_ZARZADU":     60,
@@ -13,17 +34,17 @@ _TYPE_SCORES: dict[str, int] = {
     "POZEW_CZLONEK_ZARZADU":         50,
     "WEZWANIE_SADOWE_CZLONEK_ZARZADU": 45,
     "PISMO_KOMORNIK_CZLONEK_ZARZADU": 45,
-    "DECYZJA_ZUS_CZLONEK_ZARZADU":   42,
-    "DECYZJA_US_CZLONEK_ZARZADU":    42,
-    "ORGAN_PUBLICZNY_CZLONEK_ZARZADU": 42,
-    "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": 38,
-    "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC": 35,
+    "DECYZJA_ZUS_CZLONEK_ZARZADU":   45,   # R15
+    "DECYZJA_US_CZLONEK_ZARZADU":    45,   # R15
+    "ORGAN_PUBLICZNY_CZLONEK_ZARZADU": 45, # R15
+    "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": 35,   # R13
+    "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC": 45,   # R12
     "EPU_NAKAZ_SPOLKA":              32,
     "NAKAZ_SPOLKA":                  30,
     "EPU_POZEW_SPOLKA":              27,
     "POZEW_SPOLKA":                  25,
     "WEZWANIE_SADOWE_SPOLKA":        22,
-    "PISMO_KOMORNIK_SPOLKA":         22,
+    "PISMO_KOMORNIK_SPOLKA":         35,        # R11
     "DECYZJA_ZUS_US_SPOLKA":         20,
     "WEZWANIE_PRZEDSADOWE_SPOLKA":   15,
     "POTWIERDZENIE_DORECZENIA":      -20,
@@ -70,6 +91,20 @@ def score_candidate(doc: dict) -> int:
     days_left = doc.get("days_left")
     total += _deadline_score(days_left)
 
+    # R22: nieznany termin — kandydat niepewny, ale może być ważny
+    if days_left is None:
+        total += 10
+
+    # R23-R26: źródło dokumentu
+    if doc_type in _COURT_TYPES:
+        total += 25    # R23
+    elif doc_type in _BAILIFF_TYPES:
+        total += 25    # R24
+    elif doc_type in _ORGAN_TYPES:
+        total += 25    # R25
+    elif doc_type in _CREDITOR_TYPES:
+        total += 15    # R26
+
     # art. 299 KSH w tekście (R27)
     if "art. 299" in doc.get("raw_text", "") or "art.299" in doc.get("raw_text", ""):
         total += 35
@@ -77,6 +112,13 @@ def score_candidate(doc: dict) -> int:
     # Sygnatura Nc-e / Lublin-Zachód (R28) — +25 pkt per CSV 02
     if doc.get("epu"):
         total += 25
+
+    # R30-R31: jakość odczytu OCR
+    ocr = doc.get("ocr_quality", "")
+    if ocr == "HIGH":
+        total += 5     # R30
+    elif ocr == "LOW":
+        total -= 10    # R31
 
     return total
 

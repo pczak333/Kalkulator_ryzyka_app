@@ -73,7 +73,9 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     ))
     if not _has_nakaz_formula:
         for _c in list(scores):
-            if _c.startswith("NAKAZ_") or _c.startswith("EPU_NAKAZ_"):
+            # Tylko non-EPU NAKAZ_* — dokumenty EPU mają własne silne sygnały
+            # (Nc-e, Sąd Rejonowy Lublin-Zachód) wystarczające do odróżnienia od pisma procesowego
+            if _c.startswith("NAKAZ_"):
                 scores[_c] = max(0, scores[_c] - 20)
 
     # Disambiguacja: sąd vs. komornik na podstawie wyciągniętego sad_organ
