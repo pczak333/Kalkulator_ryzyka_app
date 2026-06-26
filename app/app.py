@@ -675,6 +675,26 @@ if "krs_answers" in st.session_state:
 
     # 4. Moduły kontekstowe
     doc_type = resolve_doc_type(answers["K1"], epu)
+
+    # Jeśli OCR zidentyfikował PISMO_PROCESOWE_SADOWE — nadpisz doc_type i tekst scenariusza.
+    # Scenariusz pochodzi z DOKUMENT_NIEUSTALONY_PRAWNY (K1_INNE_NIE_WIEM), więc jego
+    # treść trzeba tu zastąpić, by nie mówiło "rodzaj pisma nie ustalony".
+    if state.get("DOC_TYPE") == "PISMO_PROCESOWE_SADOWE":
+        doc_type = "PISMO_PROCESOWE_SADOWE"
+        scenario["user_risk_explanation_base"] = (
+            "Dokumentacja wskazuje na toczące się postępowanie sądowe. "
+            "Bez dostępu do pełnych akt sprawy trudno ocenić bieżącą pozycję procesową — "
+            "znane są sygnatura sprawy i kwota roszczenia, ale nie historia i pisma obu stron."
+        )
+        scenario["user_practical_meaning_base"] = (
+            "W praktyce kluczowe jest zebranie kompletnej dokumentacji sprawy: pozwu, "
+            "wcześniejszych pism obu stron, odpowiedzi na pozew i zarządzeń sądu. "
+            "Dopiero pełne akta umożliwią ocenę pozycji procesowej i dostępnych kroków."
+        )
+        scenario["user_next_step_base"] = (
+            "zebrać pełną dokumentację sprawy i przekazać do analizy w ramach Audytu 48h"
+        )
+
     context = collect_context(state, doc_type, days_exact, risk_code=final_risk_code)
 
     # 5. Tekst końcowy
@@ -691,7 +711,7 @@ if "krs_answers" in st.session_state:
 
     # ── Wyświetlenie wyniku ────────────────────────────────────────────────
     st.divider()
-    st.header("Twoja ocena ryzyka")
+    st.header("Ocena ryzyka")
 
     # Wykrycie "zagubionego klienta" — brak daty + brak statusu + brak celu
     _lost_client = (

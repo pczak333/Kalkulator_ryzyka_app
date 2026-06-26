@@ -84,6 +84,11 @@ _CTA_UNKNOWN = (
     "To pisemna opinia prawna sporządzona przez radcę prawnego — "
     "nie automatyczna ocena, ale dokument, na którym możesz oprzeć swoją decyzję."
 )
+_CTA_PISMO_PROCESOWE = (
+    "Sprawa jest w toku — do rzetelnej oceny potrzebna jest pełna dokumentacja. "
+    "**Audyt 48h** to pisemna opinia prawna sporządzona przez radcę prawnego, "
+    "który przeanalizuje całe akta i wskaże dostępne kroki procesowe."
+)
 _CTA_ZUS = (
     "Pismo z ZUS lub urzędu skarbowego wymaga **wyjaśnień i dokumentów** — "
     "nie sprzeciwu ani odpowiedzi na pozew. "
@@ -99,6 +104,8 @@ _ZUS_LEAD_DOC_TYPES = {
 
 def _cta_for_doc_type(doc_type: str) -> str:
     """Wybiera CTA zależnie od tego, czy dokument jest już skierowany do członka zarządu."""
+    if doc_type == "PISMO_PROCESOWE_SADOWE":
+        return _CTA_PISMO_PROCESOWE
     if doc_type == "DOKUMENT_NIEUSTALONY_PRAWNY":
         return _CTA_UNKNOWN
     if doc_type in {
@@ -169,7 +176,22 @@ def _lead_paragraph(labels: dict, days_exact: int | None, k4_code: str = "", doc
     k4_label = labels.get("K4", "")
     k5_label = labels.get("K5", "")
 
-    if doc_type == "DOKUMENT_NIEUSTALONY_PRAWNY":
+    if doc_type == "PISMO_PROCESOWE_SADOWE":
+        if days_exact is not None and days_exact < 0:
+            parts.append(
+                "Pismo procesowe w toczącym się postępowaniu sądowym. "
+                "Termin na reakcję mógł już **upłynąć** — konieczne jest pilne sprawdzenie sytuacji."
+            )
+        elif days_exact is not None:
+            day_word = "dzień" if days_exact == 1 else "dni"
+            cal = " Termin wlicza soboty, niedziele i święta." if days_exact <= 14 else ""
+            parts.append(
+                f"Pismo procesowe w toczącym się postępowaniu sądowym. "
+                f"Szacowany czas na reakcję: **{days_exact} {day_word}** kalendarzowych.{cal}"
+            )
+        else:
+            parts.append("Pismo procesowe w toczącym się postępowaniu sądowym.")
+    elif doc_type == "DOKUMENT_NIEUSTALONY_PRAWNY":
         if days_exact is not None and days_exact < 0:
             parts.append(
                 "Termin na reakcję mógł już **upłynąć** — "

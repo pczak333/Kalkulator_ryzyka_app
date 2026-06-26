@@ -307,6 +307,12 @@ def _k6_procedural_text(doc_type: str, generic_text: str) -> str:
             "zakwestionować roszczenie lub przygotować się na dalsze kroki wierzyciela. "
             "Decyzja o formie i treści odpowiedzi powinna uwzględniać podstawę roszczenia."
         )
+    if doc_type == "PISMO_PROCESOWE_SADOWE":
+        return (
+            "Zaznaczono, że głównym celem jest przygotowanie właściwego pisma procesowego. "
+            "W toczącym się postępowaniu zakres i forma reakcji zależy od etapu sprawy "
+            "i treści dotychczasowych pism — bez pełnych akt sprawy nie można wskazać właściwego kroku."
+        )
     if doc_type == "DOKUMENT_NIEUSTALONY_PRAWNY":
         return (
             "Zaznaczono, że celem jest przygotowanie właściwego pisma procesowego. "
