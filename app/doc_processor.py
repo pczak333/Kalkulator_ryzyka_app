@@ -72,37 +72,19 @@ class ProcessedDocument:
     file_ext: str = ""
 
 
-def _process_single_doc(
-    pages: list[PageDict],
-    raw_bytes: bytes,
-    ext: str,
-    secrets: dict,
-    file_ext: str = "",
+def _build_candidate_dict(
+    text: str,
+    ocr_quality: str,
+    ocr_engine: str,
+    ocr_notes: str,
+    file_ext: str,
+    page_range: tuple[int, int],
 ) -> dict:
-    """Przetwarza listę stron jako jeden logiczny dokument."""
-    has_scans = any(p["is_scan"] for p in pages)
-
-    ocr_notes = ""
-    if has_scans:
-        full_text, ocr_confidence, ocr_engine, ocr_notes = ocr_with_fallback(
-            pages, raw_bytes, ext, secrets
-        )
-    else:
-        full_text = "\n".join(p["text"] for p in pages)
-        ocr_confidence = 1.0
-        ocr_engine = "native"
-
-    full_text = full_text.strip()
-    # Czyść tekst OCR przed ekstrakcją (tylko skany — natywny PDF nie wymaga)
-    if ocr_engine != "native":
-        full_text = clean_ocr_text(full_text)
-    ocr_quality = "LOW" if ocr_confidence < 0.75 else "HIGH"
-
-    fields = extract_fields(full_text)
-    doc_type, clf_conf = classify_document(full_text, fields)
+    """Buduje słownik kandydata z przetworzonego tekstu dokumentu."""
+    fields = extract_fields(text)
+    doc_type, clf_conf = classify_document(text, fields)
     k1_code = _DOC_TYPE_TO_K1.get(doc_type, "K1_INNE_NIE_WIEM")
 
-    # Oblicz termin końcowy z uwzględnieniem polskich świąt (art. 115 KPC)
     days_left: int | None = None
     deadline_date_val: date | None = None
     k2_code = "K2_DAYS_LEFT_UNKNOWN"
@@ -135,9 +117,9 @@ def _process_single_doc(
         "confidence": confidence,
         "ocr_quality": ocr_quality,
         "ocr_engine": ocr_engine,
-        "raw_text": full_text,
+        "raw_text": text,
         "classifier_confidence": clf_conf,
-        "page_range": (pages[0]["page_num"], pages[-1]["page_num"]),
+        "page_range": page_range,
         "sygnatura": fields.get("sygnatura"),
         "sad_organ": fields.get("sad_organ"),
         "powod": fields.get("powod"),
@@ -146,6 +128,64 @@ def _process_single_doc(
         "file_ext": file_ext,
         "deadline_date": deadline_date_val,
     }
+
+
+def _process_single_doc(
+    pages: list[PageDict],
+    raw_bytes: bytes,
+    ext: str,
+    secrets: dict,
+    file_ext: str = "",
+) -> list[dict]:
+    """
+    Przetwarza jeden plik → lista kandydatów.
+    Zwraca N > 1 elementów gdy PDF zawiera wiele logicznych dokumentów.
+    """
+    from doc_splitter import detect_documents_by_pages
+
+    has_scans = any(p["is_scan"] for p in pages)
+
+    ocr_notes = ""
+    if has_scans:
+        full_text, ocr_confidence, ocr_engine, ocr_notes = ocr_with_fallback(
+            pages, raw_bytes, ext, secrets
+        )
+    else:
+        # Natywny PDF — dodaj separatory stron (wymagane przez segmentację)
+        full_text = "\n".join(
+            f"--- STRONA {p['page_num']} ---\n{p['text']}"
+            for p in pages if p["text"]
+        )
+        ocr_confidence = 1.0
+        ocr_engine = "native"
+
+    full_text = full_text.strip()
+    if ocr_engine != "native":
+        full_text = clean_ocr_text(full_text)
+    ocr_quality = "LOW" if ocr_confidence < 0.75 else "HIGH"
+
+    # Próba segmentacji na logiczne dokumenty
+    segments = detect_documents_by_pages(full_text)
+
+    if segments:
+        # Wiele logicznych dokumentów — process each segment (text already OCR'd)
+        candidates = []
+        for seg in segments:
+            seg_text = seg["text"]
+            pages_in_seg = seg.get("pages", [])
+            p_start = pages_in_seg[0] if pages_in_seg else pages[0]["page_num"]
+            p_end   = pages_in_seg[-1] if pages_in_seg else pages[-1]["page_num"]
+            cand = _build_candidate_dict(
+                seg_text, ocr_quality, ocr_engine, ocr_notes, file_ext, (p_start, p_end)
+            )
+            candidates.append(cand)
+        return candidates
+
+    # Plik jednolity — klasyfikuj cały tekst
+    return [_build_candidate_dict(
+        full_text, ocr_quality, ocr_engine, ocr_notes, file_ext,
+        (pages[0]["page_num"], pages[-1]["page_num"]),
+    )]
 
 
 def process_files(
@@ -167,8 +207,8 @@ def process_files(
         ext = uf.name.rsplit(".", 1)[-1].lower()
         pages = extract_pages(uf)
         if pages:
-            candidate = _process_single_doc(pages, raw_bytes, ext, secrets, file_ext=ext)
-            all_candidates.append(candidate)
+            candidates = _process_single_doc(pages, raw_bytes, ext, secrets, file_ext=ext)
+            all_candidates.extend(candidates)
 
     if not all_candidates:
         # Fallback — pusty dokument nieustalony

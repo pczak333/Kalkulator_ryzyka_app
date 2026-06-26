@@ -55,7 +55,11 @@ def clean_ocr_text(text: str) -> str:
         if not ln:
             cleaned_lines.append("")
             continue
-        # separatory stron
+        # Separatory stron "--- STRONA X ---" — ZACHOWAJ (potrzebne do segmentacji)
+        if re.fullmatch(r"---\s*STRONA\s+\d+\s*---", ln, flags=re.I):
+            cleaned_lines.append(ln)
+            continue
+        # Inne linie z "STRONA N" (artefakty OCR) — usuń
         if re.fullmatch(r"[-=]{2,}\s*STRONA\s*\d+\s*[-=]{2,}", ln, flags=re.I):
             continue
         # 1–2 losowe litery

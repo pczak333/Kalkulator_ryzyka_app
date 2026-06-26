@@ -80,7 +80,7 @@ def _ocr_tesseract_pages(scan_pages: list[PageDict]) -> str:
         from PIL import Image
 
         texts: list[str] = []
-        for page in scan_pages:
+        for i, page in enumerate(scan_pages, start=1):
             img_bytes = page.get("image_bytes")
             if not img_bytes:
                 continue
@@ -88,7 +88,8 @@ def _ocr_tesseract_pages(scan_pages: list[PageDict]) -> str:
             img = _preprocess_for_tesseract(img)
             text = pytesseract.image_to_string(img, lang="pol+eng")
             if text.strip():
-                texts.append(text)
+                page_num = page.get("page_num", i)
+                texts.append(f"--- STRONA {page_num} ---\n{text}")
         return "\n".join(texts)
     except Exception:
         return ""
@@ -121,8 +122,10 @@ def _ocr_azure(
         lines: list[str] = []
         confidences: list[float] = []
         azure_page_count = 0
-        for page in (result.pages or []):
+        for page_idx, page in enumerate((result.pages or []), start=1):
             azure_page_count += 1
+            page_num = getattr(page, "page_number", page_idx)
+            lines.append(f"--- STRONA {page_num} ---")
             for line in (page.lines or []):
                 lines.append(line.content)
             for word in (page.words or []):
@@ -159,11 +162,12 @@ def _ocr_claude(pages: list[PageDict], api_key: str) -> tuple[str, float]:
     texts: list[str] = []
     all_confident = True
 
-    for page in pages:
+    for i, page in enumerate(pages, start=1):
+        page_num = page.get("page_num", i)
         img_bytes = page.get("image_bytes")
         if not img_bytes:
             if page.get("text"):
-                texts.append(page["text"])
+                texts.append(f"--- STRONA {page_num} ---\n{page['text']}")
             continue
 
         b64 = base64.standard_b64encode(img_bytes).decode("utf-8")
@@ -186,7 +190,7 @@ def _ocr_claude(pages: list[PageDict], api_key: str) -> tuple[str, float]:
             }],
         )
         text = response.content[0].text.strip()
-        texts.append(text)
+        texts.append(f"--- STRONA {page_num} ---\n{text}")
         if "[NIECZYTELNE]" in text:
             all_confident = False
 

@@ -60,19 +60,19 @@ _ADRESAT_SCORES: dict[str, int] = {
     None:               5,
 }
 
-# Punkty za termin (R17–R20)
+# Punkty za termin (R18–R21, wg CSV 02)
 def _deadline_score(days_left: int | None) -> int:
     if days_left is None:
         return 0
     if days_left <= 0:
         return 45   # przeterminowany — krytyczny
     if days_left <= 3:
-        return 40
+        return 40   # R18: 0-3 dni
     if days_left <= 7:
-        return 35
+        return 30   # R19: 4-7 dni (poprawka: było 35)
     if days_left <= 14:
-        return 30
-    return 20       # > 14 dni
+        return 20   # R20: 8-14 dni (poprawka: było 30)
+    return 10       # R21: > 14 dni (poprawka: było 20)
 
 
 def score_candidate(doc: dict) -> int:
@@ -87,8 +87,12 @@ def score_candidate(doc: dict) -> int:
     doc_type = doc.get("doc_type_code", "")
     total += _TYPE_SCORES.get(doc_type, 0)
 
-    # Termin (R17-R20)
+    # R17: dokument zawiera wyraźny termin reakcji (sprzeciw, zarzuty, odpowiedź...) → +35
     days_left = doc.get("days_left")
+    if days_left is not None:
+        total += 35
+
+    # R18-R21: ile dni pozostało na reakcję
     total += _deadline_score(days_left)
 
     # R22: nieznany termin — kandydat niepewny, ale może być ważny
@@ -152,6 +156,24 @@ def _tiebreak(a: dict, b: dict) -> dict:
     if a.get("epu") and not b.get("epu"):
         return a
     if b.get("epu") and not a.get("epu"):
+        return b
+
+    # R5: sąd > wierzyciel
+    a_court = a.get("doc_type_code") in _COURT_TYPES
+    b_court = b.get("doc_type_code") in _COURT_TYPES
+    a_cred  = a.get("doc_type_code") in _CREDITOR_TYPES
+    b_cred  = b.get("doc_type_code") in _CREDITOR_TYPES
+    if a_court and b_cred:
+        return a
+    if b_court and a_cred:
+        return b
+
+    # R6: komornik > wierzyciel
+    a_bail = a.get("doc_type_code") in _BAILIFF_TYPES
+    b_bail = b.get("doc_type_code") in _BAILIFF_TYPES
+    if a_bail and b_cred:
+        return a
+    if b_bail and a_cred:
         return b
 
     # R7: nowszy dokument

@@ -50,19 +50,26 @@ RISK_ICONS = {
 }
 
 _DOC_TYPE_LABELS: dict[str, str] = {
-    "NAKAZ_CZLONEK_ZARZADU":           "Nakaz zapłaty",
-    "NAKAZ_SPOLKA":                    "Nakaz zapłaty",
-    "EPU_NAKAZ_SPOLKA":                "Nakaz zapłaty (e-Sąd / EPU)",
-    "EPU_NAKAZ_CZLONEK_ZARZADU":       "Nakaz zapłaty (e-Sąd / EPU)",
-    "POZEW_CZLONEK_ZARZADU":           "Pozew",
-    "POZEW_SPOLKA":                    "Pozew",
-    "EPU_POZEW_SPOLKA":                "Pozew (e-Sąd / EPU)",
-    "EPU_POZEW_CZLONEK_ZARZADU":       "Pozew (e-Sąd / EPU)",
-    "WEZWANIE_SADOWE_CZLONEK_ZARZADU": "Wezwanie sądowe",
-    "WEZWANIE_SADOWE_SPOLKA":          "Wezwanie sądowe",
-    "DECYZJA_ZUS_CZLONEK_ZARZADU":     "Decyzja ZUS",
-    "DECYZJA_US_CZLONEK_ZARZADU":      "Decyzja urzędu skarbowego",
-    "ORGAN_PUBLICZNY_CZLONEK_ZARZADU": "Pismo organu publicznego",
+    "NAKAZ_CZLONEK_ZARZADU":              "Nakaz zapłaty",
+    "NAKAZ_SPOLKA":                       "Nakaz zapłaty",
+    "EPU_NAKAZ_SPOLKA":                   "Nakaz zapłaty (e-Sąd / EPU)",
+    "EPU_NAKAZ_CZLONEK_ZARZADU":          "Nakaz zapłaty (e-Sąd / EPU)",
+    "POZEW_CZLONEK_ZARZADU":              "Pozew",
+    "POZEW_SPOLKA":                       "Pozew",
+    "EPU_POZEW_SPOLKA":                   "Pozew (e-Sąd / EPU)",
+    "EPU_POZEW_CZLONEK_ZARZADU":          "Pozew (e-Sąd / EPU)",
+    "WEZWANIE_SADOWE_CZLONEK_ZARZADU":    "Wezwanie sądowe",
+    "WEZWANIE_SADOWE_SPOLKA":             "Wezwanie sądowe",
+    "DECYZJA_ZUS_CZLONEK_ZARZADU":        "Decyzja ZUS",
+    "DECYZJA_US_CZLONEK_ZARZADU":         "Decyzja urzędu skarbowego",
+    "ORGAN_PUBLICZNY_CZLONEK_ZARZADU":    "Pismo organu publicznego",
+    "PISMO_KOMORNIK_CZLONEK_ZARZADU":     "Pismo komornicze",
+    "PISMO_KOMORNIK_SPOLKA":              "Pismo komornicze (spółka)",
+    "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC": "Postanowienie o umorzeniu egzekucji",
+    "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": "Wezwanie przedsądowe",
+    "WEZWANIE_PRZEDSADOWE_SPOLKA":        "Wezwanie przedsądowe (spółka)",
+    "DECYZJA_ZUS_US_SPOLKA":              "Decyzja ZUS / urzędu skarbowego (spółka)",
+    "PISMO_PROCESOWE_SADOWE":             "Pismo procesowe w toczącym się postępowaniu",
 }
 
 _K7_BUCKETS_UI = [
@@ -333,7 +340,7 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
                 kwota_info = f"Kwota: **{_kf} zł**"
             else:
                 kwota_info = ""
-            badge = " ⚠️ **WYMAGA REAKCJI**" if doc.status == "GLOWNY" and doc.deadline_days else ""
+            badge = " ⚠️ **WYMAGA REAKCJI**" if doc.deadline_days else ""
             meta_parts = [x for x in [date_info, syg_info, kwota_info] if x]
             meta = " · ".join(meta_parts)
             st.markdown(
