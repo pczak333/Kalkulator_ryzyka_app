@@ -59,10 +59,22 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
         elif adresat == "organ" and ("ZUS" in code or "ORGAN" in code or "US_" in code):
             base += 15
         elif code == "PISMO_PROCESOWE_SADOWE" and adresat in ("czlonek_zarzadu", "spolka"):
-            base += 10
+            base += 15
 
         if base > 0:
             scores[code] = base
+
+    # Jeśli brak formuły operatywnej nakazu zapłaty ("nakazuję pozwanemu") —
+    # dokument jest pismem procesowym omawiającym sprawę, nie nakazem.
+    # Penalizuj typy NAKAZ_* by nie wygrały przez sam kontekst narracyjny.
+    _has_nakaz_formula = bool(re.search(
+        r"nakazuj[eę]\s+pozwan",
+        text, re.IGNORECASE
+    ))
+    if not _has_nakaz_formula:
+        for _c in list(scores):
+            if _c.startswith("NAKAZ_") or _c.startswith("EPU_NAKAZ_"):
+                scores[_c] = max(0, scores[_c] - 20)
 
     # Disambiguacja: sąd vs. komornik na podstawie wyciągniętego sad_organ
     _sad_organ = (fields.get("sad_organ") or "").lower()
