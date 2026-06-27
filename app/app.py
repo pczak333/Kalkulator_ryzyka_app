@@ -135,7 +135,7 @@ def reset_calculator():
     for key in ["krs_answers", "krs_epu", "krs_days_exact", "test_pwd",
                 "doc_prefill", "doc_aux",
                 "corr_kwota", "corr_powod", "corr_pozwany",
-                "_last_uploaded_names",
+                "_last_uploaded_names", "_art299_gate",
                 "k1", "k2", "k7", "epu", "delivery_date", "deadline_days"]:
         st.session_state.pop(key, None)
     # Klucze widżetów bez prefill — ustaw explicite na None/False, NIE pop.
@@ -409,7 +409,8 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
             }
             # Klucze z prefill — usuń, prefill zastąpi przez index=
             for _k in ("k1", "k7", "k2", "epu", "delivery_date", "deadline_days",
-                       "use_dates", "corr_kwota", "corr_powod", "corr_pozwany"):
+                       "use_dates", "corr_kwota", "corr_powod", "corr_pozwany",
+                       "_art299_gate"):
                 st.session_state.pop(_k, None)
             # Klucze bez prefill — ustaw None (nie pop), żeby Streamlit nie użył cache
             st.session_state["k3"] = None
@@ -459,6 +460,45 @@ if "doc_prefill" in st.session_state:
     prefill: ProcessedDocument = st.session_state["doc_prefill"]
     aux_docs: list[ProcessedDocument] = st.session_state.get("doc_aux", [])
     _show_doc_summary(prefill, aux_docs)
+
+    # Bramka art. 299 KSH — tylko gdy pozwany jest osobą fizyczną
+    _person_doc = prefill.doc_type_code.endswith("_CZLONEK_ZARZADU")
+    if _person_doc:
+        _gate = st.session_state.get("_art299_gate")
+        if _gate is None:
+            st.divider()
+            st.markdown("### Potwierdzenie zakresu sprawy")
+            st.info(
+                "Dokument wskazuje, że pozwanym jest **osoba fizyczna**. "
+                "Kalkulator KRS Guard służy wyłącznie do oceny ryzyka "
+                "w sprawach o **odpowiedzialność członka zarządu spółki (art. 299 KSH)**."
+            )
+            st.markdown(
+                "**Czy sprawa, której dotyczy ten dokument, wynika "
+                "z odpowiedzialności za zobowiązania spółki z tytułu "
+                "pełnienia funkcji członka zarządu?**"
+            )
+            _col1, _col2 = st.columns(2)
+            with _col1:
+                if st.button("Tak — sprawa dotyczy art. 299 KSH", type="primary", use_container_width=True):
+                    st.session_state["_art299_gate"] = "yes"
+                    st.rerun()
+            with _col2:
+                if st.button("Nie — to inna sprawa", use_container_width=True):
+                    st.session_state["_art299_gate"] = "no"
+                    st.rerun()
+            st.stop()
+        elif _gate == "no":
+            st.divider()
+            st.warning(
+                "Kalkulator KRS Guard ocenia ryzyko wyłącznie w sprawach "
+                "o odpowiedzialność członka zarządu spółki (art. 299 KSH). "
+                "Jeśli sprawa dotyczy innego rodzaju zobowiązania osobistego, "
+                "skonsultuj się bezpośrednio z prawnikiem."
+            )
+            st.stop()
+        # _gate == "yes" → kontynuuj normalnie
+
     st.divider()
 else:
     prefill = None

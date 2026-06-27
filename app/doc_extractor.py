@@ -43,6 +43,12 @@ _ADRESAT: dict[str, list[str]] = {
     ],
 }
 
+# Wzorzec do sprawdzenia, czy nazwa pozwanego zawiera formę spółkową
+_COMPANY_IN_NAME = re.compile(
+    r"\bSp\b\.?\s*z|\bS\.A\.\b|[Ss]p[oó][łl]k|sp\.\s*z\s*o\.o",
+    re.IGNORECASE,
+)
+
 # ── Daty i terminy ────────────────────────────────────────────────────────────
 _DATE_FORMATS = ["%d.%m.%Y", "%d-%m-%Y", "%d/%m/%Y"]
 
@@ -383,5 +389,20 @@ def extract_fields(text: str) -> dict:
                     and not _SPOJNIK_START.search(val)):
                 result["pozwany"] = val
                 break
+
+    # Post-korekcja adresata: szukamy etykietowanej sekcji "Pozwany:" w nagłówku.
+    # Jeżeli nazwa bezpośrednio po "Pozwany:" nie zawiera form spółkowych,
+    # a adresat wykryto jako "spolka", to fałszywy sygnał pochodzi z nazwy
+    # powoda (np. "PKO Bank S.A.") lub innej wzmianki o spółce w nagłówku.
+    if result.get("adresat") == "spolka":
+        _poz_header_m = re.search(
+            r"[Pp]ozwan[yąa](?:ch)?[:\s]*\n?\s*([^\n\r]{3,100})",
+            header_text,
+        )
+        if _poz_header_m:
+            _poz_line = _poz_header_m.group(1).strip()
+            if not _COMPANY_IN_NAME.search(_poz_line):
+                result["adresat"] = "czlonek_zarzadu"
+                result["adresat_confidence"] = min(result.get("adresat_confidence", 1.0), 0.65)
 
     return result
