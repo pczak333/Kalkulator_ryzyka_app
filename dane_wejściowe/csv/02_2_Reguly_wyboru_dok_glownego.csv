@@ -6,6 +6,7 @@ R03;Adresat dokumentu;Nie da się ustalić, kto jest adresatem dokumentu;5;Kandy
 R04;Typ dokumentu;Pozew przeciwko członkowi zarządu;50;Dokument główny o najwyższym priorytecie;Szczególnie gdy pojawia się art. 299 KSH, odpowiedzialność członków zarządu lub bezskuteczność egzekucji przeciwko spółce
 R05;Typ dokumentu;Nakaz zapłaty przeciwko członkowi zarządu;55;Dokument główny o najwyższym priorytecie;Zwykle wymaga pilnej reakcji, zwłaszcza gdy termin już biegnie
 R06;Typ dokumentu;Nakaz zapłaty w EPU przeciwko członkowi zarządu;60;Dokument główny krytyczny;Jeżeli sygnatura zawiera „Nc-e” albo występuje Sąd Rejonowy Lublin-Zachód, dodaj flagę EPU
+R06a;Typ dokumentu;Pozew w elektronicznym postępowaniu upominawczym (EPU) przeciwko członkowi zarządu;52;Dokument główny — wysoki priorytet;Jeżeli sygnatura zawiera „Nc-e" albo występuje Sąd Rejonowy Lublin-Zachód, dodaj flagę EPU. Pozew jest wcześniejszym etapem niż nakaz — nie musi zawierać formuły nakazowej.
 R07;Typ dokumentu;Wezwanie sądowe skierowane do członka zarządu;45;Bardzo silny kandydat;Może oznaczać konieczność reakcji lub udziału w postępowaniu
 R08;Typ dokumentu;Pismo komornicze skierowane do członka zarządu;45;Bardzo silny kandydat;Wskazuje na etap egzekucyjny albo ryzyko majątkowe
 R09;Typ dokumentu;Pozew przeciwko spółce;25;Dokument główny tylko wtedy, gdy brak dokumentu przeciwko członkowi zarządu;Ważny jako kontekst, ale nie zawsze bezpośrednio dotyczy odpowiedzialności osobistej

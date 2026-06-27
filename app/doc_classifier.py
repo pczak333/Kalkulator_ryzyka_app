@@ -66,16 +66,16 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
 
     # Jeśli brak formuły operatywnej nakazu zapłaty ("nakazuję pozwanemu") —
     # dokument jest pismem procesowym omawiającym sprawę, nie nakazem.
-    # Penalizuj typy NAKAZ_* by nie wygrały przez sam kontekst narracyjny.
+    # Penalizuj WSZYSTKIE typy *NAKAZ_* (w tym EPU_NAKAZ_*) — sygnały EPU jak Nc-e
+    # i Sąd Lublin-Zachód pojawiają się też w pozwie EPU (ten sam numer sprawy, ten sam sąd),
+    # więc bez tej penalizacji pozew EPU jest błędnie klasyfikowany jako nakaz EPU.
     _has_nakaz_formula = bool(re.search(
         r"nakazuj[eę]\s+pozwan",
         text, re.IGNORECASE
     ))
     if not _has_nakaz_formula:
         for _c in list(scores):
-            # Tylko non-EPU NAKAZ_* — dokumenty EPU mają własne silne sygnały
-            # (Nc-e, Sąd Rejonowy Lublin-Zachód) wystarczające do odróżnienia od pisma procesowego
-            if _c.startswith("NAKAZ_"):
+            if "NAKAZ_" in _c:
                 scores[_c] = max(0, scores[_c] - 20)
 
     # Disambiguacja: sąd vs. komornik na podstawie wyciągniętego sad_organ
