@@ -70,6 +70,8 @@ The technical panel (scores, raw answers, triggered rules, sanitization check) i
 
 **Rule**: never hard-code texts, scores, or rules in application code that can be driven from Excel. The Excel file is the single source of truth.
 
+**Rule — CSV i Excel muszą być zawsze zsynchronizowane**: Każda zmiana w dowolnym pliku CSV (`dane_wejściowe/csv/*.csv`) musi być wprowadzona JEDNOCZEŚNIE do odpowiedniego arkusza Excela (`dane_wejściowe/KRS_Guard_reguly_i_zasady_funkcjonowania.xlsx`) w tej samej operacji. Nigdy nie commituj zmiany tylko w CSV bez zmiany w Excelu. Wyjątek: `PISMO_PROCESOWE_SADOWE` (typ zarządzany wyłącznie w CSV, nie ma go w Excelu — zaznaczone w sekcji Key data sheets).
+
 ## Core business logic (from spec)
 
 **Calculator flow:**
@@ -138,10 +140,27 @@ Use clear, descriptive commit messages in English or Polish (match the language 
 
 ## Test documents
 
-Test files used during Stage 2 development are stored in `C:\Users\User\Desktop\testy\` (outside the repo):
-- `art.299_pismow_przygot._powoda.pdf` — preparatory letter from plaintiff in art. 299 KSH case (V GC 860/23/S, Sąd Rejonowy Kraków); should classify as `PISMO_PROCESOWE_SADOWE`
-- `Lublin_nakaz_zapłaty_pko.pdf` — EPU nakaz zapłaty (VI Nc-e 236/25, Sąd Rejonowy Lublin-Zachód); powód: PKO Bank Polski S.A.; pozwany: PIOTR CZAK; kwota: 80 460,82 zł; termin: 14 dni; should classify as `EPU_NAKAZ_CZLONEK_ZARZADU`; this doc triggered the adresat post-correction fix (PKO's "S.A." was polluting addressee detection)
-- `obraz1.png` — screenshot of the app showing classification result
+Test files used during Stage 2 development are stored in `C:\Users\User\Desktop\testy\` (outside the repo). **Always check this folder for current test files and screenshots before diagnosing any bug.**
+- `Lublin_nakaz_zapłaty_pko.pdf` — EPU nakaz zapłaty (VI Nc-e 236/25, Sąd Rejonowy Lublin-Zachód); powód: PKO Bank Polski S.A.; pozwany: PIOTR CZAK; kwota: 80 460,82 zł; termin: 14 dni; should classify as `EPU_NAKAZ_CZLONEK_ZARZADU`
+- `Lublin_pozew_pko.pdf` — EPU pozew o zapłatę (VI Nc-e 1245792/25, Sąd Rejonowy Lublin-Zachód); powód: PKO Bank Polski S.A.; pozwany: PIOTR CZAK; kwota: 85 463,92 zł; tytuł dokumentu: "P O Z E W" (ze spacjami); should classify as `EPU_POZEW_CZLONEK_ZARZADU`; triggered fix: penalizacja EPU_NAKAZ gdy brak "nakazuję pozwanemu"
+- `obraz1.png` — aktualny zrzut ekranu z wynikiem analizy w aplikacji
+
+## Zasady pracy Claude Code w tym projekcie
+
+### Synchronizacja dokumentacji (obowiązkowe)
+- **Po każdej zmianie kodu lub danych**: zaktualizuj CLAUDE.md (sekcja doc_*.py, test documents) oraz plik memory projektu (`project-etap2-state.md`) — jeszcze w tej samej sesji, przed commitem.
+- **Nie czekaj do końca rozmowy** z aktualizacją dokumentacji — rób to na bieżąco po każdym zakończonym kroku.
+
+### Ostrzeżenie o limicie tokenów
+Przed przystąpieniem do zadania, które może wymagać dużej liczby tokenów (wiele plików, skomplikowane refaktoryzacje, analizy wielu arkuszy), pokaż użytkownikowi ostrzeżenie:
+
+```
+⚠️ OSTRZEŻENIE: To zadanie może być długie (szacuję: [liczba] plików / [zakres] zmian).
+Jeśli rozmowa zostanie przerwana z powodu limitu, zrób checkpoint — zatrzymaj się i powiedz
+co zostało zrobione, a co jeszcze pozostaje. Kontynuować?
+```
+
+Próg ostrzeżenia: zadanie dotyka >4 plików LUB >80 linii kodu do zmiany LUB >3 arkuszy CSV/Excel jednocześnie.
 
 ## Communication rules (non-negotiable)
 
