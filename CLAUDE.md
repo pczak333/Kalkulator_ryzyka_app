@@ -32,7 +32,7 @@ app/
 │   ── Etap 2: document processing modules ──
 ├── doc_ingestion.py     # Reads uploaded file (PDF/DOCX/JPG/PNG) → list of PageDict per page
 ├── doc_ocr.py           # OCR kaskada: Azure Document Intelligence → Tesseract (pol) → Claude Haiku (ostatni resort)
-├── doc_extractor.py     # Regex extraction: EPU signals, delivery date, deadline (also word-form: "dwóch tygodni"), amount, addressee (header-only detection)
+├── doc_extractor.py     # Regex extraction: EPU signals, delivery date, deadline (also word-form: "dwóch tygodni"), amount, addressee (header-only detection + post-correction: if "Pozwany:" header section has no company form but adresat="spolka", corrects to "czlonek_zarzadu" — prevents plaintiff's "S.A." from polluting addressee detection)
 ├── doc_classifier.py    # Classifies document type using keywords from CSV 07; uses sad_organ to disambiguate court vs. bailiff; no module-level CSV cache (always reads fresh)
 ├── doc_selector.py      # Scores candidates (CSV 02) + tie-breaking (CSV 04) → main document
 ├── doc_processor.py     # Orchestrator: returns ProcessedDocument dataclass; maps doc_type_code → k1_code via _DOC_TYPE_TO_K1
@@ -76,6 +76,7 @@ The technical panel (scores, raw answers, triggered rules, sanitization check) i
 1. Client uploads documents or fills the form manually
 2. Calculator identifies the **main document** (dokument główny) — the one requiring the most urgent response
 3. EPU / e-Court status is assessed per document type
+3a. **Art. 299 KSH gate** (document mode only): if the detected doc type ends with `_CZLONEK_ZARZADU` (individual person as defendant), the app shows a confirmation question before the form: "Czy sprawa dotyczy odpowiedzialności z tytułu pełnienia funkcji członka zarządu?" — "Nie" blocks the form with an info message; "Tak" proceeds. Session state key: `_art299_gate` (None / "yes" / "no"). Gate does NOT appear in manual mode (no document uploaded).
 4. Client confirms the claim amount (K7)
 5. Client calculates or selects the time remaining to respond (K2)
 6. Client answers questions K3–K6
@@ -139,6 +140,7 @@ Use clear, descriptive commit messages in English or Polish (match the language 
 
 Test files used during Stage 2 development are stored in `C:\Users\User\Desktop\testy\` (outside the repo):
 - `art.299_pismow_przygot._powoda.pdf` — preparatory letter from plaintiff in art. 299 KSH case (V GC 860/23/S, Sąd Rejonowy Kraków); should classify as `PISMO_PROCESOWE_SADOWE`
+- `Lublin_nakaz_zapłaty_pko.pdf` — EPU nakaz zapłaty (VI Nc-e 236/25, Sąd Rejonowy Lublin-Zachód); powód: PKO Bank Polski S.A.; pozwany: PIOTR CZAK; kwota: 80 460,82 zł; termin: 14 dni; should classify as `EPU_NAKAZ_CZLONEK_ZARZADU`; this doc triggered the adresat post-correction fix (PKO's "S.A." was polluting addressee detection)
 - `obraz1.png` — screenshot of the app showing classification result
 
 ## Communication rules (non-negotiable)
