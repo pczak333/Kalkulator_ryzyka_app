@@ -390,19 +390,15 @@ def extract_fields(text: str) -> dict:
                 result["pozwany"] = val
                 break
 
-    # Post-korekcja adresata: szukamy etykietowanej sekcji "Pozwany:" w nagłówku.
-    # Jeżeli nazwa bezpośrednio po "Pozwany:" nie zawiera form spółkowych,
-    # a adresat wykryto jako "spolka", to fałszywy sygnał pochodzi z nazwy
-    # powoda (np. "PKO Bank S.A.") lub innej wzmianki o spółce w nagłówku.
+    # Post-korekcja adresata: jeśli pozwany to osoba fizyczna (brak form spółkowych
+    # w nazwie), a adresat był wstępnie wykryty jako "spolka" z nazwy powoda → korekta.
+    # Opieramy się na już wyciągniętym result["pozwany"], bo w EPU nakazu etykieta
+    # "Pozwany:" często nie pojawia się w nagłówku — jest "Dłużnik:" albo fraza
+    # "nakazuję pozwanemu [imię]" w treści poza header_text.
     if result.get("adresat") == "spolka":
-        _poz_header_m = re.search(
-            r"[Pp]ozwan[yąa](?:ch)?[:\s]*\n?\s*([^\n\r]{3,100})",
-            header_text,
-        )
-        if _poz_header_m:
-            _poz_line = _poz_header_m.group(1).strip()
-            if not _COMPANY_IN_NAME.search(_poz_line):
-                result["adresat"] = "czlonek_zarzadu"
-                result["adresat_confidence"] = min(result.get("adresat_confidence", 1.0), 0.65)
+        pozwany_name = result.get("pozwany") or ""
+        if pozwany_name and not _COMPANY_IN_NAME.search(pozwany_name):
+            result["adresat"] = "czlonek_zarzadu"
+            result["adresat_confidence"] = min(result.get("adresat_confidence", 1.0), 0.65)
 
     return result
