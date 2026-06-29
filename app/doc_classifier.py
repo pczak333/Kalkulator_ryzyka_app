@@ -64,19 +64,28 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
         if base > 0:
             scores[code] = base
 
-    # Jeśli brak formuły operatywnej nakazu zapłaty ("nakazuję pozwanemu") —
-    # dokument jest pismem procesowym omawiającym sprawę, nie nakazem.
-    # Penalizuj WSZYSTKIE typy *NAKAZ_* (w tym EPU_NAKAZ_*) — sygnały EPU jak Nc-e
-    # i Sąd Lublin-Zachód pojawiają się też w pozwie EPU (ten sam numer sprawy, ten sam sąd),
-    # więc bez tej penalizacji pozew EPU jest błędnie klasyfikowany jako nakaz EPU.
+    # Formuła operatywna nakazu ("nakazuję pozwanemu") jako pozytywny sygnał dla NAKAZ_.
+    # [\s\S]{0,15} zamiast \s+ — odporna na łamania linii w tabelach EPU (OCR).
+    # Bonus zamiast kary: gdy OCR nie wyciągnie frazy, NAKAZ nie jest penalizowany —
+    # o wyniku decydują wtedy słowa kluczowe (nakaz zapłaty > pozew).
     _has_nakaz_formula = bool(re.search(
-        r"nakazuj[eę]\s+pozwan",
+        r"nakazuj[eę][\s\S]{0,15}pozwan",
         text, re.IGNORECASE
     ))
-    if not _has_nakaz_formula:
+    if _has_nakaz_formula:
         for _c in list(scores):
             if "NAKAZ_" in _c:
-                scores[_c] = max(0, scores[_c] - 20)
+                scores[_c] += 20
+
+    # Frazy wnosicielskie lub tytuł "P O Z E W" jako pozytywny sygnał dla POZEW_.
+    _has_pozew_signals = bool(re.search(
+        r"(wnosimy\s+o|wnosz[eę]\s+o|P\s+O\s+Z\s+E\s+W)",
+        text, re.IGNORECASE
+    ))
+    if _has_pozew_signals:
+        for _c in list(scores):
+            if "POZEW" in _c:
+                scores[_c] += 20
 
     # Disambiguacja: sąd vs. komornik na podstawie wyciągniętego sad_organ
     _sad_organ = (fields.get("sad_organ") or "").lower()
