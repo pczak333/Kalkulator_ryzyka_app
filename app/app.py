@@ -461,8 +461,16 @@ if "doc_prefill" in st.session_state:
     aux_docs: list[ProcessedDocument] = st.session_state.get("doc_aux", [])
     _show_doc_summary(prefill, aux_docs)
 
-    # Bramka art. 299 KSH — tylko gdy pozwany jest osobą fizyczną
-    _person_doc = prefill.doc_type_code.endswith("_CZLONEK_ZARZADU")
+    # Bramka art. 299 KSH — tylko gdy pozwany jest osobą fizyczną (nie spółką).
+    # Dodatkowy warunek: sprawdzamy wyciągnięte pole pozwany — gdy zawiera formę spółkową,
+    # nie pokazujemy bramki (dokument może mieć błędny kod lub być mieszanym PDF).
+    _SPOLKA_FORMS = ("sp. z o.o.", "spółka z o.", "s.a.", "spółka akcyjna",
+                     "sp. k.", "sp. j.", "s.k.a.", "spółka komandytowa",
+                     "spółka jawna", "sp. z o. o.")
+    _pozwany_lower = (prefill.pozwany or "").lower()
+    _pozwany_is_company = any(f in _pozwany_lower for f in _SPOLKA_FORMS)
+    _person_doc = (prefill.doc_type_code.endswith("_CZLONEK_ZARZADU")
+                   and not _pozwany_is_company)
     if _person_doc:
         _gate = st.session_state.get("_art299_gate")
         if _gate is None:

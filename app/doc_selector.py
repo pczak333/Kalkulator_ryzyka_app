@@ -203,8 +203,20 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
     best_doc, best_score = scored[0]
     second_doc, second_score = scored[1]
 
-    # Remis?
-    if best_score - second_score < _REMIS_THRESHOLD:
+    # Twarda reguła: nakaz zawsze pilniejszy od pozwu tego samego rodzaju (EPU lub zwykły).
+    # Scoring (art. 299 bonus +35) może podnieść pozew ponad nakaz, ale pilność reakcji
+    # (termin sprzeciwu 14 dni) sprawia że nakaz musi wygrywać niezależnie od punktów.
+    _nakaz_codes = {"EPU_NAKAZ_CZLONEK_ZARZADU", "EPU_NAKAZ_SPOLKA",
+                    "NAKAZ_CZLONEK_ZARZADU", "NAKAZ_SPOLKA"}
+    _pozew_codes = {"EPU_POZEW_CZLONEK_ZARZADU", "EPU_POZEW_SPOLKA",
+                    "POZEW_CZLONEK_ZARZADU", "POZEW_SPOLKA"}
+    _nakazes = [d for d, _ in scored if d.get("doc_type_code") in _nakaz_codes]
+    _pozwy   = [d for d, _ in scored if d.get("doc_type_code") in _pozew_codes]
+    if _nakazes and _pozwy and best_doc.get("doc_type_code") in _pozew_codes:
+        best_doc = _nakazes[0]
+
+    # Remis (gdy twarda reguła nie zadecydowała)?
+    elif best_score - second_score < _REMIS_THRESHOLD:
         best_doc = _tiebreak(best_doc, second_doc)
 
     main = dict(best_doc)

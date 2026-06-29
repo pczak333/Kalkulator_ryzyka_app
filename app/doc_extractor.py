@@ -121,7 +121,10 @@ _KWOTA_PATTERNS = [
 
 # ── Sygnatura akt ─────────────────────────────────────────────────────────────
 _SYGNATURA_PATTERNS = [
-    r"[Ss]ygn(?:atura)?\.\s*akt\s+([\w\d\.\s/]+?\d{2,4}(?:/[A-Z\d]+)*)",
+    # "Sygnatura akt" lub "Sygn. akt" (z kropką lub bez) — łapie pełną sygnaturę do końca linii
+    r"[Ss]ygn(?:atura)?\.?\s*akt[:\s]+([\w\d\.\s/\-]+?\d{4,}(?:/[A-Z\d]+)*)",
+    # EPU: "VI Nc-e 222431/23" — wymagana długa liczba (>=4 cyfry), brak limitu
+    r"\b([IVX]+\s+Nc-e\s+\d{4,}/\d{2,4})\b",
     r"\b([IVX]+\s+G(?:Nc|C|Co|n)\s+\d+/\d+(?:/[A-Z]+)?)\b",
     r"\b([A-Z]+\s+\d+/\d+(?:/[A-Z\d]+)?)\b",
 ]
@@ -289,6 +292,13 @@ def extract_fields(text: str) -> dict:
     section_delimiters = [i for i in [pouczenie_idx, uzasadnienie_idx] if i > 100]
     header_end = min(section_delimiters) if section_delimiters else _HEADER_MAX_CHARS
     header_text = text[:min(header_end, _HEADER_MAX_CHARS)]
+
+    # parties_text: jeszcze ściślejsza granica dla powód/pozwany — każde wystąpienie
+    # UZASADNIENIE/POUCZENIE (nawet na początku segmentu) kończy strefę ekstrakcji.
+    # Zapobiega wyciąganiu podmiotów z uzasadnienia pozwu (cytaty Km, Woodraft Home itp.).
+    _strict_delims = [i for i in [pouczenie_idx, uzasadnienie_idx] if i >= 0]
+    _strict_end = min(_strict_delims) if _strict_delims else _HEADER_MAX_CHARS
+    parties_text = text[:min(_strict_end, _HEADER_MAX_CHARS)]
     adresat_scores: dict[str, int] = {}
     for category, patterns in _ADRESAT.items():
         score = sum(1 for p in patterns if re.search(p, header_text, re.IGNORECASE))
@@ -350,12 +360,13 @@ def extract_fields(text: str) -> dict:
         result["amount_raw"] = found_raw
         result["k7_code"] = _amount_to_k7(found_amount)
 
-    # Sygnatura akt
+    # Sygnatura akt — odrzuć sygnatury komornicze (Km/KM = referencja w uzasadnieniu,
+    # nie własna sygnatura sądu; sądowe sygnatury to np. "VI Nc-e", "I C", "VIII GC")
     for pattern in _SYGNATURA_PATTERNS:
         m = re.search(pattern, text)
         if m:
             syg = _clean_extracted_name(m.group(1))
-            if len(syg) >= 4:
+            if len(syg) >= 4 and not re.match(r'^Km\b', syg, re.IGNORECASE):
                 result["sygnatura"] = syg
                 break
 
@@ -368,9 +379,9 @@ def extract_fields(text: str) -> dict:
                 result["sad_organ"] = sad
                 break
 
-    # Powód — z filtrem fałszywych wyników (zdania z treści dokumentu)
+    # Powód — tylko z nagłówka (parties_text: bezwzględna granica przed UZASADNIENIE/POUCZENIE)
     for pattern in _POWOD_PATTERNS:
-        m = re.search(pattern, text, re.IGNORECASE)
+        m = re.search(pattern, parties_text, re.IGNORECASE)
         if m:
             val = _clean_extracted_name(m.group(1))
             if (len(val) >= 3
@@ -379,9 +390,10 @@ def extract_fields(text: str) -> dict:
                 result["powod"] = val
                 break
 
-    # Pozwany — z filtrem fałszywych wyników
+    # Pozwany — tylko z nagłówka (parties_text).
+    # Wzorzec nakazu "nakazuję pozwanemu" zawsze jest przed UZASADNIENIE → parties_text go zawiera.
     for pattern in _POZWANY_PATTERNS:
-        m = re.search(pattern, text, re.IGNORECASE)
+        m = re.search(pattern, parties_text, re.IGNORECASE)
         if m:
             val = _clean_extracted_name(m.group(1))
             if (len(val) >= 3

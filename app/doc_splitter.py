@@ -80,7 +80,10 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         re.search(r"SRODEK\s+ZASKARZENIA.*SPRZECIW|ŚRODEK\s+ZASKARŻENIA.*SPRZECIW", tu[:600])
     )
     if not _is_pouczenie_page:
-        # Reguła 5: POZEW na początku linii w nagłówku (≤800 zn.)
+        # Reguła 5a: "P O Z E W" ze spacjami (format EPU — litery rozdzielone spacjami)
+        if re.search(r"(?m)^[^A-Z]{0,10}P\s+O\s+Z\s+E\s+W\b", tu[:800]):
+            return ("pozew", "Pozew", "primary")
+        # Reguła 5b: POZEW bez spacji na początku linii w nagłówku (≤800 zn.)
         if re.search(r"(?m)^[^A-Z]{0,5}POZEW\b", tu[:800]):
             return ("pozew", "Pozew", "primary")
 
@@ -179,15 +182,23 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     )
 
     if _has_nakaz and _has_pozew:
-        if _is_art299_bundle:
-            # Art. 299: pozew do zarządu = WYMAGA REAKCJI; nakaz historyczny wobec spółki = dowód
+        # Nakaz EPU = wymaga sprzeciwu w krótkim terminie → zawsze primary.
+        # Art. 299 override stosujemy TYLKO gdy nakaz jest starym nakazem wobec spółki
+        # (nie EPU), a pozew art. 299 to nowe, osobne postępowanie — wtedy pozew pilniejszy.
+        _has_epu_nakaz = any(
+            d["doc_type"] in _nakaz_types and
+            re.search(r"Nc-e|e-[Ss][aą]d|\bEPU\b", d["text"], re.IGNORECASE)
+            for d in documents
+        )
+        if _is_art299_bundle and not _has_epu_nakaz:
+            # Stary nakaz wobec spółki + nowy pozew art. 299 → pozew pilniejszy
             for d in documents:
                 if d["doc_type"] in _pozew_types:
                     d["role"] = "primary"
                 elif d["doc_type"] in _nakaz_types:
                     d["role"] = "evidence"
         else:
-            # EPU / tradycyjny nakaz: nakaz = WYMAGA REAKCJI (sprzeciw / zarzuty); pozew = tło
+            # EPU nakaz lub zwykły nakaz+pozew → nakaz pilniejszy (sprzeciw 14 dni)
             for d in documents:
                 if d["doc_type"] in _nakaz_types:
                     d["role"] = "primary"
