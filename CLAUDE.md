@@ -32,9 +32,9 @@ app/
 │   ── Etap 2: document processing modules ──
 ├── doc_ingestion.py     # Reads uploaded file (PDF/DOCX/JPG/PNG) → list of PageDict per page
 ├── doc_ocr.py           # OCR kaskada: Azure Document Intelligence → Tesseract (pol) → Claude Haiku (ostatni resort)
-├── doc_extractor.py     # Regex extraction: EPU signals, delivery date, deadline (also word-form: "dwóch tygodni"), amount, addressee (header-only detection + post-correction: if "Pozwany:" header section has no company form but adresat="spolka", corrects to "czlonek_zarzadu" — prevents plaintiff's "S.A." from polluting addressee detection)
-├── doc_classifier.py    # Classifies document type using keywords from CSV 07; uses sad_organ to disambiguate court vs. bailiff; no module-level CSV cache (always reads fresh)
-├── doc_selector.py      # Scores candidates (CSV 02) + tie-breaking (CSV 04) → main document
+├── doc_extractor.py     # Regex extraction: EPU signals, delivery date, deadline (also word-form: "dwóch tygodni"), amount, addressee (header-only detection + post-correction); powód/pozwany extracted from parties_text only (before UZASADNIENIE/POUCZENIE — prevents grabbing parties from plea body); sygnatura rejects Km/KM prefix (bailiff reference, not court signature); new Nc-e pattern for long EPU case numbers
+├── doc_classifier.py    # Classifies document type using keywords from CSV 07; bonus/penalty logic: +20 for "nakazuję pozwanemu" → NAKAZ, +20 for "wnosimy o"/"P O Z E W" → POZEW (bonus replaces old penalty — OCR-resilient); no module-level CSV cache (always reads fresh)
+├── doc_selector.py      # Scores candidates (CSV 02) + tie-breaking (CSV 04) → main document; hard rule: any NAKAZ type always wins over POZEW type regardless of score (nakaz deadline 14 days)
 ├── doc_processor.py     # Orchestrator: returns ProcessedDocument dataclass; maps doc_type_code → k1_code via _DOC_TYPE_TO_K1
 │
 ├── requirements.txt     # All dependencies including pdfplumber, python-docx, Pillow, anthropic, azure-ai-documentintelligence, pytesseract
@@ -144,8 +144,9 @@ Use clear, descriptive commit messages in English or Polish (match the language 
 
 Test files used during Stage 2 development are stored in `C:\Users\User\Desktop\testy\` (outside the repo). **Always check this folder for current test files and screenshots before diagnosing any bug.**
 - `Lublin_nakaz_zapłaty_pko.pdf` — EPU nakaz zapłaty (VI Nc-e 236/25, Sąd Rejonowy Lublin-Zachód); powód: PKO Bank Polski S.A.; pozwany: PIOTR CZAK; kwota: 80 460,82 zł; termin: 14 dni; should classify as `EPU_NAKAZ_CZLONEK_ZARZADU`
-- `Lublin_pozew_pko.pdf` — EPU pozew o zapłatę (VI Nc-e 1245792/25, Sąd Rejonowy Lublin-Zachód); powód: PKO Bank Polski S.A.; pozwany: PIOTR CZAK; kwota: 85 463,92 zł; tytuł dokumentu: "P O Z E W" (ze spacjami); should classify as `EPU_POZEW_CZLONEK_ZARZADU`; triggered fix: penalizacja EPU_NAKAZ gdy brak "nakazuję pozwanemu"
-- `obraz1.png` — aktualny zrzut ekranu z wynikiem analizy w aplikacji
+- `Lublin_pozew_pko.pdf` — EPU pozew o zapłatę (VI Nc-e 1245792/25, Sąd Rejonowy Lublin-Zachód); powód: PKO Bank Polski S.A.; pozwany: PIOTR CZAK; kwota: 85 463,92 zł; tytuł dokumentu: "P O Z E W" (ze spacjami); should classify as `EPU_POZEW_CZLONEK_ZARZADU`; triggered fix: bonus/kara zamienione na bonus/bonus (OCR-resilient)
+- `Lublin_pozew_nak._zap..pdf` — wielostronicowy PDF (str.1: pozew EPU "P O Z E W", str.2: pismo przewodnie sądu, str.3-4: uzasadnienie z ref. do Km 990/21 i Woodraft Home Sp. z o.o., str.5-7: nakaz EPU); powód: Krzysztof Knop; pozwany: Piotr Czak PESEL 61010501435; sygnatura: VI Nc-e 222431/23; kwota: 5 267,77 zł; expected: nakaz jako dokument główny (WYMAGA REAKCJI), sygnatura VI Nc-e 222431/23, pozwany Piotr Czak, bramka art.299 TAK
+- `obraz1.png` / `obraz2.png` / `obraz3.png` — aktualne zrzuty ekranu z wynikami analizy (29.06.2026)
 
 ## Zasady pracy Claude Code w tym projekcie
 
