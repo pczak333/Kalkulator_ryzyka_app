@@ -38,7 +38,7 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     # nakazu/pozwu EPU — nigdy w treści uzasadnienia ani żadnym innym tekście prawnym.
     # Azure DI wyciąga kod niezawodnie (tekst maszynowy, nie skan).
     if re.search(r"(?m)^\s*KOD\s+\S{5,}", tu[:300]):
-        if re.search(r"P\s+O\s+Z\s+E\s+W|(?m)^\s*POZEW\b", tu[:800]):
+        if re.search(r"(?m)P\s+O\s+Z\s+E\s+W|^\s*POZEW\b", tu[:800]):
             return ("pozew", "Pozew", "primary")
         if re.search(r"NAKAZ\s+ZAP", tu[:600]):
             if "UPOMINAWCZ" in tu:
