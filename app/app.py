@@ -860,7 +860,7 @@ if "krs_answers" in st.session_state:
                     st.write(f"Silnik: `{_aux.ocr_engine}` | Jakość: `{_aux.ocr_quality}` | Strony: {_aux.page_range}")
                     if _aux.ocr_notes:
                         st.info(f"ℹ️ {_aux.ocr_notes}")
-                    st.code(_aux.raw_text[:1500] if _aux.raw_text else "(brak)", language=None)
+                    st.code(_aux.raw_text[:3000] if _aux.raw_text else "(brak)", language=None)
                 st.divider()
 
             st.subheader("Punktacja")

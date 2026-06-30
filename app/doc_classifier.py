@@ -32,6 +32,14 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     Zwraca (doc_type_code, confidence) gdzie confidence ∈ [0.0, 1.0].
     Używa CSV 07: słowa kluczowe + sygnały silne + bonus za EPU i adresata.
     """
+    # Obrona drugiej linii: jeśli segment zaczyna się od nagłówka UZASADNIENIE,
+    # to nie jest nakaz ani pozew — to kontynuacja pozwu (tabela dowodów, uzasadnienie).
+    # Azure DI może garblować "UZASADNIENIE" jako "ŁUZASADNIENIE" (garbled first char).
+    # 500 zn.: str.3 ma ~50 zn. garblowanej tabeli, potem "ŁUZASADNIENIE" at ~90 zn.
+    _head_500 = text[:500].upper()
+    if re.search(r"[ŁL]?UZASADNIENIE", _head_500):
+        return "PISMO_PROCESOWE_SADOWE", 0.55
+
     df = _load_doc_types()
     scores: dict[str, int] = {}
 

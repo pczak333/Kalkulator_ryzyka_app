@@ -52,6 +52,14 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
             return ("nakaz_upominawczy", "Nakaz zapłaty (postępowanie upominawcze)", "evidence")
         return ("nakaz_nakazowy", "Nakaz zapłaty (postępowanie nakazowe)", "evidence")
 
+    # Reguła 2d: strona uzasadnienia → kontynuacja, nie nowy dokument.
+    # MUSI być PRZED Rule 2c: Azure DI łamie "Nakaz zapłaty\nw postępowaniu" w tabeli dowodów,
+    # co Rule 2c klasyfikowałoby jako nakaz. Guard na UZASADNIENIE blokuje to wcześniej.
+    # Pełny tekst strony (bez ograniczenia [:400]): Azure DI dla str.3 zwraca ~50 zn.
+    # garblowanego tekstu tabeli, dopiero potem "ŁUZASADNIENIE" — okno 400 zn. było za wąskie.
+    if re.search(r"[ŁL]?UZASADNIENIE", tu):
+        return None
+
     # Reguła 2c: fallback — nagłówek nakazu w pierwszych 800 znakach
     # Ograniczenie do 800 zn. chroni przed false-positive z tabeli dowodów w uzasadnieniu,
     # gdzie Azure DI łamie "Nakaz zapłaty\nw elektronicznym postępowaniu" na dwie linie.
@@ -61,13 +69,6 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
             if "UPOMINAWCZ" in _head800:
                 return ("nakaz_upominawczy", "Nakaz zapłaty (postępowanie upominawcze)", "evidence")
             return ("nakaz_nakazowy", "Nakaz zapłaty (postępowanie nakazowe)", "evidence")
-
-    # Reguła 2d: strona uzasadnienia → kontynuacja, nie nowy dokument.
-    # Azure DI może garblować "UZASADNIENIE" jako "ŁUZASADNIENIE".
-    # Tabela dowodów w uzasadnieniu zawiera cytaty nakazów — bez tej reguły Rule 2c
-    # klasyfikowałaby uzasadnienie jako nakaz (false-positive).
-    if re.search(r"[ŁL]?UZASADNIENIE", tu[:400]):
-        return None
 
     # Reguła 3: wezwanie przedsądowe (przed POZEW, żeby "WEZWANIE DO ZAPŁATY" nie trafiało jako POZEW)
     _is_nakaz_or_pozew_page = (
