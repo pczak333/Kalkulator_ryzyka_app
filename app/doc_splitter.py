@@ -37,8 +37,8 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     # "KOD [hash]" (np. "KOD a6G1bśdóa6574ac39cd") pojawia się WYŁĄCZNIE na nagłówku
     # nakazu/pozwu EPU — nigdy w treści uzasadnienia ani żadnym innym tekście prawnym.
     # Azure DI wyciąga kod niezawodnie (tekst maszynowy, nie skan).
-    # Okno KOD: 800 zn. (Azure DI może wyciągać tekst w innej kolejności niż wizualnej).
-    if re.search(r"(?m)^\s*KOD\s+\S{5,}", tu[:800]):
+    # Okno KOD: pełny tekst strony — pdfplumber może wyciągać pola formularza w dowolnej kolejności.
+    if re.search(r"(?m)^\s*KOD\s+\S{5,}", tu):
         # Szukaj "P O Z E W" w PEŁNYM tekście — może pojawić się po 800 znaku
         if re.search(r"(?m)P\s+O\s+Z\s+E\s+W|^\s*POZEW\b", tu):
             return ("pozew", "Pozew", "primary")
@@ -57,6 +57,13 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     # jako nakaz. "P O Z E W" ze spacjami to unikalny identyfikator EPU pozwu.
     # Okno: pełny tekst (tytuł może być poza pierwszymi 800 znakami).
     if re.search(r"(?m)^[^A-Z]{0,10}P\s+O\s+Z\s+E\s+W\b", tu):
+        return ("pozew", "Pozew", "primary")
+
+    # Reguła 5a': "P O Z E W" gdziekolwiek w tekście — fallback gdy Rule 5a nie odpala.
+    # Rule 5a wymaga początku linii z max 10 nieduże znaki przed P, co może nie zadziałać
+    # gdy pdfplumber wyciąga "FORMULARZ: P O Z E W" jako jedną linię z wielką literą F.
+    # Bez anchora: wystarczy że "P O Z E W" (ze spacjami) pojawi się gdziekolwiek.
+    if re.search(r"P\s+O\s+Z\s+E\s+W", tu):
         return ("pozew", "Pozew", "primary")
 
     # Reguła 2d: strona uzasadnienia → kontynuacja, nie nowy dokument.
@@ -107,7 +114,7 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     )
     if not _is_pouczenie_page:
         # Reguła 5b: POZEW bez spacji na początku linii w nagłówku (≤800 zn.)
-        if re.search(r"(?m)^[^A-Z]{0,5}POZEW\b", tu[:800]):
+        if re.search(r"(?m)^[^A-Z]{0,5}POZEW\b", tu):
             return ("pozew", "Pozew", "primary")
 
     # Reguła 6: fallback przez wzorce ogólne
@@ -190,6 +197,59 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
 
     if current_doc is not None:
         documents.append(current_doc)
+
+    # Post-processing: scal "nakaz bez KOD" z poprzedzającym pozwem lub "unknown".
+    # W wielostronicowym EPU PDF strony uzasadnienia pozwu (bez KOD) mogą mieć nagłówek
+    # "NAKAZ ZAPŁATY W POSTĘPOWANIU UPOMINAWCZYM" i być błędnie klasyfikowane jako nakaz.
+    # Faktyczny nakaz EPU ZAWSZE ma "KOD [hash]" w tekście; uzasadnienie NIE ma.
+    # Ta reguła jest odporna na treść OCR — opiera się wyłącznie na obecności KOD.
+    _KOD_RE = re.compile(r"(?m)^\s*KOD\s+\S{5,}")
+    _nakaz_set = {"nakaz_upominawczy", "nakaz_nakazowy"}
+
+    # Krok 0: jeśli brak "pozew" ale jest wzorzec [unknown → nakaz_bez_KOD → nakaz_z_KOD],
+    # segment "unknown" to strona pozwu EPU której _classify_page_segment nie rozpoznał
+    # (pdfplumber może ekstrahować "POZEW" bez spacji zamiast "P O Z E W").
+    if not any(d["doc_type"] == "pozew" for d in documents):
+        _has_no_kod = any(
+            d["doc_type"] in _nakaz_set and not _KOD_RE.search(d["text"])
+            for d in documents
+        )
+        _has_kod = any(
+            d["doc_type"] in _nakaz_set and _KOD_RE.search(d["text"])
+            for d in documents
+        )
+        if _has_no_kod and _has_kod:
+            _first_no_kod_i = next(
+                i for i, d in enumerate(documents)
+                if d["doc_type"] in _nakaz_set and not _KOD_RE.search(d["text"])
+            )
+            if _first_no_kod_i > 0 and documents[_first_no_kod_i - 1]["doc_type"] == "unknown":
+                _unk = documents[_first_no_kod_i - 1]
+                _unk["doc_type"] = "pozew"
+                _unk["label"] = "Pozew"
+                _unk["role"] = "primary"
+
+    # Krok 1: scal nakaz BEZ KOD z poprzedzającym pozwem
+    if any(d["doc_type"] == "pozew" for d in documents):
+        _merged: list[dict] = []
+        _last_pozew_idx: int | None = None
+        for d in documents:
+            if d["doc_type"] == "pozew":
+                _merged.append(d)
+                _last_pozew_idx = len(_merged) - 1
+            elif d["doc_type"] in _nakaz_set and not _KOD_RE.search(d["text"]):
+                # Nakaz BEZ KOD następujący po pozwie → strona formularza pozwu → scal
+                if _last_pozew_idx is not None:
+                    _merged[_last_pozew_idx]["pages"].extend(d["pages"])
+                    _merged[_last_pozew_idx]["text"] += "\n" + d["text"]
+                else:
+                    _merged.append(d)
+            else:
+                # Inny typ lub nakaz Z KOD (faktyczny nakaz EPU) → nowy segment, reset
+                if d["doc_type"] not in _nakaz_set:
+                    _last_pozew_idx = None
+                _merged.append(d)
+        documents = _merged
 
     # Usuń "unknown" tylko gdy są inne dokumenty
     documents = [d for d in documents if d["doc_type"] != "unknown" or len(documents) == 1]
