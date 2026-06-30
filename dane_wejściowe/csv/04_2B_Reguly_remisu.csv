@@ -2,7 +2,8 @@
 Kolejność;Reguła rozstrzygająca;Który dokument wybrać
 1;Jeden dokument jest skierowany do członka zarządu, drugi do spółki;Wybrać dokument skierowany do członka zarządu
 2;Jeden dokument ma biegnący termin reakcji, drugi nie;Wybrać dokument z biegnącym terminem
-3;Jeden dokument to nakaz zapłaty, drugi to pozew;Wybrać nakaz zapłaty, jeżeli termin na sprzeciw/zarzuty jeszcze biegnie
+2a;Oba dokumenty to nakazy tego samego rodzaju (EPU lub zwykły); jeden zawiera instrukcję terminu reakcji (np. "w ciągu dwóch tygodni"), drugi nie;Wybrać nakaz z instrukcją terminu — strona uzasadnienia błędnie sklasyfikowana jako nakaz nie powinna wyprzedzać faktycznego nakazu EPU
+3;Jeden dokument to nakaz zapłaty, drugi to pozew;Wybrać nakaz zapłaty — nakaz ma bezwzględnie wyższy priorytet niż pozew niezależnie od biegnącego terminu
 4;Jeden dokument pochodzi z EPU;Wybrać dokument EPU, jeżeli jest skierowany do członka zarządu albo termin nadal biegnie
 5;Jeden dokument pochodzi od sądu, drugi od wierzyciela;Wybrać dokument sądowy
 6;Jeden dokument pochodzi od komornika, drugi jest wcześniejszym dokumentem wierzyciela;Wybrać dokument komorniczy
