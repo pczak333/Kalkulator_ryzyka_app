@@ -1,7 +1,19 @@
 # -*- coding: utf-8 -*-
 """Wybiera dokument główny z listy kandydatów według reguł punktowych z CSV 02/04."""
 from __future__ import annotations
+import re
 from datetime import date
+
+_ART299_PAT = re.compile(r"art\.?\s*299\s*[Kk]\.?[Ss]\.?[Hh]", re.IGNORECASE)
+
+# Mapowanie SPOLKA → CZLONEK_ZARZADU dla bundle-level upgrade (Fix B)
+_SPOLKA_TO_CZLONEK: dict[str, str] = {
+    "EPU_NAKAZ_SPOLKA":         "EPU_NAKAZ_CZLONEK_ZARZADU",
+    "EPU_POZEW_SPOLKA":         "EPU_POZEW_CZLONEK_ZARZADU",
+    "NAKAZ_SPOLKA":             "NAKAZ_CZLONEK_ZARZADU",
+    "POZEW_SPOLKA":             "POZEW_CZLONEK_ZARZADU",
+    "WEZWANIE_SADOWE_SPOLKA":   "WEZWANIE_SADOWE_CZLONEK_ZARZADU",
+}
 
 _REMIS_THRESHOLD = 10  # różnica punktów poniżej której stosujemy reguły remisu
 
@@ -221,6 +233,20 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
 
     main = dict(best_doc)
     main["status"] = "GLOWNY"
+
+    # Fix B: bundle-level upgrade SPOLKA → CZLONEK_ZARZADU.
+    # Jeśli art. 299 KSH pojawia się w KTÓRYMKOLWIEK dokumencie z tego bundla PDF
+    # (np. w uzasadnieniu pozwu towarzyszącego nakazowi), pozwany jest członkiem zarządu
+    # niezależnie od tego, czy sam nakaz to wprost stwierdza.
+    _bundle_has_art299 = any(
+        _ART299_PAT.search(d.get("raw_text", ""))
+        for d in candidates
+    )
+    _upgraded_type = _SPOLKA_TO_CZLONEK.get(main.get("doc_type_code", ""))
+    if _bundle_has_art299 and _upgraded_type:
+        main["doc_type_code"] = _upgraded_type
+        main["k1_code"] = "K1_" + _upgraded_type
+        main["addressee"] = "czlonek_zarzadu"
 
     others = []
     for doc, _ in scored:

@@ -17,16 +17,20 @@ _EPU_PATTERNS = [
 _HEADER_MAX_CHARS = 2000
 
 # ── Adresat ───────────────────────────────────────────────────────────────────
+# Wzorce roli zarządowej — skanowane w PEŁNYM tekście (nie tylko nagłówku).
+# Są jednoznaczne: firmy nie pełnią funkcji członka zarządu ani nie są podmiotem art. 299.
+# Jeśli choćby jeden z tych wzorców trafi GDZIEKOLWIEK w tekście → czlonek_zarzadu wygrywa.
+_CZLONEK_ROLE_PATTERNS = [
+    r"cz[łl]onek[a-z\s]*zarz[aą]du",
+    r"\bPrezes[a-z\s]*[Zz]arz[aą]du\b",
+    r"\bWiceprezes[a-z\s]*[Zz]arz[aą]du\b",
+    r"art\.\s*299\s*[Kk][Ss][Hh]",
+]
+
 _ADRESAT: dict[str, list[str]] = {
     "czlonek_zarzadu": [
         r"\bPanu\b", r"\bPani\b",
-        r"cz[łl]onek[a-z\s]*zarz[aą]du",
-        r"\bPrezes[a-z\s]*[Zz]arz[aą]du\b",
-        r"\bWiceprezes[a-z\s]*[Zz]arz[aą]du\b",
         r"osob[aą]\s+fizyczn",
-        r"art\.\s*299\s*[Kk][Ss][Hh]",
-        r"\bPESEL\b",           # numer PESEL = osoba fizyczna, nie spółka
-        r"[Oo]bywatelstwo",     # pole obywatelstwa = wyłącznie osoby fizyczne
     ],
     "spolka": [
         r"[Ss]p[oó][łl][ck][a-z]*\b",
@@ -100,7 +104,7 @@ _PRIMARY_ACTION_KEYWORDS = [
     "wniesienia odpowiedzi",
     "wnieść odpowiedź",
 ]
-_CONTEXT_WINDOW = 400
+_CONTEXT_WINDOW = 800
 
 # ── Kwota ─────────────────────────────────────────────────────────────────────
 # Wzorzec polskiego formatu liczby: "2.331,59" lub "5000,00" lub "19.142,36"
@@ -113,10 +117,12 @@ _KWOTA_PATTERNS = [
     rf"({_POLISH_NUM})\s*{_WALUTA}\b",
     rf"kwot[ęayo]\s+({_POLISH_NUM})",                         # kwotę/kwota/kwoty/kwoto
     rf"roszczeni[ae].*?({_POLISH_NUM})\s*{_WALUTA}",
-    # Nakaz zapłaty: "nakazuję...kwotę X zł" — wysoki priorytet
-    rf"nakazuj[eę].*?kwot[ęayo]\s+({_POLISH_NUM})\s*{_WALUTA}",
-    # Pismo procesowe: "zasądzenie od pozwanego kwoty X złotych" — najwyższy priorytet
+    # Nakaz zapłaty: "nakazuję...kwotę X zł" — wieloliniowy ([\s\S] zamiast .)
+    rf"nakazuj[eę][\s\S]{{0,600}}?kwot[ęayo]\s+({_POLISH_NUM})\s*{_WALUTA}",
+    # Pismo procesowe: "zasądzenie od pozwanego kwoty X złotych" — wysoki priorytet
     rf"zasądzen\w{{0,4}}[^\n]{{0,150}}?kwot\w{{0,3}}\s+({_POLISH_NUM})\s*{_WALUTA}",
+    # Nakaz EPU z rozbiciem odsetkowym: "łącznie: 5 267,77 PLN" — najwyższy priorytet
+    rf"(?:[łŁ][aą]cznie|[rR]azem|[Ss]uma)[:\s]+({_POLISH_NUM})\s*{_WALUTA}",
 ]
 
 # ── Sygnatura akt ─────────────────────────────────────────────────────────────
@@ -284,9 +290,16 @@ def extract_fields(text: str) -> dict:
         result["epu"] = True
         result["epu_confidence"] = min(0.6 + epu_hits * 0.15, 1.0)
 
-    # Adresat — tylko nagłówek dokumentu (strony, wartość sporu, sąd).
-    # Kończymy przed POUCZENIE lub UZASADNIENIE — uzasadnienie pozwu wymienia
-    # spółkę-pierwotnego dłużnika, co fałszywie podnosi score "spolka".
+    # Adresat — najpierw szukaj sygnałów roli zarządowej w PEŁNYM tekście dokumentu.
+    # Wzorce roli (art. 299 KSH, członek zarządu, Prezes Zarządu) są jednoznaczne:
+    # firmy ich nie posiadają. Mogą pojawić się w uzasadnieniu (poza nagłówkiem) —
+    # dlatego nie ograniczamy do header_text.
+    if any(re.search(p, text, re.IGNORECASE) for p in _CZLONEK_ROLE_PATTERNS):
+        result["adresat"] = "czlonek_zarzadu"
+        result["adresat_confidence"] = 0.85
+
+    # Dalsze głosowanie w nagłówku (przed POUCZENIE/UZASADNIENIE) — może doprecyzować
+    # adresat gdy rola nie była wprost wymieniona lub potwierdzić wynik powyżej.
     pouczenie_idx = text.upper().find("POUCZENIE")
     uzasadnienie_idx = text.upper().find("UZASADNIENIE")
     section_delimiters = [i for i in [pouczenie_idx, uzasadnienie_idx] if i > 100]
@@ -305,7 +318,10 @@ def extract_fields(text: str) -> dict:
         if score:
             adresat_scores[category] = score
 
-    if adresat_scores:
+    # Głosowanie uzupełnia wynik full-text scan, ale go nie nadpisuje.
+    # Wyjątek: głosowanie może zmienić adresat TYLKO gdy scan nie wykrył roli zarządowej
+    # (tzn. result["adresat"] nie został jeszcze ustawiony na czlonek_zarzadu przez scan).
+    if adresat_scores and result["adresat"] != "czlonek_zarzadu":
         best = max(adresat_scores, key=lambda k: adresat_scores[k])
         total = sum(adresat_scores.values())
         result["adresat"] = best
@@ -343,18 +359,29 @@ def extract_fields(text: str) -> dict:
                 except (ValueError, IndexError):
                     continue
 
-    # Kwota — najpierw wzorce najbardziej specyficzne (od końca listy)
+    # Kwota — najpierw wzorce najbardziej specyficzne (od końca listy).
+    # Wzorce bardziej specyficzne (łącznie, nakazuję) szukają sumy dochodzonej; wzorce
+    # ogólne (kwotę, liczba+zł) mogą trafić w koszty procesu (zwykle < 1 000 PLN).
+    # Jeśli trafienie < 1 000 PLN → zachowaj jako fallback, szukaj dalej.
     found_amount: float | None = None
     found_raw: str | None = None
+    _fallback_amount: float | None = None
+    _fallback_raw: str | None = None
     for pattern in reversed(_KWOTA_PATTERNS):
         m = re.search(pattern, text, re.IGNORECASE)
         if m:
             raw = m.group(1)
             val = _parse_amount(raw)
-            if val and val > 0:
+            if val and val >= 1000:
                 found_amount = val
                 found_raw = raw
                 break
+            elif val and val > 0 and _fallback_amount is None:
+                _fallback_amount = val
+                _fallback_raw = raw
+    if found_amount is None and _fallback_amount is not None:
+        found_amount = _fallback_amount
+        found_raw = _fallback_raw
     if found_amount is not None:
         result["amount"] = found_amount
         result["amount_raw"] = found_raw
