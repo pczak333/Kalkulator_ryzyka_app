@@ -235,9 +235,10 @@ def process_files(
     main_dict, aux_dicts = select_main_document(all_candidates)
 
     def to_pd(d: dict) -> ProcessedDocument:
+        _doc_type = d.get("doc_type_code", "DOKUMENT_NIEUSTALONY_PRAWNY")
         return ProcessedDocument(
-            doc_type_code=d.get("doc_type_code", "DOKUMENT_NIEUSTALONY_PRAWNY"),
-            k1_code=d.get("k1_code", "K1_INNE_NIE_WIEM"),
+            doc_type_code=_doc_type,
+            k1_code=_DOC_TYPE_TO_K1.get(_doc_type, d.get("k1_code", "K1_INNE_NIE_WIEM")),
             epu=d.get("epu", False),
             delivery_date=d.get("delivery_date"),
             deadline_days=d.get("deadline_days"),

@@ -52,12 +52,22 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
             return ("nakaz_upominawczy", "Nakaz zapłaty (postępowanie upominawcze)", "evidence")
         return ("nakaz_nakazowy", "Nakaz zapłaty (postępowanie nakazowe)", "evidence")
 
-    # Reguła 2c: fallback — nagłówek nakazu na początku linii w pełnym tekście strony
-    if re.search(r"NAKAZ\s+ZAP[LŁ]?ATY[\s\S]{0,80}W\s+POST[EĘ]POWANIU", tu):
-        if re.search(r"(?m)^\s*NAKAZ\s*$", tu) or re.search(r"(?m)^\s*NAKAZ\s+ZAP[LŁ]", tu):
-            if "UPOMINAWCZ" in tu:
+    # Reguła 2c: fallback — nagłówek nakazu w pierwszych 800 znakach
+    # Ograniczenie do 800 zn. chroni przed false-positive z tabeli dowodów w uzasadnieniu,
+    # gdzie Azure DI łamie "Nakaz zapłaty\nw elektronicznym postępowaniu" na dwie linie.
+    _head800 = tu[:800]
+    if re.search(r"NAKAZ\s+ZAP[LŁ]?ATY[\s\S]{0,80}W\s+POST[EĘ]POWANIU", _head800):
+        if re.search(r"(?m)^\s*NAKAZ\s*$", _head800) or re.search(r"(?m)^\s*NAKAZ\s+ZAP[LŁ]", _head800):
+            if "UPOMINAWCZ" in _head800:
                 return ("nakaz_upominawczy", "Nakaz zapłaty (postępowanie upominawcze)", "evidence")
             return ("nakaz_nakazowy", "Nakaz zapłaty (postępowanie nakazowe)", "evidence")
+
+    # Reguła 2d: strona uzasadnienia → kontynuacja, nie nowy dokument.
+    # Azure DI może garblować "UZASADNIENIE" jako "ŁUZASADNIENIE".
+    # Tabela dowodów w uzasadnieniu zawiera cytaty nakazów — bez tej reguły Rule 2c
+    # klasyfikowałaby uzasadnienie jako nakaz (false-positive).
+    if re.search(r"[ŁL]?UZASADNIENIE", tu[:400]):
+        return None
 
     # Reguła 3: wezwanie przedsądowe (przed POZEW, żeby "WEZWANIE DO ZAPŁATY" nie trafiało jako POZEW)
     _is_nakaz_or_pozew_page = (
@@ -71,6 +81,13 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         ):
             return ("wezwanie_zaplaty", "Wezwanie do zapłaty (przedsądowe)", "evidence")
 
+    # Reguła 5a: "P O Z E W" ze spacjami ma priorytet nawet nad POUCZENIE.
+    # Azure DI dla EPU pozwu może umieścić pole formularza z pouczeniem przed nagłówkiem
+    # "P O Z E W", co blokowałoby Rule 4. "P O Z E W" ze spacjami to unikalny identyfikator —
+    # nie pojawia się w treści pouczeń (tam słowo pozwu jest pisane łącznie).
+    if re.search(r"(?m)^[^A-Z]{0,10}P\s+O\s+Z\s+E\s+W\b", tu[:800]):
+        return ("pozew", "Pozew", "primary")
+
     # Reguła 4: strony pouczenia to kontynuacja nakazu, nie nowy dokument
     # Bez tej ekskluzji "pozew" zawinięty przez OCR na początek linii w pouczeniu
     # tworzyłby false-positive dokument "Pozew"
@@ -80,9 +97,6 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         re.search(r"SRODEK\s+ZASKARZENIA.*SPRZECIW|ŚRODEK\s+ZASKARŻENIA.*SPRZECIW", tu[:600])
     )
     if not _is_pouczenie_page:
-        # Reguła 5a: "P O Z E W" ze spacjami (format EPU — litery rozdzielone spacjami)
-        if re.search(r"(?m)^[^A-Z]{0,10}P\s+O\s+Z\s+E\s+W\b", tu[:800]):
-            return ("pozew", "Pozew", "primary")
         # Reguła 5b: POZEW bez spacji na początku linii w nagłówku (≤800 zn.)
         if re.search(r"(?m)^[^A-Z]{0,5}POZEW\b", tu[:800]):
             return ("pozew", "Pozew", "primary")

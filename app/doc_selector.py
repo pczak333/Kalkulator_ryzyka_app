@@ -15,6 +15,22 @@ _SPOLKA_TO_CZLONEK: dict[str, str] = {
     "WEZWANIE_SADOWE_SPOLKA":   "WEZWANIE_SADOWE_CZLONEK_ZARZADU",
 }
 
+# Wzorzec do wykrywania czlonek zarządu w bundlu — rozszerza art.299 o frazy naturalne.
+# Azure DI może fragmentować "art. 299 KSH" w uzasadnieniu, ale "czlonek zarządu"
+# zazwyczaj przetrwa jako fragment tekstu (np. "wzywanie członka zarządu dłużnej spółki").
+_CZLONEK_UPGRADE_PAT = re.compile(
+    r"art\.?\s*299|czło[nk][koa]\s+zarz[aą]du", re.IGNORECASE
+)
+
+# Mapowanie CZLONEK doc_type_code → k1_code (lokalnie, unika circular import z doc_processor)
+_UPGRADED_TYPE_TO_K1: dict[str, str] = {
+    "EPU_NAKAZ_CZLONEK_ZARZADU":       "K1_NAKAZ_CZLONEK_ZARZADU",
+    "EPU_POZEW_CZLONEK_ZARZADU":       "K1_POZEW_CZLONEK_ZARZADU",
+    "NAKAZ_CZLONEK_ZARZADU":           "K1_NAKAZ_CZLONEK_ZARZADU",
+    "POZEW_CZLONEK_ZARZADU":           "K1_POZEW_CZLONEK_ZARZADU",
+    "WEZWANIE_SADOWE_CZLONEK_ZARZADU": "K1_WEZWANIE_SADOWE_CZLONEK_ZARZADU",
+}
+
 _REMIS_THRESHOLD = 10  # różnica punktów poniżej której stosujemy reguły remisu
 
 # Źródło dokumentu — używane przez R23–R26 w score_candidate()
@@ -249,17 +265,17 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
     main["status"] = "GLOWNY"
 
     # Fix B: bundle-level upgrade SPOLKA → CZLONEK_ZARZADU.
-    # Jeśli art. 299 KSH pojawia się w KTÓRYMKOLWIEK dokumencie z tego bundla PDF
-    # (np. w uzasadnieniu pozwu towarzyszącego nakazowi), pozwany jest członkiem zarządu
-    # niezależnie od tego, czy sam nakaz to wprost stwierdza.
-    _bundle_has_art299 = any(
-        _ART299_PAT.search(d.get("raw_text", ""))
+    # Szuka art. 299 KSH LUB "czlonek zarządu" w dowolnym dokumencie bundla.
+    # Azure DI może fragmentować "art. 299 KSH" w uzasadnieniu, ale frazy naturalne
+    # (np. "wzywanie członka zarządu dłużnej spółki") zazwyczaj przetrwają OCR.
+    _bundle_has_czlonek = any(
+        _CZLONEK_UPGRADE_PAT.search(d.get("raw_text", ""))
         for d in candidates
     )
     _upgraded_type = _SPOLKA_TO_CZLONEK.get(main.get("doc_type_code", ""))
-    if _bundle_has_art299 and _upgraded_type:
+    if _bundle_has_czlonek and _upgraded_type:
         main["doc_type_code"] = _upgraded_type
-        main["k1_code"] = "K1_" + _upgraded_type
+        main["k1_code"] = _UPGRADED_TYPE_TO_K1.get(_upgraded_type, "K1_INNE_NIE_WIEM")
         main["addressee"] = "czlonek_zarzadu"
 
     others = []
