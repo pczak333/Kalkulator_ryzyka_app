@@ -854,6 +854,12 @@ if "krs_answers" in st.session_state:
                     st.info(f"ℹ️ Notatki OCR: {prefill.ocr_notes}")
                 st.markdown("**Surowy tekst OCR (pierwsze 3000 znaków):**")
                 st.code(prefill.raw_text[:3000] if prefill.raw_text else "(brak)", language=None)
+                if prefill.splitter_segments:
+                    st.markdown("**Segmentacja stron (doc_splitter):**")
+                    for _s in prefill.splitter_segments:
+                        _sp = _s.get("pages", [])
+                        _sp_txt = f"str. {_sp[0]}–{_sp[-1]}" if len(_sp) > 1 else (f"str. {_sp[0]}" if _sp else "?")
+                        st.write(f"- {_sp_txt} → `{_s.get('doc_type','?')}` ({_s.get('label','?')}) [{_s.get('role','?')}]")
                 _panel_aux = st.session_state.get("doc_aux", [])
                 for _i, _aux in enumerate(_panel_aux, 1):
                     st.markdown(f"**Dokument pomocniczy {_i}: `{_aux.doc_type_code}`**")

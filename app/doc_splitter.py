@@ -37,8 +37,10 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     # "KOD [hash]" (np. "KOD a6G1bśdóa6574ac39cd") pojawia się WYŁĄCZNIE na nagłówku
     # nakazu/pozwu EPU — nigdy w treści uzasadnienia ani żadnym innym tekście prawnym.
     # Azure DI wyciąga kod niezawodnie (tekst maszynowy, nie skan).
-    if re.search(r"(?m)^\s*KOD\s+\S{5,}", tu[:300]):
-        if re.search(r"(?m)P\s+O\s+Z\s+E\s+W|^\s*POZEW\b", tu[:800]):
+    # Okno KOD: 800 zn. (Azure DI może wyciągać tekst w innej kolejności niż wizualnej).
+    if re.search(r"(?m)^\s*KOD\s+\S{5,}", tu[:800]):
+        # Szukaj "P O Z E W" w PEŁNYM tekście — może pojawić się po 800 znaku
+        if re.search(r"(?m)P\s+O\s+Z\s+E\s+W|^\s*POZEW\b", tu):
             return ("pozew", "Pozew", "primary")
         if re.search(r"NAKAZ\s+ZAP", tu[:600]):
             if "UPOMINAWCZ" in tu:
@@ -53,30 +55,35 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     # EPU pozew zawiera w treści formularza "nakaz zapłaty w postępowaniu upominawczym"
     # (żądanie od sądu). Gdyby Rule 2 była pierwsza, pozew byłby błędnie klasyfikowany
     # jako nakaz. "P O Z E W" ze spacjami to unikalny identyfikator EPU pozwu.
-    if re.search(r"(?m)^[^A-Z]{0,10}P\s+O\s+Z\s+E\s+W\b", tu[:800]):
+    # Okno: pełny tekst (tytuł może być poza pierwszymi 800 znakami).
+    if re.search(r"(?m)^[^A-Z]{0,10}P\s+O\s+Z\s+E\s+W\b", tu):
         return ("pozew", "Pozew", "primary")
 
+    # Reguła 2d: strona uzasadnienia → kontynuacja, nie nowy dokument.
+    # Przeniesiona PRZED Rule 2 — gdy Azure DI zwraca UZASADNIENIE w rozpoznawalnej formie,
+    # daje szansę na prawidłowy None zanim "NAKAZ ZAPŁATY" z nagłówka EPU wywoła Rule 2.
+    if re.search(r"[ŁL]?UZASADNIENIE", tu):
+        return None
+
     # Reguła 2: nagłówek nakazu — NAKAZ na początku linii w pierwszych 200 zn.
-    # (?m)^\s* i okno 200 zn. chronią przed false-positives:
-    # - pozew EPU: "żądam nakazu zapłaty w postępowaniu" — nakaz w środku zdania ✗
-    # - uzasadnienie: "1. Nakaz zapłaty..." — nakaz po numerze listy ✗
-    # - faktyczny nakaz EPU: "KOD [hash]\nNAKAZ ZAPŁATY\n..." — NAKAZ na początku linii ✓
+    # Guard "P O Z E W": formularze EPU powtarzają nagłówek "NAKAZ ZAPŁATY W POSTĘPOWANIU"
+    # na KAŻDEJ stronie — w tym na stronach uzasadnienia pozwu (str.3–4). Jeśli strona
+    # zawiera "P O Z E W" gdziekolwiek → to formularz pozwu EPU, nie samodzielny nakaz.
     _head200 = tu[:200]
     if re.search(r"(?m)^\s*NAKAZ\s+ZAP[LŁ]?ATY[\s\S]{0,80}W\s+POST[EĘ]POWANIU", _head200):
+        if re.search(r"P\s+O\s+Z\s+E\s+W", tu):
+            return None
         if "UPOMINAWCZ" in tu:
             return ("nakaz_upominawczy", "Nakaz zapłaty (postępowanie upominawcze)", "evidence")
         return ("nakaz_nakazowy", "Nakaz zapłaty (postępowanie nakazowe)", "evidence")
 
     # Reguła 2b: nakaz bez polskich znaków (garbled OCR z Tesseract)
     if re.search(r"(?m)^\s*NAKAZ\s+ZAPLATY[\s\S]{0,80}W\s+POSTEPOWANIU", _head200):
+        if re.search(r"P\s+O\s+Z\s+E\s+W", tu):
+            return None
         if "UPOMINAWCZ" in tu:
             return ("nakaz_upominawczy", "Nakaz zapłaty (postępowanie upominawcze)", "evidence")
         return ("nakaz_nakazowy", "Nakaz zapłaty (postępowanie nakazowe)", "evidence")
-
-    # Reguła 2d: strona uzasadnienia → kontynuacja, nie nowy dokument.
-    # Obrona drugiej linii gdy Azure DI zwraca "UZASADNIENIE" w rozpoznawalnej formie.
-    if re.search(r"[ŁL]?UZASADNIENIE", tu):
-        return None
 
     # Reguła 3: wezwanie przedsądowe (przed POZEW, żeby "WEZWANIE DO ZAPŁATY" nie trafiało jako POZEW)
     _is_nakaz_or_pozew_page = (

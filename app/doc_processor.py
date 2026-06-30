@@ -70,6 +70,7 @@ class ProcessedDocument:
     pozwany: str | None = None
     ocr_notes: str = ""
     file_ext: str = ""
+    splitter_segments: list | None = None  # DEBUG: segmenty ze splitter dla panelu
 
 
 def _build_candidate_dict(
@@ -178,7 +179,22 @@ def _process_single_doc(
             cand = _build_candidate_dict(
                 seg_text, ocr_quality, ocr_engine, ocr_notes, file_ext, (p_start, p_end)
             )
+            # Zachowaj info o segmentacji dla panelu diagnostycznego
+            cand["splitter_doc_type"] = seg.get("doc_type", "?")
+            cand["splitter_label"]    = seg.get("label", "?")
+            cand["splitter_role"]     = seg.get("role", "?")
             candidates.append(cand)
+        # Dodaj listę segmentów do pierwszego kandydata (do wyświetlenia w panelu)
+        if candidates:
+            candidates[0]["splitter_segments"] = [
+                {
+                    "pages": seg.get("pages", []),
+                    "doc_type": seg.get("doc_type", "?"),
+                    "label": seg.get("label", "?"),
+                    "role": seg.get("role", "?"),
+                }
+                for seg in segments
+            ]
         return candidates
 
     # Plik jednolity — klasyfikuj cały tekst
@@ -234,6 +250,11 @@ def process_files(
 
     main_dict, aux_dicts = select_main_document(all_candidates)
 
+    # Przepisz splitter_segments do main_dict (może być w dowolnym kandydacie)
+    _segs = next((c["splitter_segments"] for c in all_candidates if c.get("splitter_segments")), None)
+    if _segs:
+        main_dict["splitter_segments"] = _segs
+
     def to_pd(d: dict) -> ProcessedDocument:
         _doc_type = d.get("doc_type_code", "DOKUMENT_NIEUSTALONY_PRAWNY")
         return ProcessedDocument(
@@ -262,6 +283,7 @@ def process_files(
             ocr_notes=d.get("ocr_notes", ""),
             file_ext=d.get("file_ext", ""),
             deadline_date=d.get("deadline_date"),
+            splitter_segments=d.get("splitter_segments"),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]
