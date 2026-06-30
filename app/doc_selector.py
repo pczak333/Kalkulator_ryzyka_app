@@ -99,17 +99,21 @@ def score_candidate(doc: dict) -> int:
     doc_type = doc.get("doc_type_code", "")
     total += _TYPE_SCORES.get(doc_type, 0)
 
-    # R17: dokument zawiera wyraźny termin reakcji (sprzeciw, zarzuty, odpowiedź...) → +35
+    # R17: dokument zawiera wyraźny termin reakcji → +35
+    # Pełna wersja: days_left znane (delivery_date + deadline_days dostępne).
+    # Częściowa: deadline_days znane, ale brak daty doręczenia (np. nakaz EPU bez zwrotki).
+    # Nakaz ze sformułowaniem "w ciągu dwóch tygodni" jest tak samo pilny — nie karać go
+    # za brak zwrotki, bo uzasadnienie (strona bez terminu) nie powinno go wyprzedzać.
     days_left = doc.get("days_left")
+    deadline_days = doc.get("deadline_days")
     if days_left is not None:
-        total += 35
-
-    # R18-R21: ile dni pozostało na reakcję
-    total += _deadline_score(days_left)
-
-    # R22: nieznany termin — kandydat niepewny, ale może być ważny
-    if days_left is None:
-        total += 10
+        total += 35   # potwierdzony termin — pełny bonus R17
+        total += _deadline_score(days_left)  # R18-R21: pilność względem dziś
+    elif deadline_days is not None:
+        total += 35   # instrukcja terminu obecna — pełny bonus R17
+        total += _deadline_score(deadline_days)  # przybliżona pilność (zakładamy od dziś)
+    else:
+        total += 10   # R22: termin nieznany
 
     # R23-R26: źródło dokumentu
     if doc_type in _COURT_TYPES:
@@ -147,9 +151,9 @@ def _tiebreak(a: dict, b: dict) -> dict:
     if b.get("addressee") == "czlonek_zarzadu" and a.get("addressee") != "czlonek_zarzadu":
         return b
 
-    # R2: bieżący termin > brak terminu
-    a_has_deadline = (a.get("days_left") is not None)
-    b_has_deadline = (b.get("days_left") is not None)
+    # R2: bieżący termin > brak terminu (days_left lub choćby deadline_days)
+    a_has_deadline = (a.get("days_left") is not None or a.get("deadline_days") is not None)
+    b_has_deadline = (b.get("days_left") is not None or b.get("deadline_days") is not None)
     if a_has_deadline and not b_has_deadline:
         return a
     if b_has_deadline and not a_has_deadline:
@@ -227,7 +231,17 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
     if _nakazes and _pozwy and best_doc.get("doc_type_code") in _pozew_codes:
         best_doc = _nakazes[0]
 
-    # Remis (gdy twarda reguła nie zadecydowała)?
+    # Twarda reguła: wśród nakazy — preferuj ten który MA instrukcję terminu.
+    # Strony uzasadnienia błędnie sklasyfikowane jako nakaz nie mają "w ciągu dwóch tygodni"
+    # → deadline_days=None. Faktyczny nakaz EPU zawsze ma deadline_days.
+    elif best_doc.get("doc_type_code") in _nakaz_codes and best_doc.get("deadline_days") is None:
+        _nakazes_with_dl = [d for d, _ in scored
+                            if d.get("doc_type_code") in _nakaz_codes
+                            and d.get("deadline_days") is not None]
+        if _nakazes_with_dl:
+            best_doc = _nakazes_with_dl[0]
+
+    # Remis (gdy twarde reguły nie zadecydowały)?
     elif best_score - second_score < _REMIS_THRESHOLD:
         best_doc = _tiebreak(best_doc, second_doc)
 
