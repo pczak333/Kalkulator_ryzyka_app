@@ -198,17 +198,20 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     if current_doc is not None:
         documents.append(current_doc)
 
-    # Post-processing: scal "nakaz bez KOD" z poprzedzającym pozwem lub "unknown".
-    # W wielostronicowym EPU PDF strony uzasadnienia pozwu (bez KOD) mogą mieć nagłówek
-    # "NAKAZ ZAPŁATY W POSTĘPOWANIU UPOMINAWCZYM" i być błędnie klasyfikowane jako nakaz.
-    # Faktyczny nakaz EPU ZAWSZE ma "KOD [hash]" w tekście; uzasadnienie NIE ma.
-    # Ta reguła jest odporna na treść OCR — opiera się wyłącznie na obecności KOD.
+    # Post-processing: scal fragmenty formularza EPU przed nakazem w jeden segment pozwu.
+    #
+    # Problem: wielostronicowy EPU PDF ma: [pozew str.1-3] [tabela dowodów str.4→wezwanie_zaplaty]
+    # [nakaz str.5-7 z KOD]. Strona 4 (tabela dowodów) zawiera w liście dowodów tytuł
+    # "Wezwanie do zapłaty" → Rule 3 błędnie klasyfikuje ją jako wezwanie.
+    # Powinna być scalona z pozwem.
+    #
+    # Zasada: wszystkie segmenty PRZED pierwszym nakazem z KOD = strony formularza EPU.
+    # Jeśli pre-KOD blok zawiera "pozew" (prawdziwy) ORAZ inne segmenty → scal w jeden pozew.
     _KOD_RE = re.compile(r"(?m)^\s*KOD\s+\S{5,}")
     _nakaz_set = {"nakaz_upominawczy", "nakaz_nakazowy"}
 
     # Krok 0: jeśli brak "pozew" ale jest wzorzec [unknown → nakaz_bez_KOD → nakaz_z_KOD],
-    # segment "unknown" to strona pozwu EPU której _classify_page_segment nie rozpoznał
-    # (pdfplumber może ekstrahować "POZEW" bez spacji zamiast "P O Z E W").
+    # segment "unknown" to strona pozwu EPU → upgrade do "pozew".
     if not any(d["doc_type"] == "pozew" for d in documents):
         _has_no_kod = any(
             d["doc_type"] in _nakaz_set and not _KOD_RE.search(d["text"])
@@ -229,27 +232,27 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
                 _unk["label"] = "Pozew"
                 _unk["role"] = "primary"
 
-    # Krok 1: scal nakaz BEZ KOD z poprzedzającym pozwem
-    if any(d["doc_type"] == "pozew" for d in documents):
-        _merged: list[dict] = []
-        _last_pozew_idx: int | None = None
-        for d in documents:
-            if d["doc_type"] == "pozew":
-                _merged.append(d)
-                _last_pozew_idx = len(_merged) - 1
-            elif d["doc_type"] in _nakaz_set and not _KOD_RE.search(d["text"]):
-                # Nakaz BEZ KOD następujący po pozwie → strona formularza pozwu → scal
-                if _last_pozew_idx is not None:
-                    _merged[_last_pozew_idx]["pages"].extend(d["pages"])
-                    _merged[_last_pozew_idx]["text"] += "\n" + d["text"]
-                else:
-                    _merged.append(d)
-            else:
-                # Inny typ lub nakaz Z KOD (faktyczny nakaz EPU) → nowy segment, reset
-                if d["doc_type"] not in _nakaz_set:
-                    _last_pozew_idx = None
-                _merged.append(d)
-        documents = _merged
+    # Krok 1 (nuclear): jeśli pre-KOD blok zawiera "pozew" ORAZ inne segmenty,
+    # scal wszystko w jeden pozew EPU.
+    _first_kod_idx = next(
+        (i for i, d in enumerate(documents)
+         if d["doc_type"] in _nakaz_set and _KOD_RE.search(d["text"])),
+        None
+    )
+    if _first_kod_idx is not None and _first_kod_idx > 0:
+        _pre = documents[:_first_kod_idx]
+        _pre_has_pozew = any(d["doc_type"] == "pozew" for d in _pre)
+        _pre_has_other = any(d["doc_type"] != "pozew" for d in _pre)
+        if _pre_has_pozew and _pre_has_other:
+            _merged_pages = [p for d in _pre for p in d["pages"]]
+            _merged_text = "\n".join(d["text"] for d in _pre)
+            documents = [{
+                "doc_type": "pozew",
+                "label": "Pozew",
+                "role": "primary",
+                "pages": _merged_pages,
+                "text": _merged_text,
+            }] + documents[_first_kod_idx:]
 
     # Usuń "unknown" tylko gdy są inne dokumenty
     documents = [d for d in documents if d["doc_type"] != "unknown" or len(documents) == 1]
