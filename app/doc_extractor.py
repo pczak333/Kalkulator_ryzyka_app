@@ -161,33 +161,54 @@ _SAD_PATTERNS = [
 
 # ── Powód / Pozwany ───────────────────────────────────────────────────────────
 _POWOD_PATTERNS = [
+    # Nakaz "zwykły" (nie EPU): "pozwu wniesionego w dniu ... przez powoda [Nazwa]
+    # nakazuje..." Data bywa cyfrowa (9.03.2022) lub słowna (9 marca 2022 roku) —
+    # [^\n\r]{0,40}? (nie-zachłanne) zamiast sztywnego wzorca daty obsługuje oba
+    # warianty. Nazwa i formuła operatywna bywają w jednym akapicie bez podziału
+    # na linie — capture jest nie-zachłanny i zatrzymuje się przed "nakazuje".
+    r"wniesion\w*\s+w\s+dniu\s+[^\n\r]{0,40}?przez\s+(?:powoda\s+)?([^\n\r,;]{4,150}?)(?=\s+nakazuj|[\n\r,;]|$)",
     # Nakaz zapłaty: "zapłacił powodowi [Firma] kwotę"
     r"zap[łl]aci[łl]\s+powodowi\s+([^\n\r,;]{4,100}?)\s+kwot",
     # "na rzecz powoda [Firma]"
     r"na\s+rzecz\s+powoda\s+([^\n\r,;]{4,100})",
-    # Nagłówek "Powód:" lub "Powód\n"
-    r"[Pp]ow[oó]d(?:em)?[:\s]*\n?\s*([^\n\r,;]{4,150})",
+    # Nagłówek "Powód:" lub "Powód\n" — \b zapobiega dopasowaniu WEWNĄTRZ odmienionej
+    # formy "powodowi"/"powoda" (bez granicy słowa "Pow[oó]d" dopasowywał się jako
+    # prefiks "powod-" w "powodowi", łapiąc resztę słowa "owi" + dalszy tekst zdania).
+    r"[Pp]ow[oó]d(?:em)?\b[:\s]*\n?\s*([^\n\r,;]{4,150})",
     # Linia po słowie "Powód"
-    r"[Pp]ow[oó]d\s*\n\s*([^\n\r,;]{4,150})",
+    r"[Pp]ow[oó]d\b\s*\n\s*([^\n\r,;]{4,150})",
 ]
 
 _POZWANY_PATTERNS = [
     # Nakaz zapłaty: "nakazuję pozwanemu [Imię]" lub "nakazuję pozwanej [Firma]"
     r"nakazuj[eę]\s+pozwane(?:mu|j)\s+([^\n\r,;]{4,150})",
-    # "od pozwanego [Firma]"
-    r"od\s+pozwanego\s+([^\n\r,;]{4,100})",
-    # Nagłówek "Pozwany:" lub "Pozwany\n"
-    r"[Pp]ozwan[yąa](?:ch|m|emu)?[:\s]*\n?\s*([^\n\r,;]{4,150})",
+    # "od pozwanego [Firma]" — negatywny lookahead na "na rzecz": formuła procesowa
+    # "zasądzenie od pozwanego na rzecz powoda kwoty..." NIE wymienia nazwy pozwanego
+    # ponownie (już podana wcześniej w nagłówku "Pozwany:") — bez tego guarda regex
+    # łapał fragment zdania "na rzecz strony powodowej kwoty..." jako nazwę pozwanego.
+    r"od\s+pozwanego\s+(?!na\s+rzecz)([^\n\r,;]{4,100})",
+    # Nagłówek "Pozwany:" lub "Pozwany\n" — \b jak wyżej, zapobiega dopasowaniu
+    # wewnątrz odmienionych form ("pozwanego", "pozwanej" itp.)
+    r"[Pp]ozwan[yąa](?:ch|m|emu)?\b[:\s]*\n?\s*([^\n\r,;]{4,150})",
     # Linia po słowie "Pozwany"
-    r"[Pp]ozwan[yąa]\s*\n\s*([^\n\r,;]{4,150})",
+    r"[Pp]ozwan[yąa]\b\s*\n\s*([^\n\r,;]{4,150})",
 ]
 
 # Wzorzec do odfiltrowania fałszywych wyników (zdania z treści dokumentu)
 _FALSZY_WYNIK = re.compile(
     r"\b(jest\s+obowi[aą]zany|powinien|zobowi[aą]zany|mo[zż]e\s+wnie[sś][cć]|"
-    r"nale[zż]y|uprawniony|wskaza[cć]|powo[łl]a[cć]|podnie[sś][cć])\b",
+    r"nale[zż]y|uprawniony|wskaza[cć]|powo[łl]a[cć]|podnie[sś][cć]|"
+    r"na\s+rzecz|strony\s+powodowej|strony\s+pozwanej|nast[eę]puj[aą]c\w*)\b",
     re.IGNORECASE,
 )
+
+# Prawdziwa nazwa strony (firma lub imię i nazwisko) w tych pismach zawsze zaczyna
+# się wielką literą. Formuły procesowe ("od pozwanego na rzecz powoda następujących
+# kwot...", "zapłacić powodowi kwotę...") to fragmenty zdań pisane małą literą — ten
+# ogólny guard łapie takie fałszywe dopasowania niezależnie od konkretnych słów użytych
+# w formule (skuteczniejszy niż wykluczanie pojedynczych fraz jedna po drugiej).
+def _looks_like_party_name(val: str) -> bool:
+    return bool(val) and val[0].isupper()
 
 # Spójniki na początku wartości = fragment zdania złapany przez regex, nie nazwa własna
 _SPOJNIK_START = re.compile(
@@ -453,7 +474,8 @@ def extract_fields(text: str) -> dict:
             val = _clean_extracted_name(m.group(1))
             if (len(val) >= 3
                     and not _FALSZY_WYNIK.search(val)
-                    and not _SPOJNIK_START.search(val)):
+                    and not _SPOJNIK_START.search(val)
+                    and _looks_like_party_name(val)):
                 result["powod"] = val
                 break
 
@@ -465,7 +487,8 @@ def extract_fields(text: str) -> dict:
             val = _clean_extracted_name(m.group(1))
             if (len(val) >= 3
                     and not _FALSZY_WYNIK.search(val)
-                    and not _SPOJNIK_START.search(val)):
+                    and not _SPOJNIK_START.search(val)
+                    and _looks_like_party_name(val)):
                 result["pozwany"] = val
                 break
 
