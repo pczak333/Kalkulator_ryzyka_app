@@ -18,6 +18,17 @@ _PAGE_DOC_PATTERNS = [
 ]
 
 
+def _is_evidence_citation(tu: str, pos: int) -> bool:
+    """Czy dopasowanie w pozycji `pos` (w tekście już zuppercase'owanym `tu`) to
+    cytowanie dowodu/załącznika ("Dowód: wezwanie do zapłaty...", "- wezwanie
+    do zapłaty...") a nie własny nagłówek/tytuł strony. Bez tego sprawdzenia
+    fraza "wezwanie do zapłaty" wymieniona jako pozycja dowodowa w uzasadnieniu
+    pozwu (lub w liście załączników) fałszywie klasyfikuje całą stronę jako
+    osobny dokument "Wezwanie do zapłaty"."""
+    ctx = tu[max(0, pos - 40):pos]
+    return bool(re.search(r"DOW[OÓ]D\s*:?\s*$", ctx)) or bool(re.search(r"[-–—•]\s*$", ctx))
+
+
 def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     """
     Klasyfikuje jedną stronę wg jej nagłówka (pierwsze 600 zn.).
@@ -98,10 +109,14 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         bool(re.search(r"(?m)^[^A-Z]{0,5}NAKAZ\s+ZAP", tu))
     )
     if not _is_nakaz_or_pozew_page:
-        if (
+        _wez_m = (
             re.search(r"PRZED[SŚ][AĄ]DOW\w{0,3}\s+WEZWANIE", tu) or
             re.search(r"(?m)^\s*WEZWANIE\s+DO\s+ZAP[LŁ]?AT", tu)
-        ):
+        )
+        # Guard: jeśli dopasowanie jest poprzedzone etykietą "Dowód:" lub
+        # wypunktowaniem (lista załączników), to cytowanie dowodu w innym
+        # piśmie, nie własny nagłówek strony — nie klasyfikuj jako wezwanie.
+        if _wez_m and not _is_evidence_citation(tu, _wez_m.start()):
             return ("wezwanie_zaplaty", "Wezwanie do zapłaty (przedsądowe)", "evidence")
 
     # Reguła 4: strony pouczenia to kontynuacja nakazu, nie nowy dokument
@@ -121,8 +136,14 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     best_pos = len(page_text) + 1
     best_result = None
     for pat, doc_type, label, role, max_pos in _PAGE_DOC_PATTERNS:
-        m = re.search(pat, page_text[:max_pos].upper(), re.IGNORECASE)
+        window = page_text[:max_pos].upper()
+        m = re.search(pat, window, re.IGNORECASE)
         if m and m.start() < best_pos:
+            # To samo zabezpieczenie co w Regule 3: "wezwanie do zapłaty"
+            # cytowane jako dowód/załącznik ("Dowód: wezwanie...", "- wezwanie...")
+            # nie jest nagłówkiem strony.
+            if doc_type == "wezwanie_zaplaty" and _is_evidence_citation(window, m.start()):
+                continue
             best_pos = m.start()
             best_result = (doc_type, label, role)
     return best_result
