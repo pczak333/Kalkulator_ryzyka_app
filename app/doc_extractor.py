@@ -243,6 +243,15 @@ def _find_deadline_near_keyword(text: str) -> int | None:
     Przebieg 1: szuka terminu w oknie ±400 znaków wokół słów kluczowych akcji
     (sprzeciw, odpowiedź na pozew itp.). Priorytetyzuje termin przy "sprzeciw"
     nad ogólnymi wzmiankami w pouczeniu (np. termin zażalenia = 3 miesiące).
+
+    W oknie wybierany jest wzorzec NAJBLIŻSZY słowu kluczowemu (najwcześniejsza
+    pozycja w oknie), a nie pierwszy wg kolejności listy _TERMIN_WRITTEN.
+    Wcześniej lista była sprawdzana w stałej kolejności (90 dni pierwsze), co
+    błędnie wygrywało, gdy okno ±800 zn. wokół "sprzeciw" obejmowało zarówno
+    właściwą klauzulę nakazu ("w terminie dwóch tygodni od doręczenia nakazu")
+    JAK I sąsiadujący fragment pouczenia o doręczeniu zagranicznym ("w terminie
+    trzech miesięcy") — 90 dni wygrywało mimo że 14-dniowy termin był bliżej
+    i faktycznie dotyczył tego nakazu (nakaz_zaplaty+pozew.pdf, 01.07.2026).
     """
     text_lower = text.lower()
     for keyword in _PRIMARY_ACTION_KEYWORDS:
@@ -251,10 +260,16 @@ def _find_deadline_near_keyword(text: str) -> int | None:
             start = max(0, idx - 100)
             end = min(len(text), idx + _CONTEXT_WINDOW)
             window = text[start:end]
-            # Sprawdź wzorce słowne w oknie
+            # Wzorce słowne — wybierz najbliższe dopasowanie w oknie
+            best_match = None
+            best_days = None
             for pattern, days in _TERMIN_WRITTEN:
-                if re.search(pattern, window, re.IGNORECASE):
-                    return days
+                m = re.search(pattern, window, re.IGNORECASE)
+                if m and (best_match is None or m.start() < best_match.start()):
+                    best_match = m
+                    best_days = days
+            if best_match is not None:
+                return best_days
             # Sprawdź wzorce cyfrowe w oknie
             for pattern in _TERMIN_PATTERNS:
                 m = re.search(pattern, window, re.IGNORECASE)
@@ -357,12 +372,18 @@ def extract_fields(text: str) -> dict:
     # Przebieg 1: termin w pobliżu słów kluczowych akcji (np. "sprzeciw")
     result["deadline_days"] = _find_deadline_near_keyword(text)
 
-    # Przebieg 2: fallback — pierwsze trafienie wzorca w całym tekście
+    # Przebieg 2: fallback — najbliższe (nie pierwsze wg listy) trafienie wzorca
+    # w całym tekście; to samo uzasadnienie co w _find_deadline_near_keyword.
     if result["deadline_days"] is None:
+        _best_m = None
+        _best_days = None
         for pattern, days in _TERMIN_WRITTEN:
-            if re.search(pattern, text, re.IGNORECASE):
-                result["deadline_days"] = days
-                break
+            m = re.search(pattern, text, re.IGNORECASE)
+            if m and (_best_m is None or m.start() < _best_m.start()):
+                _best_m = m
+                _best_days = days
+        if _best_m is not None:
+            result["deadline_days"] = _best_days
 
     if result["deadline_days"] is None:
         for pattern in _TERMIN_PATTERNS:

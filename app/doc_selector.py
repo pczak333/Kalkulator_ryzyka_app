@@ -235,29 +235,28 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
     best_doc, best_score = scored[0]
     second_doc, second_score = scored[1]
 
-    # Twarda reguła: nakaz zawsze pilniejszy od pozwu tego samego rodzaju (EPU lub zwykły).
-    # Scoring (art. 299 bonus +35) może podnieść pozew ponad nakaz, ale pilność reakcji
-    # (termin sprzeciwu 14 dni) sprawia że nakaz musi wygrywać niezależnie od punktów.
+    # Twarda reguła: nakaz zawsze pilniejszy od pozwu tego samego rodzaju (EPU lub zwykły),
+    # NIEZALEŻNIE OD PUNKTÓW — w tym przy remisie punktowym. Scoring (art. 299 bonus +35)
+    # może podnieść pozew do remisu z nakazem, a wtedy _tiebreak() sprawdzałby adresata (R1)
+    # PRZED regułą nakaz>pozew (R3) — co błędnie wybierałoby pozew, gdyby jego adresat był
+    # źle sklasyfikowany (znany bug niespójności SPOLKA/CZLONEK_ZARZADU w doc_classifier.py:
+    # ten sam bundle, nakaz poprawnie "spolka", pozew błędnie "czlonek_zarzadu" → R1 wygrywa
+    # z pozwem mimo że pilność reakcji na nakaz jest zawsze wyższa). Dlatego reguła działa
+    # bezwarunkowo, gdy oba typy współistnieją — nie tylko gdy best_doc akurat jest pozwem.
     _nakaz_codes = {"EPU_NAKAZ_CZLONEK_ZARZADU", "EPU_NAKAZ_SPOLKA",
                     "NAKAZ_CZLONEK_ZARZADU", "NAKAZ_SPOLKA"}
     _pozew_codes = {"EPU_POZEW_CZLONEK_ZARZADU", "EPU_POZEW_SPOLKA",
                     "POZEW_CZLONEK_ZARZADU", "POZEW_SPOLKA"}
     _nakazes = [d for d, _ in scored if d.get("doc_type_code") in _nakaz_codes]
     _pozwy   = [d for d, _ in scored if d.get("doc_type_code") in _pozew_codes]
-    if _nakazes and _pozwy and best_doc.get("doc_type_code") in _pozew_codes:
-        best_doc = _nakazes[0]
+    if _nakazes and _pozwy:
+        # Wśród nakazów preferuj ten, który MA instrukcję terminu — strony
+        # uzasadnienia błędnie sklasyfikowane jako nakaz nie mają "w ciągu dwóch
+        # tygodni" → deadline_days=None. Faktyczny nakaz EPU zawsze ma deadline_days.
+        _nakazes_with_dl = [d for d in _nakazes if d.get("deadline_days") is not None]
+        best_doc = _nakazes_with_dl[0] if _nakazes_with_dl else _nakazes[0]
 
-    # Twarda reguła: wśród nakazy — preferuj ten który MA instrukcję terminu.
-    # Strony uzasadnienia błędnie sklasyfikowane jako nakaz nie mają "w ciągu dwóch tygodni"
-    # → deadline_days=None. Faktyczny nakaz EPU zawsze ma deadline_days.
-    elif best_doc.get("doc_type_code") in _nakaz_codes and best_doc.get("deadline_days") is None:
-        _nakazes_with_dl = [d for d, _ in scored
-                            if d.get("doc_type_code") in _nakaz_codes
-                            and d.get("deadline_days") is not None]
-        if _nakazes_with_dl:
-            best_doc = _nakazes_with_dl[0]
-
-    # Remis (gdy twarde reguły nie zadecydowały)?
+    # Remis (gdy twarda reguła nakaz>pozew nie zadecydowała)?
     elif best_score - second_score < _REMIS_THRESHOLD:
         best_doc = _tiebreak(best_doc, second_doc)
 
