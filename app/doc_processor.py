@@ -224,7 +224,12 @@ def _process_single_doc(
             cand["splitter_label"]    = seg.get("label", "?")
             cand["splitter_role"]     = seg.get("role", "?")
             candidates.append(cand)
-        # Dodaj listę segmentów do pierwszego kandydata (do wyświetlenia w panelu)
+        # Dodaj listę segmentów do pierwszego kandydata (do wyświetlenia w panelu).
+        # "final_type" to wynik classify_document() dla TEGO SAMEGO segmentu (cand,
+        # sparowany po indeksie z segments) — bez tego panel "Segmentacja stron"
+        # pokazywał tylko surowy typ ze splittera (sprzed klasyfikacji), co mogło
+        # nie zgadzać się z typem finalnie użytym w "Zestawieniu dokumentów" i
+        # "Dokumencie pomocniczym N".
         if candidates:
             candidates[0]["splitter_segments"] = [
                 {
@@ -232,8 +237,9 @@ def _process_single_doc(
                     "doc_type": seg.get("doc_type", "?"),
                     "label": seg.get("label", "?"),
                     "role": seg.get("role", "?"),
+                    "final_type": cand.get("doc_type_code", "?"),
                 }
-                for seg in segments
+                for seg, cand in zip(segments, candidates)
             ]
         return candidates
 

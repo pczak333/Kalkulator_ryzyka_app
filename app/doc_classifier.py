@@ -68,6 +68,19 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
             base += 15
         elif code == "PISMO_PROCESOWE_SADOWE" and adresat in ("czlonek_zarzadu", "spolka"):
             base += 15
+        # Typy bez sufiksu _SPOLKA/_CZLONEK_ZARZADU w nazwie (dokument ma tę
+        # samą treść niezależnie od tego, czy dłużnikiem jest spółka, czy
+        # osoba fizyczna — np. wniosek do komornika czy postanowienie o
+        # umorzeniu nie różnią się brzmieniem) muszą dostać ten sam bonus, co
+        # sufiksowane typy — inaczej systematycznie przegrywają scoring z
+        # KAŻDYM konkurentem typu "_SPOLKA"/"_CZLONEK_ZARZADU" niezależnie od
+        # dopasowania słów kluczowych (odkryte 02.07.2026: scalony segment
+        # wniosku egzekucyjnego/postanowienia o umorzeniu klasyfikował się
+        # jako NAKAZ_SPOLKA tylko dlatego, że NAKAZ_SPOLKA ma "_SPOLKA" w
+        # nazwie, a WNIOSEK_EGZEKUCYJNY/UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC —
+        # nie).
+        elif code in ("WNIOSEK_EGZEKUCYJNY", "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC") and adresat in ("czlonek_zarzadu", "spolka"):
+            base += 15
 
         if base > 0:
             scores[code] = base
@@ -86,10 +99,19 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
                 scores[_c] += 20
 
     # Frazy wnosicielskie lub tytuł "P O Z E W" jako pozytywny sygnał dla POZEW_.
+    # Wykluczenie: wniosek wierzyciela o wszczęcie postępowania egzekucyjnego
+    # (pismo DO komornika) też zawiera "wnoszę o" w petitum ("niniejszym
+    # wnoszę o: 1. Wszczęcie i przeprowadzenie egzekucji...") — bez tego
+    # wykluczenia bonus POZEW błędnie podbijał EPU_POZEW_*/POZEW_* dla takiego
+    # pisma, mimo że to nie jest żaden pozew do sądu.
+    _is_wniosek_egzekucyjny = bool(re.search(
+        r"WNIOSEK\s+O\s+WSZCZ[EĘ]CIE\s+POST[EĘ]POWANIA\s+EGZEKUCYJ",
+        text, re.IGNORECASE
+    ))
     _has_pozew_signals = bool(re.search(
         r"(wnosimy\s+o|wnosz[eę]\s+o|P\s+O\s+Z\s+E\s+W)",
         text, re.IGNORECASE
-    ))
+    )) and not _is_wniosek_egzekucyjny
     if _has_pozew_signals:
         for _c in list(scores):
             if "POZEW" in _c:

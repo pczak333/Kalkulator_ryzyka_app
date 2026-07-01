@@ -62,6 +62,39 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     if re.search(r"ART\.?\s*299.{0,20}K\.?S\.?H", tu):
         return ("pozew", "Pozew (art. 299 KSH)", "primary")
 
+    # Reguła 1b: wniosek wierzyciela o wszczęcie postępowania egzekucyjnego —
+    # pismo DO komornika, nie pozew ani nakaz. Musi być wykryte PRZED Regułą 2d
+    # (UZASADNIENIE→None), bo takie pismo bywa wielostronicowe i nie ma
+    # własnej sekcji uzasadnienia, ale sąsiaduje z dokumentami, które ją mają.
+    # Okno nagłówka (2000 zn.) + guard cytowania chroni przed złapaniem
+    # wzmianki o takim wniosku w liście dowodów/załączników innego pisma.
+    _wniosek_egz_m = re.search(r"WNIOSEK\s+O\s+WSZCZ[EĘ]CIE\s+POST[EĘ]POWANIA\s+EGZEKUCYJ", tu[:2000])
+    if _wniosek_egz_m and not _is_evidence_citation(tu, _wniosek_egz_m.start()):
+        return ("wniosek_egzekucyjny", "Wniosek o wszczęcie postępowania egzekucyjnego", "evidence")
+
+    # Reguła 1c: postanowienie komornika o umorzeniu postępowania egzekucyjnego.
+    # Wymaga nagłówka "POSTANOWIENIE" WSPÓŁWYSTĘPUJĄCEGO z "KOMORNIK" w oknie
+    # pierwszych ~500 zn. (analogicznie do Reguły 2 dla nakazu — nagłówek, nie
+    # gdziekolwiek w tekście) ORAZ sentencji umorzenia gdziekolwiek na stronie.
+    # Sam nagłówek "POSTANOWIENIE" jest zbyt ogólny (każde orzeczenie sądu), a
+    # samo "umorzyć postępowanie egzekucyjne" bywa CYTOWANE w uzasadnieniu
+    # pozwu art. 299 jako dowód bezskuteczności egzekucji — nie chcemy urwać
+    # takiej strony od pozwu. Wymóg obu naraz + nagłówek w oknie ogranicza to
+    # do stron będących WŁASNYM postanowieniem komornika. Bez guardu
+    # _is_evidence_citation() — sentencja postanowienia legalnie wylicza swoje
+    # punkty jako "- umorzyć...", "- ustalić..." itd.; ten sam wzorzec
+    # wypunktowania, który dla INNYCH reguł odróżnia cytat dowodu od nagłówka,
+    # tu fałszywie łapałby WŁASNĄ treść postanowienia jako "cytowanie".
+    _head500 = tu[:500]
+    if "POSTANOWIENIE" in _head500 and "KOMORNIK" in _head500:
+        _umorzenie_m = re.search(
+            r"UMORZY[ĆC]\s+(?:Z\s+URZ[EĘ]DU\s+)?POST[EĘ]POWANIE\s+EGZEKUCYJ"
+            r"|POST[EĘ]POWANIE\s+EGZEKUCYJNE[\s\S]{0,60}UMORZ",
+            tu
+        )
+        if _umorzenie_m:
+            return ("postanowienie_umorzenie_egzekucji", "Postanowienie o umorzeniu postępowania egzekucyjnego", "evidence")
+
     # Reguła 5a: "P O Z E W" ze spacjami — PRZED Rule 2 (nakaz).
     # EPU pozew zawiera w treści formularza "nakaz zapłaty w postępowaniu upominawczym"
     # (żądanie od sądu). Gdyby Rule 2 była pierwsza, pozew byłby błędnie klasyfikowany
@@ -132,6 +165,15 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         if re.search(r"(?m)^[^A-Z]{0,5}POZEW\b", tu):
             return ("pozew", "Pozew", "primary")
 
+    # Reguła 4b: klauzula wykonalności → kontynuacja poprzedniego nakazu/wyroku,
+    # nie nowy dokument. Boilerplate klauzuli (art. 776 k.p.c.) bywa na osobnej
+    # stronie zaraz po treści nakazu — bez tej reguły fallback Reguła 6
+    # ("TYTUŁ WYKONAW...", bo klauzula zawiera "Tytuł wykonawczy wydano...")
+    # błędnie zaczynał od niej nowy segment "komornik", odcinając stronę
+    # klauzuli od nakazu, którego dotyczy.
+    if re.search(r"UPRAWNIA\s+DO\s+EGZEKUCJI|PODLEGA\s+WYKONANIU\s+JAKO\s+PRAWOMOCNE", tu):
+        return None
+
     # Reguła 6: fallback przez wzorce ogólne
     best_pos = len(page_text) + 1
     best_result = None
@@ -139,10 +181,13 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         window = page_text[:max_pos].upper()
         m = re.search(pat, window, re.IGNORECASE)
         if m and m.start() < best_pos:
-            # To samo zabezpieczenie co w Regule 3: "wezwanie do zapłaty"
-            # cytowane jako dowód/załącznik ("Dowód: wezwanie...", "- wezwanie...")
-            # nie jest nagłówkiem strony.
-            if doc_type == "wezwanie_zaplaty" and _is_evidence_citation(window, m.start()):
+            # To samo zabezpieczenie co w Regule 3: fraza cytowana jako dowód/
+            # załącznik ("Dowód: wezwanie...", "- wezwanie...", "- Tytuł
+            # wykonawczy [oryginał]" w liście załączników wniosku do komornika)
+            # nie jest nagłówkiem strony. Dotyczy KAŻDEGO wzorca fallback, nie
+            # tylko wezwania — lista załączników potrafi wymienić dowolny typ
+            # pisma po nazwie.
+            if _is_evidence_citation(window, m.start()):
                 continue
             best_pos = m.start()
             best_result = (doc_type, label, role)

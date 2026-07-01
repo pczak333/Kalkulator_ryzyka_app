@@ -66,6 +66,7 @@ _DOC_TYPE_LABELS: dict[str, str] = {
     "PISMO_KOMORNIK_CZLONEK_ZARZADU":     "Pismo komornicze",
     "PISMO_KOMORNIK_SPOLKA":              "Pismo komornicze (spółka)",
     "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC": "Postanowienie o umorzeniu egzekucji",
+    "WNIOSEK_EGZEKUCYJNY":                "Wniosek o wszczęcie postępowania egzekucyjnego",
     "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": "Wezwanie przedsądowe",
     "WEZWANIE_PRZEDSADOWE_SPOLKA":        "Wezwanie przedsądowe (spółka)",
     "DECYZJA_ZUS_US_SPOLKA":              "Decyzja ZUS / urzędu skarbowego (spółka)",
@@ -823,7 +824,9 @@ if "krs_answers" in st.session_state:
                     for _s in prefill.splitter_segments:
                         _sp = _s.get("pages", [])
                         _sp_txt = f"str. {_sp[0]}–{_sp[-1]}" if len(_sp) > 1 else (f"str. {_sp[0]}" if _sp else "?")
-                        st.write(f"- {_sp_txt} → `{_s.get('doc_type','?')}` ({_s.get('label','?')}) [{_s.get('role','?')}]")
+                        _final = _s.get("final_type")
+                        _final_txt = f" → sklasyfikowano jako: `{_final}` ({_doc_type_label(_final)})" if _final else ""
+                        st.write(f"- {_sp_txt} → `{_s.get('doc_type','?')}` ({_s.get('label','?')}) [{_s.get('role','?')}]{_final_txt}")
                 _panel_aux = st.session_state.get("doc_aux", [])
                 for _i, _aux in enumerate(_panel_aux, 1):
                     st.markdown(f"**Dokument pomocniczy {_i}: `{_aux.doc_type_code}`**")
