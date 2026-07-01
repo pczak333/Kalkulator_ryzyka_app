@@ -378,6 +378,22 @@ st.caption(
     "formularz automatycznie. Możesz też pominąć ten krok i wypełnić ręcznie."
 )
 
+st.markdown(
+    "<div style='background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;"
+    "padding:8px 14px;font-size:0.85rem;margin-bottom:10px;'>"
+    "📌 <strong>Zanim wgrasz dokumenty:</strong>"
+    "<ul style='margin:4px 0 0 0;padding-left:18px;'>"
+    "<li>Wgrywaj dokumenty dotyczące <strong>tej samej sprawy</strong> "
+    "(ten sam pozwany, ta sama sygnatura akt).</li>"
+    "<li>Jeśli kilka dokumentów znajduje się w jednym pliku PDF — ułóż je "
+    "blokowo: najpierw wszystkie strony pierwszego pisma, potem wszystkie "
+    "strony kolejnego. <strong>Nie przeplataj</strong> stron różnych pism.</li>"
+    "<li>To samo dotyczy kilku osobnych plików — każdy plik powinien być "
+    "kompletnym, nieprzerwanym dokumentem.</li>"
+    "</ul></div>",
+    unsafe_allow_html=True,
+)
+
 with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
     uploaded_files = st.file_uploader(
         "Wybierz plik lub pliki",
