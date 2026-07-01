@@ -148,35 +148,6 @@ def reset_calculator():
     st.session_state["use_dates"] = False
 
 
-def _ai_extract_fields(text: str, api_key: str) -> dict:
-    """Wyciąga pola dokumentu przez Claude Haiku → słownik z polami."""
-    import re as _re
-    import json as _json
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-        prompt = (
-            "Masz przed sobą tekst polskiego pisma sądowego lub prawnego (po OCR).\n"
-            "Wyciągnij następujące informacje w formacie JSON (null jeśli nie znaleziono):\n"
-            '{"sygnatura":"sygnatura akt np. V GNc 2034/22/S","sad_organ":"pełna nazwa sądu lub organu",'
-            '"powod":"imię i nazwisko lub nazwa powoda","pozwany":"imię i nazwisko lub nazwa pozwanego",'
-            '"termin_dni":liczba_lub_null,"kwota_zl":liczba_lub_null}\n'
-            "Odpowiedź TYLKO w formacie JSON, bez komentarzy.\n\nTekst dokumentu:\n"
-            + text[:4000]
-        )
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = response.content[0].text.strip()
-        raw = _re.sub(r"^```\w*\n?", "", raw)
-        raw = _re.sub(r"\n?```$", "", raw)
-        return _json.loads(raw)
-    except Exception:
-        return {}
-
-
 def _doc_type_label(doc_type_code: str) -> str:
     return _DOC_TYPE_LABELS.get(
         doc_type_code,
@@ -434,34 +405,11 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
             st.session_state["k5"] = None
             st.session_state["k6"] = None
             try:
-                with st.spinner("Krok 1/2 — Odczytuję dokument (OCR)..."):
+                # process_files robi OCR + ekstrakcję danych (Claude Haiku jako
+                # główna ścieżka, regex jako fallback) dla każdego dokumentu w
+                # paczce — nie tylko głównego, patrz doc_processor.py/ai_extractor.py.
+                with st.spinner("Analizuję dokumenty (OCR + ekstrakcja danych)..."):
                     main_doc, aux_docs = process_files(uploaded_files, secrets)
-
-                # Automatyczna ekstrakcja AI — jeśli klucz Anthropic dostępny
-                _api_key = secrets.get("ANTHROPIC_API_KEY", "")
-                if _api_key and main_doc.raw_text:
-                    with st.spinner("Krok 2/2 — Wyciągam dane przez AI (Claude Haiku)..."):
-                        _ai_result = _ai_extract_fields(main_doc.raw_text, _api_key)
-                    if _ai_result:
-                        if _ai_result.get("sygnatura"):
-                            main_doc.sygnatura = _ai_result["sygnatura"]
-                        if _ai_result.get("sad_organ"):
-                            main_doc.sad_organ = _ai_result["sad_organ"]
-                        if _ai_result.get("powod"):
-                            main_doc.powod = _ai_result["powod"]
-                        if _ai_result.get("pozwany"):
-                            main_doc.pozwany = _ai_result["pozwany"]
-                        if _ai_result.get("termin_dni"):
-                            try:
-                                main_doc.deadline_days = int(_ai_result["termin_dni"])
-                            except (ValueError, TypeError):
-                                pass
-                        if _ai_result.get("kwota_zl"):
-                            try:
-                                main_doc.amount = float(_ai_result["kwota_zl"])
-                                main_doc.k7_code = _compute_k7_code(main_doc.amount)
-                            except (ValueError, TypeError):
-                                pass
 
                 st.session_state["doc_prefill"] = main_doc
                 st.session_state["doc_aux"] = aux_docs

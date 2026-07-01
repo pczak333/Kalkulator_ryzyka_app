@@ -6,7 +6,8 @@ from datetime import date, timedelta
 
 from doc_ingestion import extract_pages, PageDict
 from doc_ocr import ocr_with_fallback
-from doc_extractor import extract_fields
+from doc_extractor import extract_fields, _amount_to_k7
+from ai_extractor import extract_fields_ai
 from doc_classifier import classify_document
 from doc_selector import select_main_document
 from ocr_cleanup import clean_ocr_text
@@ -80,9 +81,46 @@ def _build_candidate_dict(
     ocr_notes: str,
     file_ext: str,
     page_range: tuple[int, int],
+    api_key: str = "",
 ) -> dict:
-    """Buduje słownik kandydata z przetworzonego tekstu dokumentu."""
+    """Buduje słownik kandydata z przetworzonego tekstu dokumentu.
+
+    Ekstrakcja AI (Claude Haiku) jest GŁÓWNĄ ścieżką dla powód/pozwany/
+    sygnatura/sąd/kwota/termin/adresat/epu — regex (extract_fields) to tani
+    fallback użyty w całości, gdy brak klucza API, oraz pole-po-polu, gdy AI
+    nie zwróciła wartości dla danego pola. Scalenie dzieje się PRZED
+    classify_document(), więc "adresat" od AI (bardziej odporny na nowe
+    odmiany gramatyczne niż regexowe _ADRESAT) zasila bonus klasyfikacyjny
+    dla KAŻDEGO segmentu w paczce, nie tylko głównego dokumentu.
+    """
     fields = extract_fields(text)
+    ai_fields = extract_fields_ai(text, api_key)
+    if ai_fields:
+        if ai_fields.get("sygnatura"):
+            fields["sygnatura"] = ai_fields["sygnatura"]
+        if ai_fields.get("sad_organ"):
+            fields["sad_organ"] = ai_fields["sad_organ"]
+        if ai_fields.get("powod"):
+            fields["powod"] = ai_fields["powod"]
+        if ai_fields.get("pozwany"):
+            fields["pozwany"] = ai_fields["pozwany"]
+        if ai_fields.get("adresat") in ("czlonek_zarzadu", "spolka", "organ"):
+            fields["adresat"] = ai_fields["adresat"]
+            fields["adresat_confidence"] = max(fields.get("adresat_confidence", 0.0), 0.9)
+        if ai_fields.get("epu") is not None:
+            fields["epu"] = bool(ai_fields["epu"])
+        if ai_fields.get("termin_dni") is not None:
+            try:
+                fields["deadline_days"] = int(ai_fields["termin_dni"])
+            except (ValueError, TypeError):
+                pass
+        if ai_fields.get("kwota_zl") is not None:
+            try:
+                fields["amount"] = float(ai_fields["kwota_zl"])
+                fields["k7_code"] = _amount_to_k7(fields["amount"])
+            except (ValueError, TypeError):
+                pass
+
     doc_type, clf_conf = classify_document(text, fields)
     k1_code = _DOC_TYPE_TO_K1.get(doc_type, "K1_INNE_NIE_WIEM")
 
@@ -167,6 +205,7 @@ def _process_single_doc(
 
     # Próba segmentacji na logiczne dokumenty
     segments = detect_documents_by_pages(full_text)
+    api_key = secrets.get("ANTHROPIC_API_KEY", "")
 
     if segments:
         # Wiele logicznych dokumentów — process each segment (text already OCR'd)
@@ -177,7 +216,8 @@ def _process_single_doc(
             p_start = pages_in_seg[0] if pages_in_seg else pages[0]["page_num"]
             p_end   = pages_in_seg[-1] if pages_in_seg else pages[-1]["page_num"]
             cand = _build_candidate_dict(
-                seg_text, ocr_quality, ocr_engine, ocr_notes, file_ext, (p_start, p_end)
+                seg_text, ocr_quality, ocr_engine, ocr_notes, file_ext, (p_start, p_end),
+                api_key=api_key,
             )
             # Zachowaj info o segmentacji dla panelu diagnostycznego
             cand["splitter_doc_type"] = seg.get("doc_type", "?")
@@ -201,6 +241,7 @@ def _process_single_doc(
     return [_build_candidate_dict(
         full_text, ocr_quality, ocr_engine, ocr_notes, file_ext,
         (pages[0]["page_num"], pages[-1]["page_num"]),
+        api_key=api_key,
     )]
 
 
