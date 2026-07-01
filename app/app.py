@@ -311,7 +311,7 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
                 kwota_info = f"Kwota: **{_kf} zł**"
             else:
                 kwota_info = ""
-            badge = " ⚠️ **WYMAGA REAKCJI**" if doc.deadline_days else ""
+            badge = " ⚠️ **WYMAGA REAKCJI**" if (doc is main and doc.deadline_days) else ""
             meta_parts = [x for x in [date_info, syg_info, kwota_info] if x]
             meta = " · ".join(meta_parts)
             st.markdown(
