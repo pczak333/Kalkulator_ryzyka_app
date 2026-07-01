@@ -121,8 +121,19 @@ _KWOTA_PATTERNS = [
     rf"nakazuj[eę][\s\S]{{0,600}}?kwot[ęayo]\s+({_POLISH_NUM})\s*{_WALUTA}",
     # Pismo procesowe: "zasądzenie od pozwanego kwoty X złotych" — wysoki priorytet
     rf"zasądzen\w{{0,4}}[^\n]{{0,150}}?kwot\w{{0,3}}\s+({_POLISH_NUM})\s*{_WALUTA}",
-    # Nakaz EPU z rozbiciem odsetkowym: "łącznie: 5 267,77 PLN" — najwyższy priorytet
-    rf"(?:[łŁ][aą]cznie|[rR]azem|[Ss]uma)[:\s]+({_POLISH_NUM})\s*{_WALUTA}",
+    # Nakaz EPU z rozbiciem odsetkowym: "łącznie: 5 267,77 PLN" — wysoki priorytet
+    # ("l" zamiast "ł" — częsty artefakt OCR polskich znaków)
+    rf"(?:[lł][aą]cznie|[rR]azem|[Ss]uma)[:\s]+({_POLISH_NUM})\s*{_WALUTA}",
+    # Pozew: "Wartość przedmiotu sporu 11 286,00 PLN" — oficjalna, jednoznaczna
+    # etykieta łącznej wartości sporu; najwyższy priorytet, ma wygrywać z ogólnymi
+    # wzorcami "roszczenia kwoty..."/"kwotę..." dopasowującymi kwoty pojedynczych
+    # faktur czy rat z listy dowodów.
+    rf"[Ww]arto[śs][ćc]\s+przedmiotu\s+sporu\s*[:\s]*({_POLISH_NUM})\s*{_WALUTA}?",
+    # Nakaz: "kwotę łączną 11 286,00 PLN (słownie: ...) w tym kwotę 10 530,00 PLN..." —
+    # odmiana przymiotnikowa "łączną"/"łączny"/"łączne" (nie "łącznie") nie pasowała
+    # do wzorca powyżej; bez tego wzorca ekstraktor łapał podkwotę "w tym kwotę X PLN".
+    # "l" zamiast "ł" ([lł]) — częsty artefakt OCR polskich znaków (jak w _WALUTA).
+    rf"kwot[ęayo]\s+[lł][aą]czn\w*\s*[:\s]*({_POLISH_NUM})\s*{_WALUTA}",
 ]
 
 # ── Sygnatura akt ─────────────────────────────────────────────────────────────
@@ -134,6 +145,12 @@ _SYGNATURA_PATTERNS = [
     r"\b([IVX]+\s+G(?:Nc|C|Co|n)\s+\d+/\d+(?:/[A-Z]+)?)\b",
     r"\b([A-Z]+\s+\d+/\d+(?:/[A-Z\d]+)?)\b",
 ]
+
+# Prefiksy, które format przypomina sygnaturę sądową ("LITERY liczba/liczba"), ale
+# w rzeczywistości oznaczają numer faktury/dokumentu księgowego z listy dowodów
+# (np. "FV 135/2021"), nie sygnaturę akt sprawy — odrzucane niezależnie od tego,
+# który wzorzec je dopasował.
+_SYGNATURA_EXCLUDE_RE = re.compile(r"^(?:Km|FV|FA|F-?VAT|FAKTURA)\b", re.IGNORECASE)
 
 # ── Sąd / organ ───────────────────────────────────────────────────────────────
 _SAD_PATTERNS = [
@@ -389,11 +406,13 @@ def extract_fields(text: str) -> dict:
 
     # Sygnatura akt — odrzuć sygnatury komornicze (Km/KM = referencja w uzasadnieniu,
     # nie własna sygnatura sądu; sądowe sygnatury to np. "VI Nc-e", "I C", "VIII GC")
+    # oraz numery faktur/dokumentów księgowych (FV/FA/F-VAT z listy dowodów), które
+    # format ("LITERY liczba/liczba") łudząco przypomina sygnaturę.
     for pattern in _SYGNATURA_PATTERNS:
         m = re.search(pattern, text)
         if m:
             syg = _clean_extracted_name(m.group(1))
-            if len(syg) >= 4 and not re.match(r'^Km\b', syg, re.IGNORECASE):
+            if len(syg) >= 4 and not _SYGNATURA_EXCLUDE_RE.match(syg):
                 result["sygnatura"] = syg
                 break
 

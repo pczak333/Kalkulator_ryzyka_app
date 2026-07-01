@@ -205,8 +205,9 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     # "Wezwanie do zapłaty" → Rule 3 błędnie klasyfikuje ją jako wezwanie.
     # Powinna być scalona z pozwem.
     #
-    # Zasada: wszystkie segmenty PRZED pierwszym nakazem z KOD = strony formularza EPU.
-    # Jeśli pre-KOD blok zawiera "pozew" (prawdziwy) ORAZ inne segmenty → scal w jeden pozew.
+    # Zasada: wszystkie segmenty PRZED pierwszym nakazem z KOD = strony formularza EPU
+    # (pozew + załączniki) — scalane w jeden "pozew" w Kroku 1, chyba że wśród nich
+    # jest własny segment typu nakaz (wtedy działa węższy Krok 0 poniżej).
     _KOD_RE = re.compile(r"(?m)^\s*KOD\s+\S{5,}")
     _nakaz_set = {"nakaz_upominawczy", "nakaz_nakazowy"}
 
@@ -232,27 +233,34 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
                 _unk["label"] = "Pozew"
                 _unk["role"] = "primary"
 
-    # Krok 1 (nuclear): jeśli pre-KOD blok zawiera "pozew" ORAZ inne segmenty,
-    # scal wszystko w jeden pozew EPU.
-    _first_kod_idx = next(
-        (i for i, d in enumerate(documents)
-         if d["doc_type"] in _nakaz_set and _KOD_RE.search(d["text"])),
+    # Krok 1 (nuclear): blok przed PIERWSZYM segmentem typu nakaz (niezależnie od
+    # KOD!) = zawsze formularz pozwu + załączniki (tabele dowodów, wezwania
+    # przywołane jako dowód, strony niesklasyfikowane przez OCR). Scal cały ten
+    # blok w jeden "pozew". Granica NIE wymaga wykrycia "KOD [hash]" (Rule 0) —
+    # zależność od KOD okazała się krucha: różne silniki OCR (Azure/Tesseract/
+    # Claude) różnie transkrybują tę linię, a gdy żaden segment nakazu nie ma
+    # wykrytego KOD, poprzednia wersja tego kroku w ogóle się nie uruchamiała i
+    # cały pre-blok (pozew) ginął bezpowrotnie w filtrze "unknown" niżej. Granica
+    # oparta na samym typie "nakaz" jest odporna na to, jak dokładnie OCR
+    # odczytał KOD. Ponieważ to PIERWSZY indeks nakazu, blok przed nim z
+    # definicji nie zawiera segmentu typu nakaz — inny przypadek (nakaz bez KOD
+    # bezpośrednio przed nakazem z KOD w obrębie tego samego pisma) obsługuje
+    # osobny, węższy Krok 0 powyżej.
+    _first_nakaz_idx = next(
+        (i for i, d in enumerate(documents) if d["doc_type"] in _nakaz_set),
         None
     )
-    if _first_kod_idx is not None and _first_kod_idx > 0:
-        _pre = documents[:_first_kod_idx]
-        _pre_has_pozew = any(d["doc_type"] == "pozew" for d in _pre)
-        _pre_has_other = any(d["doc_type"] != "pozew" for d in _pre)
-        if _pre_has_pozew and _pre_has_other:
-            _merged_pages = [p for d in _pre for p in d["pages"]]
-            _merged_text = "\n".join(d["text"] for d in _pre)
-            documents = [{
-                "doc_type": "pozew",
-                "label": "Pozew",
-                "role": "primary",
-                "pages": _merged_pages,
-                "text": _merged_text,
-            }] + documents[_first_kod_idx:]
+    if _first_nakaz_idx is not None and _first_nakaz_idx > 0:
+        _pre = documents[:_first_nakaz_idx]
+        _merged_pages = [p for d in _pre for p in d["pages"]]
+        _merged_text = "\n".join(d["text"] for d in _pre)
+        documents = [{
+            "doc_type": "pozew",
+            "label": "Pozew",
+            "role": "primary",
+            "pages": _merged_pages,
+            "text": _merged_text,
+        }] + documents[_first_nakaz_idx:]
 
     # Usuń "unknown" tylko gdy są inne dokumenty
     documents = [d for d in documents if d["doc_type"] != "unknown" or len(documents) == 1]

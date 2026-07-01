@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""OCR dokumentów: kaskada Azure DI → Tesseract → Claude Haiku."""
+"""OCR dokumentów: kaskada Azure DI → Claude Haiku (eskalacja przy niskiej
+jakości) → Tesseract (fallback wyłącznie bez klucza Anthropic)."""
 from __future__ import annotations
 import base64
 import io
@@ -20,43 +21,55 @@ def ocr_with_fallback(
     secrets: dict,
 ) -> tuple[str, float, str, str]:
     """
-    Kaskada OCR: Azure DI → Tesseract → Claude Haiku.
+    Kaskada OCR: Azure DI → Claude Haiku (eskalacja gdy Azure poniżej progu
+    jakości — nie tylko gdy tekst jest pusty) → Tesseract (prawdziwa ostatnia
+    deska ratunku, używana tylko gdy brak klucza Anthropic).
     Zwraca (full_text, confidence, engine_used, notes).
     engine_used: 'azure' | 'tesseract' | 'claude' | 'none'
     notes: log dlaczego silniki były pomijane
     """
     notes: list[str] = []
+    claude_key = secrets.get("ANTHROPIC_API_KEY", "")
 
     # Silnik 1: Azure Document Intelligence (cały plik naraz)
     azure_key = secrets.get("AZURE_DI_KEY", "")
     azure_endpoint = secrets.get("AZURE_DI_ENDPOINT", "")
+    azure_candidate: tuple[str, float] | None = None
     if azure_key and azure_endpoint:
         azure_result, azure_error = _ocr_azure(raw_bytes, azure_key, azure_endpoint, pages)
         if azure_result is not None:
             text, conf = azure_result
-            if conf >= 0.6:
+            # Próg 0.75 = ten sam próg, którego doc_processor.py używa do etykiety
+            # jakości "NISKA"/"WYSOKA" w panelu technicznym — wynik poniżej progu
+            # nie jest już akceptowany od razu, tylko eskalowany dalej.
+            if conf >= 0.75:
                 return text, conf, "azure", ""
-            else:
-                notes.append(f"Azure: niska pewność ({conf:.2f} < 0.6)")
+            notes.append(f"Azure: niska pewność ({conf:.2f} < 0.75) — eskalacja")
+            azure_candidate = (text, conf)
         else:
             notes.append(f"Azure: błąd — {azure_error}")
     else:
         notes.append("Azure: brak klucza/endpointu w secrets")
 
-    # Silnik 2: Tesseract z polskim pakietem (per strona)
-    tess_result = _ocr_tesseract(pages)
-    if tess_result is not None:
-        text, conf = tess_result
-        if text.strip():
-            return text, conf, "tesseract", " | ".join(notes)
-
-    notes.append("Tesseract: brak tekstu lub błąd")
-
-    # Silnik 3: Claude Haiku (ostatni resort, per strona)
-    claude_key = secrets.get("ANTHROPIC_API_KEY", "")
+    # Silnik 2: Claude Haiku — eskalacja zawsze, gdy Azure nie osiągnął progu
+    # jakości (nie tylko gdy tekst jest kompletnie pusty). Claude czyta każdą
+    # stronę z obrazu niezależnie, więc jest odporniejszy na zaburzony układ
+    # dwukolumnowy/wielotabelowy niż Tesseract.
     if claude_key:
         text, conf = _ocr_claude(pages, claude_key)
         return text, conf, "claude", " | ".join(notes)
+
+    # Silnik 3: Tesseract — prawdziwa ostatnia deska ratunku, tylko gdy brak
+    # klucza Anthropic (bez niego nie ma czym eskalować).
+    tess_result = _ocr_tesseract(pages)
+    if tess_result is not None and tess_result[0].strip():
+        text, conf = tess_result
+        return text, conf, "tesseract", " | ".join(notes)
+    notes.append("Tesseract: brak tekstu lub błąd")
+
+    if azure_candidate is not None:
+        text, conf = azure_candidate
+        return text, conf, "azure", " | ".join(notes)
 
     return "", 0.0, "none", " | ".join(notes) + " | Claude: brak klucza"
 
@@ -155,7 +168,7 @@ def _ocr_tesseract(pages: list[PageDict]) -> tuple[str, float] | None:
 
 
 def _ocr_claude(pages: list[PageDict], api_key: str) -> tuple[str, float]:
-    """Claude Haiku per strona — absolutny fallback."""
+    """Claude Haiku per strona — eskalacja jakościowa, nie tylko fallback na pusty tekst."""
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
