@@ -33,6 +33,28 @@ _UPGRADED_TYPE_TO_K1: dict[str, str] = {
 
 _REMIS_THRESHOLD = 10  # różnica punktów poniżej której stosujemy reguły remisu
 
+# Formy prawne spółek — do rozpoznawania, czy nazwa strony to spółka (nie osoba
+# fizyczna). Zawiera skróty ORAZ pełne formy pisane ("spółka z ograniczoną
+# odpowiedzialnością") — AI zwraca często pełną formę z dokumentu, a poprzednia
+# lista w app.py znała tylko skróty z kropkami, przez co bramka art. 299
+# pojawiała się mimo pozwanej spółki.
+_COMPANY_FORMS = (
+    "sp. z o.o.", "sp. z o. o.", "sp. z o.o", "sp. z o.o.", "sp.z o.o",
+    "spółka z o.", "spółka z ograniczoną odpowiedzialnością",
+    "z ograniczoną odpowiedzialnością",
+    "s.a.", "spółka akcyjna", "prosta spółka akcyjna", "p.s.a.",
+    "sp. k.", "sp.k.", "spółka komandytowa",
+    "s.k.a.", "spółka komandytowo-akcyjna",
+    "sp. j.", "sp.j.", "spółka jawna",
+    "sp. p.", "sp.p.", "spółka partnerska",
+)
+
+
+def is_company_name(name: str | None) -> bool:
+    """True, gdy nazwa strony zawiera formę prawną spółki (dowolny wariant zapisu)."""
+    n = (name or "").lower()
+    return any(f in n for f in _COMPANY_FORMS)
+
 # Źródło dokumentu — używane przez R23–R26 w score_candidate()
 _COURT_TYPES = {
     "POZEW_CZLONEK_ZARZADU", "NAKAZ_CZLONEK_ZARZADU",
@@ -235,18 +257,32 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
     best_doc, best_score = scored[0]
     second_doc, second_score = scored[1]
 
-    # Twarda reguła: nakaz zawsze pilniejszy od pozwu tego samego rodzaju (EPU lub zwykły),
+    # Twarda reguła: nakaz pilniejszy od pozwu TEJ SAMEJ sprawy (EPU lub zwykły),
     # NIEZALEŻNIE OD PUNKTÓW — w tym przy remisie punktowym. Scoring (art. 299 bonus +35)
     # może podnieść pozew do remisu z nakazem, a wtedy _tiebreak() sprawdzałby adresata (R1)
     # PRZED regułą nakaz>pozew (R3) — co błędnie wybierałoby pozew, gdyby jego adresat był
-    # źle sklasyfikowany (znany bug niespójności SPOLKA/CZLONEK_ZARZADU w doc_classifier.py:
-    # ten sam bundle, nakaz poprawnie "spolka", pozew błędnie "czlonek_zarzadu" → R1 wygrywa
-    # z pozwem mimo że pilność reakcji na nakaz jest zawsze wyższa). Dlatego reguła działa
-    # bezwarunkowo, gdy oba typy współistnieją — nie tylko gdy best_doc akurat jest pozwem.
+    # źle sklasyfikowany. Dlatego reguła działa gdy oba typy współistnieją — nie tylko gdy
+    # best_doc akurat jest pozwem.
+    #
+    # WYJĄTEK (03.07.2026, sekwencja art. 299 KSH — implementuje R10 z CSV 02):
+    # gdy paczka to łańcuch "nakaz przeciwko SPÓŁCE → egzekucja → umorzenie →
+    # pozew przeciwko CZŁONKOWI ZARZĄDU", dokumentem wymagającym reakcji jest
+    # POZEW (żywa, nowa sprawa przeciwko osobie fizycznej), a nakaz jest
+    # historyczny (prawomocny, z klauzulą wykonalności — żaden termin z niego
+    # już nie biegnie). Sygnały łańcucha (wystarczy jeden, oba wymagają pozwu
+    # typu _CZLONEK_ZARZADU z pozwanym-osobą fizyczną):
+    #   A) w paczce jest dokument egzekucyjny (WNIOSEK_EGZEKUCYJNY lub
+    #      UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC) — egzekucja przeciwko spółce
+    #      już była, więc nakaz na pewno jest zamkniętym etapem;
+    #   B) nakaz dotyczy spółki (typ _SPOLKA lub pozwany z formą spółkową),
+    #      a pozew członka zarządu — różni pozwani = różne sprawy (R10:
+    #      "nakaz przeciwko spółce jest głównym TYLKO gdy brak dokumentu
+    #      przeciwko członkowi zarządu").
     _nakaz_codes = {"EPU_NAKAZ_CZLONEK_ZARZADU", "EPU_NAKAZ_SPOLKA",
                     "NAKAZ_CZLONEK_ZARZADU", "NAKAZ_SPOLKA"}
     _pozew_codes = {"EPU_POZEW_CZLONEK_ZARZADU", "EPU_POZEW_SPOLKA",
                     "POZEW_CZLONEK_ZARZADU", "POZEW_SPOLKA"}
+    _egzekucja_codes = {"WNIOSEK_EGZEKUCYJNY", "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC"}
     _nakazes = [d for d, _ in scored if d.get("doc_type_code") in _nakaz_codes]
     _pozwy   = [d for d, _ in scored if d.get("doc_type_code") in _pozew_codes]
     if _nakazes and _pozwy:
@@ -254,7 +290,21 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
         # uzasadnienia błędnie sklasyfikowane jako nakaz nie mają "w ciągu dwóch
         # tygodni" → deadline_days=None. Faktyczny nakaz EPU zawsze ma deadline_days.
         _nakazes_with_dl = [d for d in _nakazes if d.get("deadline_days") is not None]
-        best_doc = _nakazes_with_dl[0] if _nakazes_with_dl else _nakazes[0]
+        _nakaz = _nakazes_with_dl[0] if _nakazes_with_dl else _nakazes[0]
+
+        # Pozwy przeciwko członkowi zarządu (typ CZLONEK i pozwany bez formy
+        # spółkowej — koniunkcja dwóch niezależnych cech chroni przed znaną
+        # niespójnością klasyfikacji SPOLKA/CZLONEK_ZARZADU).
+        _pozwy_cz = [d for d in _pozwy
+                     if d.get("doc_type_code", "").endswith("_CZLONEK_ZARZADU")
+                     and not is_company_name(d.get("pozwany"))]
+        _egzekucja_docs = [d for d, _ in scored
+                           if d.get("doc_type_code") in _egzekucja_codes]
+        _nakaz_dot_spolki = ("_SPOLKA" in _nakaz.get("doc_type_code", "")
+                             or is_company_name(_nakaz.get("pozwany")))
+        _art299_chain = bool(_pozwy_cz) and bool(_egzekucja_docs or _nakaz_dot_spolki)
+
+        best_doc = _pozwy_cz[0] if _art299_chain else _nakaz
 
     # Remis (gdy twarda reguła nakaz>pozew nie zadecydowała)?
     elif best_score - second_score < _REMIS_THRESHOLD:
@@ -267,12 +317,18 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
     # Szuka art. 299 KSH LUB "czlonek zarządu" w dowolnym dokumencie bundla.
     # Azure DI może fragmentować "art. 299 KSH" w uzasadnieniu, ale frazy naturalne
     # (np. "wzywanie członka zarządu dłużnej spółki") zazwyczaj przetrwają OCR.
+    # GUARD (03.07.2026): NIE upgraduj, gdy pozwany na SAMYM dokumencie głównym
+    # jest spółką — wtedy dokument naprawdę jest skierowany przeciwko spółce,
+    # a wzmianka o art. 299/członku zarządu pochodzi z INNEGO dokumentu paczki
+    # (np. pozwu art. 299 towarzyszącego staremu nakazowi przeciwko spółce).
+    # Bez guardu powstawał stan niespójny: typ *_CZLONEK_ZARZADU + wyświetlany
+    # pozwany-spółka → bramka art. 299 pytała o osobę fizyczną wbrew danym.
     _bundle_has_czlonek = any(
         _CZLONEK_UPGRADE_PAT.search(d.get("raw_text", ""))
         for d in candidates
     )
     _upgraded_type = _SPOLKA_TO_CZLONEK.get(main.get("doc_type_code", ""))
-    if _bundle_has_czlonek and _upgraded_type:
+    if _bundle_has_czlonek and _upgraded_type and not is_company_name(main.get("pozwany")):
         main["doc_type_code"] = _upgraded_type
         main["k1_code"] = _UPGRADED_TYPE_TO_K1.get(_upgraded_type, "K1_INNE_NIE_WIEM")
         main["addressee"] = "czlonek_zarzadu"
