@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import streamlit as st
 from datetime import date, timedelta
 
-from data_loader import load_form_questions
+from data_loader import load_form_questions, load_spolka_indirect_risk_text
 from scoring_engine import calculate, risk_label_for_code
 from hard_rules import apply as apply_hard_rules
 from scenario_selector import find_scenario, resolve_doc_type
@@ -222,6 +222,41 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             "(PDF/DOCX z warstwą tekstową). Dane są w pełni wiarygodne.</div>",
             unsafe_allow_html=True,
         )
+
+    # Baner komorniczy: pisma dotyczące egzekucji. Egzekucja przeciwko spółce
+    # to bezpośrednie przedpole art. 299 KSH — formularz ma sens dla oceny
+    # ryzyka osobistego członka zarządu. Tekst po stronie aplikacji, bo
+    # arkusze Excela nie mają (jeszcze) sekcji dla pism komorniczych —
+    # patrz decyzja produktowa 03.07.2026 w CLAUDE.md/memory.
+    _KOMORNIK_MAIN_TYPES = {
+        "PISMO_KOMORNIK_SPOLKA", "PISMO_KOMORNIK_CZLONEK_ZARZADU",
+        "WNIOSEK_EGZEKUCYJNY", "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC",
+    }
+    if main.doc_type_code in _KOMORNIK_MAIN_TYPES:
+        if main.doc_type_code == "PISMO_KOMORNIK_CZLONEK_ZARZADU":
+            st.info(
+                "**Pismo komornicze dotyczące egzekucji z majątku osobistego.** "
+                "Komornik prowadzi czynności bezpośrednio wobec osoby fizycznej — "
+                "to najpóźniejszy etap sprawy i zwykle wymaga szybkiej, "
+                "profesjonalnej reakcji. Formularz poniżej pozwoli wstępnie "
+                "ocenić sytuację, a pełną analizę dokumentów zapewnia Audyt 48h."
+            )
+        else:
+            st.info(
+                "**Przesłane pisma dotyczą postępowania egzekucyjnego "
+                "prowadzonego wobec spółki.** Na tym etapie komornik działa "
+                "przeciwko spółce, nie przeciwko członkowi zarządu osobiście — "
+                "ale jeżeli egzekucja okaże się bezskuteczna, wierzyciel może "
+                "dochodzić zapłaty od członków zarządu (art. 299 KSH). "
+                "Warto więc wypełnić formularz poniżej, aby wstępnie ocenić "
+                "ryzyko osobiste wynikające z tej sprawy."
+            )
+    # Baner "dokument dotyczy spółki" (ryzyko pośrednie) — wymagany przez
+    # specyfikację (§13.2); treść z arkusza 6P (CSV 35), nie hardcode.
+    elif "_SPOLKA" in main.doc_type_code:
+        _spolka_txt = load_spolka_indirect_risk_text()
+        if _spolka_txt:
+            st.info(f"**Dokument dotyczy spółki.** {_spolka_txt}")
 
     # Baner dla pisma procesowego — brak pełnej dokumentacji
     if main.doc_type_code == "PISMO_PROCESOWE_SADOWE":

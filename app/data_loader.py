@@ -93,6 +93,20 @@ def load_epu_block() -> pd.DataFrame:
     return _read("13_Blok_EPU.csv")
 
 
+def load_spolka_indirect_risk_text() -> str:
+    """CSV 35 (arkusz 6P): komunikat o ryzyku pośrednim dla dokumentów spółki.
+
+    Wiersz obszar="Ryzyko pośrednie" / wariant="Dokument przeciwko spółce",
+    kolumna "przykład komunikatu" (spec §13.2: przy dokumentach przeciwko
+    spółce należy wyjaśnić ryzyko pośrednie). Pusty string, gdy wiersza brak.
+    """
+    df = _read("35_6P_Nakaz_pozew_spolka_v31.csv")
+    row = df[df["obszar"].str.strip() == "Ryzyko pośrednie"]
+    if row.empty:
+        return ""
+    return str(row.iloc[0].get("przykład komunikatu", "") or "").strip()
+
+
 def load_tests() -> pd.DataFrame:
     """CSV 17: testy kontrolne."""
     return _read("17_10_Testy_kontrolne.csv")

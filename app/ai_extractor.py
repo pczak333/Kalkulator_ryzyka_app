@@ -31,6 +31,15 @@ _PROMPT_TEMPLATE = (
     '  "adresat": "czlonek_zarzadu" lub "spolka" lub "organ" lub null,\n'
     '  "epu": true lub false\n'
     "}}\n\n"
+    'Zasady dla pola "kwota_zl": gdy dokument rozbija roszczenie na należność '
+    "GŁÓWNĄ i odsetki/koszty, zwróć NALEŻNOŚĆ GŁÓWNĄ (bez odsetek i kosztów). "
+    "Kwotę łączną zwróć tylko wtedy, gdy dokument nie podaje osobno należności "
+    "głównej.\n\n"
+    'Zasady dla pola "sad_organ": zwróć organ WYDAJĄCY pismo (sąd, komornik, '
+    "urząd). Jeśli pismo pochodzi od firmy lub pełnomocnika (np. przedsądowe "
+    "wezwanie do zapłaty), zwróć null. IGNORUJ sąd rejestrowy wymieniony w "
+    "stopce firmowej (linia z KRS/kapitałem zakładowym/NIP/REGON) — to dane "
+    "rejestrowe nadawcy, nie organ wydający pismo.\n\n"
     'Zasady dla pola "czy_pismo_prawne":\n'
     '- false TYLKO wtedy, gdy tekst JEDNOZNACZNIE nie jest pismem sądowym, '
     "komorniczym, urzędowym ani pismem dotyczącym roszczeń/zobowiązań "
