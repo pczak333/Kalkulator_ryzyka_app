@@ -1,0 +1,52 @@
+{
+  "Lublin_nakaz_zapłaty_pko.pdf": {
+    "main_type": ["EPU_NAKAZ_CZLONEK_ZARZADU"],
+    "deadline_days": 14,
+    "amount": 85463.92,
+    "gate": true
+  },
+  "Lublin_pozew_pko.pdf": {
+    "main_type": ["EPU_POZEW_CZLONEK_ZARZADU"],
+    "amount": 85463.92,
+    "gate": true
+  },
+  "Lublin_pozew_nak._zap..pdf": {
+    "main_type": ["EPU_NAKAZ_CZLONEK_ZARZADU", "NAKAZ_CZLONEK_ZARZADU"],
+    "deadline_days": 14,
+    "aux_types_include": [["EPU_POZEW_CZLONEK_ZARZADU", "POZEW_CZLONEK_ZARZADU"]],
+    "gate": true
+  },
+  "Lublin_pozew_nak._zap.2.pdf": {
+    "main_type": ["EPU_NAKAZ_SPOLKA", "NAKAZ_SPOLKA"],
+    "amount": 11286.0,
+    "aux_types_include": [["EPU_POZEW_SPOLKA", "POZEW_SPOLKA"]],
+    "gate": false
+  },
+  "nakaz_zapłaty+pozew.pdf": {
+    "main_type": ["NAKAZ_SPOLKA"],
+    "main_pages": [1, 7],
+    "deadline_days": 14,
+    "aux_types_include": [["POZEW_SPOLKA"]],
+    "gate": false
+  },
+  "Nakaz_zapłaty+pozew+przes_wez._do_zap..pdf": {
+    "main_type": ["NAKAZ_SPOLKA"],
+    "deadline_days": 14,
+    "aux_types_include": [["POZEW_SPOLKA"], ["WEZWANIE_PRZEDSADOWE_SPOLKA"]],
+    "gate": false
+  },
+  "art299_pozew_nakaz_umorz._egzek..pdf": {
+    "main_type": ["POZEW_CZLONEK_ZARZADU"],
+    "main_pages": [1, 6],
+    "aux_types_include": [
+      ["NAKAZ_SPOLKA", "NAKAZ_CZLONEK_ZARZADU"],
+      ["WNIOSEK_EGZEKUCYJNY"],
+      ["UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC"]
+    ],
+    "gate": true
+  },
+  "potwierdzenie opłaty prolongacyjnej za grób.PDF": {
+    "main_type": ["DOKUMENT_NIEPRAWNY"],
+    "gate": false
+  }
+}
