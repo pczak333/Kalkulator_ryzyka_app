@@ -2,12 +2,12 @@
   "Lublin_nakaz_zapłaty_pko.pdf": {
     "main_type": ["EPU_NAKAZ_CZLONEK_ZARZADU"],
     "deadline_days": 14,
-    "amount": 85463.92,
+    "amount": 81922.78,
     "gate": true
   },
   "Lublin_pozew_pko.pdf": {
     "main_type": ["EPU_POZEW_CZLONEK_ZARZADU"],
-    "amount": 85463.92,
+    "amount": 81922.78,
     "gate": true
   },
   "Lublin_pozew_nak._zap..pdf": {
@@ -18,7 +18,7 @@
   },
   "Lublin_pozew_nak._zap.2.pdf": {
     "main_type": ["EPU_NAKAZ_SPOLKA", "NAKAZ_SPOLKA"],
-    "amount": 11286.0,
+    "amount": 10530.0,
     "aux_types_include": [["EPU_POZEW_SPOLKA", "POZEW_SPOLKA"]],
     "gate": false
   },
@@ -47,6 +47,30 @@
   },
   "potwierdzenie opłaty prolongacyjnej za grób.PDF": {
     "main_type": ["DOKUMENT_NIEPRAWNY"],
+    "gate": false
+  },
+  "art.299_pozew.pdf": {
+    "main_type": ["POZEW_CZLONEK_ZARZADU"],
+    "main_pages": [1, 6],
+    "amount": 19142.36,
+    "gate": true
+  },
+  "egzekucja+zaj._rach.+wyk._majatku.pdf": {
+    "main_type": ["PISMO_KOMORNIK_SPOLKA"],
+    "aux_types_include": [["PISMO_KOMORNIK_SPOLKA", "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC"]],
+    "gate": false
+  },
+  "nakaz_zapłaty.pdf": {
+    "main_type": ["NAKAZ_SPOLKA"],
+    "deadline_days": 14,
+    "amount": 2331.59,
+    "aux_types_include": [["POTWIERDZENIE_DORECZENIA"]],
+    "gate": false
+  },
+  "przed._wez_do_zap..pdf": {
+    "main_type": ["WEZWANIE_PRZEDSADOWE_SPOLKA"],
+    "amount": 1003.0,
+    "deadline_days": 5,
     "gate": false
   }
 }
