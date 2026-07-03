@@ -13,6 +13,7 @@ from scenario_selector import find_scenario, resolve_doc_type
 from context_modules import collect as collect_context
 from text_builder import build as build_text, sanitize_check
 from doc_processor import process_files, ProcessedDocument
+from doc_selector import is_company_name
 
 # ── Konfiguracja strony ────────────────────────────────────────────────────────
 st.set_page_config(
@@ -71,6 +72,24 @@ _DOC_TYPE_LABELS: dict[str, str] = {
     "WEZWANIE_PRZEDSADOWE_SPOLKA":        "Wezwanie przedsądowe (spółka)",
     "DECYZJA_ZUS_US_SPOLKA":              "Decyzja ZUS / urzędu skarbowego (spółka)",
     "PISMO_PROCESOWE_SADOWE":             "Pismo procesowe w toczącym się postępowaniu",
+    "ODPIS_KRS":                          "Odpis z KRS",
+    "UMOWA_FAKTURA_KORESPONDENCJA":       "Umowa / faktura / korespondencja",
+    "POTWIERDZENIE_DORECZENIA":           "Potwierdzenie doręczenia",
+    "DOKUMENT_NIEPRAWNY":                 "Dokument niezwiązany ze sprawą sądową",
+    "DOKUMENT_NIEUSTALONY_PRAWNY":        "Dokument nierozpoznany",
+}
+
+# Typy, które NIE są pismem sądowym/urzędowym wymagającym reakcji — gdy taki
+# dokument okaże się głównym (czyli w paczce nie było żadnego właściwego
+# pisma), zamiast tabeli sygnatura/kwota/termin pokazujemy ostrzeżenie
+# (reguły arkusza 6S: najpierw ustalić, czym dokument jest; nie stosować
+# tekstów pozwu/nakazu). Formularz pozostaje dostępny do ręcznego wypełnienia.
+_NON_LEGAL_MAIN_TYPES = {
+    "DOKUMENT_NIEPRAWNY",
+    "DOKUMENT_NIEUSTALONY_PRAWNY",
+    "ODPIS_KRS",
+    "UMOWA_FAKTURA_KORESPONDENCJA",
+    "POTWIERDZENIE_DORECZENIA",
 }
 
 _K7_BUCKETS_UI = [
@@ -215,6 +234,24 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             "który pozwoli na kompleksową analizę Twojej sytuacji."
         )
 
+    # Dokument niezwiązany ze sprawą sądową jako "główny" (w paczce nie było
+    # żadnego pisma sądowego/komorniczego/urzędowego) — zamiast tabeli
+    # sygnatura/kwota/termin ostrzeżenie w duchu arkusza 6S i wskazanie
+    # dalszej drogi (właściwe pismo albo formularz ręczny).
+    _is_non_legal_main = main.doc_type_code in _NON_LEGAL_MAIN_TYPES
+    if _is_non_legal_main:
+        st.warning(
+            "**Przesłany plik nie wygląda na pismo sądowe, komornicze ani "
+            "urzędowe wymagające reakcji.**\n\n"
+            "Dokumenty takie jak potwierdzenie przelewu, faktura, umowa czy "
+            "odpis z KRS mogą być pomocne jako materiał dodatkowy, ale ocena "
+            "ryzyka wymaga właściwego pisma w sprawie (np. pozwu, nakazu "
+            "zapłaty, wezwania, decyzji urzędu lub pisma komorniczego).\n\n"
+            "**Co można zrobić:** prześlij pismo, które otrzymała spółka lub "
+            "członek zarządu — albo wypełnij formularz poniżej ręcznie, "
+            "na podstawie posiadanych informacji."
+        )
+
     # Bieżące wartości z uwzględnieniem korekt
     corr_kwota = st.session_state.get("corr_kwota")
     corr_powod = st.session_state.get("corr_powod")
@@ -246,7 +283,7 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             f"</tr>"
         )
 
-    rows = (
+    rows = "" if _is_non_legal_main else (
         _row("Sygnatura akt", main.sygnatura)
         + _row("Sąd / organ", main.sad_organ)
         + _row("Kwota roszczenia", kwota_str, "#c62828")
@@ -265,26 +302,28 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             f"</div>",
             unsafe_allow_html=True,
         )
-    else:
+    elif not _is_non_legal_main:
         st.info(f"📄 {doc_label} — nie udało się wyciągnąć szczegółów automatycznie.")
 
-    # Popraw dane odczytu
-    with st.expander("✏️ Popraw dane odczytu", expanded=False):
-        st.caption("Uzupełnij lub popraw pola, które kalkulator odczytał błędnie.")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.number_input(
-                "Kwota roszczenia (zł)",
-                min_value=0.0,
-                value=float(main.amount) if main.amount else 0.0,
-                step=100.0,
-                format="%.2f",
-                key="corr_kwota",
-            )
-        with c2:
-            st.text_input("Powód", value=main.powod or "", key="corr_powod")
-        with c3:
-            st.text_input("Pozwany", value=main.pozwany or "", key="corr_pozwany")
+    # Popraw dane odczytu (nie dotyczy dokumentu niezwiązanego ze sprawą —
+    # tam nie ma czego poprawiać, dane trafiłyby błędnie do formularza)
+    if not _is_non_legal_main:
+        with st.expander("✏️ Popraw dane odczytu", expanded=False):
+            st.caption("Uzupełnij lub popraw pola, które kalkulator odczytał błędnie.")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.number_input(
+                    "Kwota roszczenia (zł)",
+                    min_value=0.0,
+                    value=float(main.amount) if main.amount else 0.0,
+                    step=100.0,
+                    format="%.2f",
+                    key="corr_kwota",
+                )
+            with c2:
+                st.text_input("Powód", value=main.powod or "", key="corr_powod")
+            with c3:
+                st.text_input("Pozwany", value=main.pozwany or "", key="corr_pozwany")
 
     # Ochrona danych
     st.markdown(
@@ -412,6 +451,20 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
                 with st.spinner("Analizuję dokumenty (OCR + ekstrakcja danych)..."):
                     main_doc, aux_docs = process_files(uploaded_files, secrets)
 
+                # Dokument niezwiązany ze sprawą jako główny: wyzeruj pola,
+                # które zasilałyby formularz (kwota z przelewu/faktury to NIE
+                # kwota roszczenia, a "termin" z takiego dokumentu nie jest
+                # terminem procesowym). K1 spada na K1_INNE_NIE_WIEM
+                # (ścieżka arkusza 6S — dokument nieustalony).
+                if main_doc.doc_type_code in _NON_LEGAL_MAIN_TYPES:
+                    main_doc.amount = None
+                    main_doc.k7_code = ""
+                    main_doc.deadline_days = None
+                    main_doc.days_left = None
+                    main_doc.delivery_date = None
+                    main_doc.deadline_date = None
+                    main_doc.epu = False
+
                 st.session_state["doc_prefill"] = main_doc
                 st.session_state["doc_aux"] = aux_docs
                 st.session_state["_last_uploaded_names"] = frozenset(
@@ -429,11 +482,10 @@ if "doc_prefill" in st.session_state:
     # Bramka art. 299 KSH — tylko gdy pozwany jest osobą fizyczną (nie spółką).
     # Dodatkowy warunek: sprawdzamy wyciągnięte pole pozwany — gdy zawiera formę spółkową,
     # nie pokazujemy bramki (dokument może mieć błędny kod lub być mieszanym PDF).
-    _SPOLKA_FORMS = ("sp. z o.o.", "spółka z o.", "s.a.", "spółka akcyjna",
-                     "sp. k.", "sp. j.", "s.k.a.", "spółka komandytowa",
-                     "spółka jawna", "sp. z o. o.")
-    _pozwany_lower = (prefill.pozwany or "").lower()
-    _pozwany_is_company = any(f in _pozwany_lower for f in _SPOLKA_FORMS)
+    # is_company_name() (doc_selector.py) zna też PEŁNE formy pisane ("spółka
+    # z ograniczoną odpowiedzialnością") — poprzednia lokalna lista znała tylko
+    # skróty z kropkami, więc bramka pojawiała się mimo pozwanej spółki.
+    _pozwany_is_company = is_company_name(prefill.pozwany)
     _person_doc = (prefill.doc_type_code.endswith("_CZLONEK_ZARZADU")
                    and not _pozwany_is_company)
     if _person_doc:

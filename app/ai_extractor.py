@@ -17,9 +17,11 @@ _MODEL = "claude-haiku-4-5-20251001"
 _MAX_CHARS = 4000
 
 _PROMPT_TEMPLATE = (
-    "Masz przed sobą tekst polskiego pisma sądowego lub prawnego (po OCR).\n"
+    "Masz przed sobą tekst polskiego dokumentu (po OCR) — zwykle jest to pismo "
+    "sądowe lub prawne, ale może to być też dokument zupełnie innego rodzaju.\n"
     "Wyciągnij następujące informacje w formacie JSON (null jeśli nie znaleziono):\n"
     "{{\n"
+    '  "czy_pismo_prawne": true lub false,\n'
     '  "sygnatura": "sygnatura akt np. V GNc 2034/22/S",\n'
     '  "sad_organ": "pełna nazwa sądu lub organu",\n'
     '  "powod": "imię i nazwisko lub nazwa powoda/wierzyciela",\n'
@@ -29,6 +31,14 @@ _PROMPT_TEMPLATE = (
     '  "adresat": "czlonek_zarzadu" lub "spolka" lub "organ" lub null,\n'
     '  "epu": true lub false\n'
     "}}\n\n"
+    'Zasady dla pola "czy_pismo_prawne":\n'
+    '- false TYLKO wtedy, gdy tekst JEDNOZNACZNIE nie jest pismem sądowym, '
+    "komorniczym, urzędowym ani pismem dotyczącym roszczeń/zobowiązań "
+    "(np. potwierdzenie przelewu lub operacji bankowej, wyciąg z konta, "
+    "faktura, paragon, bilet, reklama, artykuł, instrukcja, notatka prywatna).\n"
+    "- true przy JAKIEJKOLWIEK wątpliwości — tekst po OCR bywa zniekształcony, "
+    "a fragment uzasadnienia, pouczenia czy załącznika pisma procesowego też "
+    "jest pismem prawnym.\n\n"
     'Zasady dla pola "adresat" — decyduje WYŁĄCZNIE forma prawna pozwanego/'
     "wzywanego (nie szukaj wprost słów \"art. 299\"/\"członek zarządu\" — ten "
     "kalkulator dotyczy tylko spraw odpowiedzialności członków zarządu, więc "

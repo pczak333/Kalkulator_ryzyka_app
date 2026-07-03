@@ -120,6 +120,11 @@ def _build_candidate_dict(
                 fields["k7_code"] = _amount_to_k7(fields["amount"])
             except (ValueError, TypeError):
                 pass
+        # Werdykt AI "czy to w ogóle pismo prawne" — classify_document() używa
+        # go (w koniunkcji ze słabym wynikiem słów kluczowych) do wykrycia
+        # dokumentów niezwiązanych ze sprawą (przelew, faktura, wyciąg itp.).
+        if ai_fields.get("czy_pismo_prawne") is not None:
+            fields["czy_pismo_prawne"] = bool(ai_fields["czy_pismo_prawne"])
 
     doc_type, clf_conf = classify_document(text, fields)
     k1_code = _DOC_TYPE_TO_K1.get(doc_type, "K1_INNE_NIE_WIEM")

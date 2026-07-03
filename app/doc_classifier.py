@@ -42,6 +42,12 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
 
     df = _load_doc_types()
     scores: dict[str, int] = {}
+    # Surowe wyniki czysto tekstowe (słowa kluczowe + sygnały silne, PRZED
+    # bonusami EPU/adresata) — miara faktycznych dowodów w treści dokumentu.
+    # Bonusy potrafią wynieść typ do zwycięstwa przy zerowych/śladowych
+    # trafieniach tekstowych, więc do oceny "czy to w ogóle pismo prawne"
+    # służą wyłącznie wyniki surowe.
+    raw_scores: dict[str, int] = {}
 
     for _, row in df.iterrows():
         code = str(row.get("document_type_code", "")).strip()
@@ -53,6 +59,7 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
             str(row.get("slowa_kluczowe", "")),
             str(row.get("sygnaly_silne", "")),
         )
+        raw_scores[code] = base
 
         # Bonus za EPU
         if fields.get("epu") and code.startswith("EPU_"):
@@ -133,6 +140,31 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
 
     if not scores:
         return "DOKUMENT_NIEUSTALONY_PRAWNY", 0.0
+
+    # Najmocniejszy dowód TEKSTOWY w całym dokumencie (bez bonusów).
+    _max_raw = max(raw_scores.values()) if raw_scores else 0
+
+    # Dokument niezwiązany ze sprawą (03.07.2026): AI (ai_extractor) czytała
+    # pełny tekst i orzekła, że to NIE jest pismo prawne (czy_pismo_prawne=False
+    # — np. potwierdzenie przelewu, faktura, wyciąg), a trafienia słów
+    # kluczowych są śladowe (< 4 = brak sygnału silnego i najwyżej 3 słabe
+    # słowa). Koniunkcja chroni przed fałszywym alarmem AI na zgarbolonym OCR
+    # prawdziwego pisma — takie pismo i tak trafia mocno w słowa kluczowe.
+    # Bez tej reguły przelew bankowy z frazą "Zarząd Cmentarzy Komunalnych"
+    # dostawał ODPIS_KRS z pewnością 0.85 (jedno słabe słowo "zarząd").
+    if fields.get("czy_pismo_prawne") is False and _max_raw < 4:
+        return "DOKUMENT_NIEPRAWNY", 0.9
+
+    # Backstop bez AI (brak klucza API / błąd AI → brak pola czy_pismo_prawne):
+    # jeśli najmocniejszy dowód tekstowy to pojedyncze słabe słowo (≤ 1)
+    # i nie odpaliła żadna formuła operatywna nakazu/pozwu — nie ma podstaw
+    # do klasyfikacji; wcześniej jedyny kandydat dostawał pewność 0.85
+    # z jednego przypadkowego trafienia. Gdy AI orzekła czy_pismo_prawne=True,
+    # backstop NIE działa (ufamy AI — segment może być zgarbolonym fragmentem
+    # prawdziwego pisma).
+    if (fields.get("czy_pismo_prawne") is None and _max_raw <= 1
+            and not _has_nakaz_formula and not _has_pozew_signals):
+        return "DOKUMENT_NIEUSTALONY_PRAWNY", 0.3
 
     sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     best_code, best_score = sorted_scores[0]
