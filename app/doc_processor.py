@@ -82,6 +82,7 @@ def _build_candidate_dict(
     file_ext: str,
     page_range: tuple[int, int],
     api_key: str = "",
+    splitter_kind: str = "",
 ) -> dict:
     """Buduje słownik kandydata z przetworzonego tekstu dokumentu.
 
@@ -125,6 +126,13 @@ def _build_candidate_dict(
         # dokumentów niezwiązanych ze sprawą (przelew, faktura, wyciąg itp.).
         if ai_fields.get("czy_pismo_prawne") is not None:
             fields["czy_pismo_prawne"] = bool(ai_fields["czy_pismo_prawne"])
+
+    # Kind segmentu ze splittera (04.07.2026) — deterministyczny sygnał
+    # oparty na nagłówku strony (kancelaria komornicza itp.); classify_document
+    # używa go, żeby segmenty boilerplate'u pism komorniczych (pouczenia
+    # k.p.c. cytujące "nakaz zapłaty") nie klasyfikowały się jako NAKAZ/POZEW.
+    if splitter_kind:
+        fields["splitter_kind"] = splitter_kind
 
     doc_type, clf_conf = classify_document(text, fields)
     k1_code = _DOC_TYPE_TO_K1.get(doc_type, "K1_INNE_NIE_WIEM")
@@ -223,6 +231,7 @@ def _process_single_doc(
             cand = _build_candidate_dict(
                 seg_text, ocr_quality, ocr_engine, ocr_notes, file_ext, (p_start, p_end),
                 api_key=api_key,
+                splitter_kind=seg.get("doc_type", ""),
             )
             # Zachowaj info o segmentacji dla panelu diagnostycznego
             cand["splitter_doc_type"] = seg.get("doc_type", "?")

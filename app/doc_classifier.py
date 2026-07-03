@@ -40,6 +40,21 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     if re.search(r"[ŁL]?UZASADNIENIE", _head_500):
         return "PISMO_PROCESOWE_SADOWE", 0.55
 
+    # (03.07.2026) Sądowe doręczenie nakazu z pouczeniem — pismo przewodnie
+    # sądu, nie sam nakaz. Bez tego shortcutu segment doręczenia (który
+    # wielokrotnie wymienia "nakaz zapłaty" i zawiera "w terminie dwóch
+    # tygodni" w pouczeniu) klasyfikował się jako NAKAZ i WYGRYWAŁ wybór
+    # dokumentu głównego z właściwym nakazem (dłuższy tekst = więcej trafień).
+    # POTWIERDZENIE_DORECZENIA: czy_moze_byc_glowny=NIE (CSV 07), -20 pkt w
+    # selektorze, status POMOCNICZY_DORECZENIE — dokładnie właściwa rola.
+    # (04.07.2026) Zawężone jak Reguła 1e splittera: tytuł na początku linii
+    # + strona bez nagłówka POUCZENIE (klauzula o doręczeniu zagranicznym w
+    # pouczeniu nakazu zawiera "gdy doręczenie nakazu zapłaty ma mieć
+    # miejsce..." i bez kotwicy strony pouczenia łapały ten shortcut).
+    if (re.search(r"(?m)^[^A-ZĄĆĘŁŃÓŚŹŻ]{0,5}DOR[EĘ]CZENIE[\s\S]{0,40}NAKAZU", _head_500)
+            and not re.search(r"(?m)^\s*POUCZENIE\b", text[:400].upper())):
+        return "POTWIERDZENIE_DORECZENIA", 0.85
+
     df = _load_doc_types()
     scores: dict[str, int] = {}
     # Surowe wyniki czysto tekstowe (słowa kluczowe + sygnały silne, PRZED
@@ -115,28 +130,62 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
         r"WNIOSEK\s+O\s+WSZCZ[EĘ]CIE\s+POST[EĘ]POWANIA\s+EGZEKUCYJ",
         text, re.IGNORECASE
     ))
+    # (03.07.2026) Pismo komornicze (nagłówek kancelarii komorniczej w
+    # pierwszych ~600 zn.) też nie jest pozwem — urzędowy formularz skargi
+    # na czynności komornika zawiera "wnoszę o" w petitum i bez tego
+    # wykluczenia bonus POZEW błędnie podbijał POZEW_* dla pism komornika.
+    # (04.07.2026) Drugi, DETERMINISTYCZNY sygnał: kind segmentu ze splittera
+    # (fields["splitter_kind"], nadawany po nagłówku kancelarii komorniczej
+    # na PIERWSZEJ stronie segmentu) — strony kontynuacji (boilerplate
+    # pouczeń k.p.c., formularze) nie mają nagłówka w swoich pierwszych
+    # 600 zn., więc sam test tekstowy ich nie łapał.
+    _splitter_kind = str(fields.get("splitter_kind") or "")
+    _is_komornik_segment = (_splitter_kind.startswith("komornik")
+                            or _splitter_kind == "pismo_komornicze")
+    _is_komornik_letter = _is_komornik_segment or bool(re.search(
+        r"KOMORNIK\s+S[ĄA]DOW|KANCELARIA\s+KOMORNICZ",
+        text[:600], re.IGNORECASE
+    ))
     _has_pozew_signals = bool(re.search(
         r"(wnosimy\s+o|wnosz[eę]\s+o|P\s+O\s+Z\s+E\s+W)",
         text, re.IGNORECASE
-    )) and not _is_wniosek_egzekucyjny
+    )) and not _is_wniosek_egzekucyjny and not _is_komornik_letter
     if _has_pozew_signals:
         for _c in list(scores):
             if "POZEW" in _c:
                 scores[_c] += 20
 
-    # Disambiguacja: sąd vs. komornik na podstawie wyciągniętego sad_organ
+    # (04.07.2026) Segment rozpoznany przez splitter jako pismo komornicze
+    # (kind z nagłówka kancelarii) dostaje deterministyczny bonus dla
+    # PISMO_KOMORNIK_* — boilerplate pouczeń k.p.c. w takich pismach CYTUJE
+    # "nakaz zapłaty" (klauzule o tytułach wykonawczych) i przy niekorzystnej
+    # wariancji OCR segment potrafił sklasyfikować się jako NAKAZ_* (raz
+    # wygrywając nawet wybór dokumentu głównego z kwotą "2000 zł" z przepisu
+    # o grzywnie). Bonus omija typy egzekucyjne, które już są komornicze.
+    if _is_komornik_segment:
+        _kom_code = ("PISMO_KOMORNIK_CZLONEK_ZARZADU"
+                     if fields.get("adresat") == "czlonek_zarzadu"
+                     else "PISMO_KOMORNIK_SPOLKA")
+        scores[_kom_code] = scores.get(_kom_code, 0) + 25
+
+    # Disambiguacja: sąd vs. komornik na podstawie wyciągniętego sad_organ.
+    # (03.07.2026) KOMORNIK ma pierwszeństwo: kancelaria komornicza zawsze
+    # urzęduje "przy Sądzie Rejonowym X", więc nazwa organu zawiera OBA słowa
+    # ("komornik" i "sąd") — poprzedni warunek `_is_bailiff and not _is_court`
+    # nigdy nie działał dla prawdziwych pism komorniczych (kary się nie
+    # naliczały i np. POZEW_SPOLKA wygrywał z PISMO_KOMORNIK_SPOLKA).
     _sad_organ = (fields.get("sad_organ") or "").lower()
     if _sad_organ:
         _is_court   = "sąd" in _sad_organ or "sad" in _sad_organ
         _is_bailiff = "komornik" in _sad_organ
-        if _is_court and not _is_bailiff:
+        if _is_bailiff:
+            for _c in list(scores):
+                if "KOMORNIK" not in _c and "UMORZENIE" not in _c and "EGZEKUCYJNY" not in _c:
+                    scores[_c] = max(0, scores[_c] - 15)
+        elif _is_court:
             for _c in list(scores):
                 if "KOMORNIK" in _c:
                     scores[_c] = max(0, scores[_c] - 25)
-        elif _is_bailiff and not _is_court:
-            for _c in list(scores):
-                if "KOMORNIK" not in _c and "UMORZENIE" not in _c:
-                    scores[_c] = max(0, scores[_c] - 15)
 
     if not scores:
         return "DOKUMENT_NIEUSTALONY_PRAWNY", 0.0
@@ -161,9 +210,11 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     # do klasyfikacji; wcześniej jedyny kandydat dostawał pewność 0.85
     # z jednego przypadkowego trafienia. Gdy AI orzekła czy_pismo_prawne=True,
     # backstop NIE działa (ufamy AI — segment może być zgarbolonym fragmentem
-    # prawdziwego pisma).
+    # prawdziwego pisma). Kind komorniczy ze splittera to również dowód
+    # (nagłówek kancelarii) — taki segment nie jest "nieustalony".
     if (fields.get("czy_pismo_prawne") is None and _max_raw <= 1
-            and not _has_nakaz_formula and not _has_pozew_signals):
+            and not _has_nakaz_formula and not _has_pozew_signals
+            and not _is_komornik_segment):
         return "DOKUMENT_NIEUSTALONY_PRAWNY", 0.3
 
     sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)

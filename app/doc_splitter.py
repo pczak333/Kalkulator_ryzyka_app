@@ -14,7 +14,9 @@ _PAGE_DOC_PATTERNS = [
     (r"TYT[UŁU][LŁ]\s+WYKONAW", "komornik", "Pismo komornicze (tytuł wykonawczy)", "evidence", 2000),
     (r"DECYZJA\s+(?:NR\s+)?\d", "decyzja_zus", "Decyzja organu", "primary", 2000),
     (r"ZAKŁAD\s+UBEZPIECZE[ŃN]", "decyzja_zus", "Decyzja ZUS", "primary", 2000),
-    (r"WEZWANIE\s+DO\s+ZAP[LŁ]?AT", "wezwanie_zaplaty", "Wezwanie do zapłaty", "evidence", 2000),
+    # max_pos=800 (03.07.2026): tytuł prawdziwego wezwania jest w nagłówku
+    # strony; cytowania w Dowód:/Załącznikach leżą głębiej — patrz Reguła 3.
+    (r"WEZWANIE\s+DO\s+ZAP[LŁ]?AT", "wezwanie_zaplaty", "Wezwanie do zapłaty", "evidence", 800),
 ]
 
 
@@ -24,9 +26,20 @@ def _is_evidence_citation(tu: str, pos: int) -> bool:
     do zapłaty...") a nie własny nagłówek/tytuł strony. Bez tego sprawdzenia
     fraza "wezwanie do zapłaty" wymieniona jako pozycja dowodowa w uzasadnieniu
     pozwu (lub w liście załączników) fałszywie klasyfikuje całą stronę jako
-    osobny dokument "Wezwanie do zapłaty"."""
-    ctx = tu[max(0, pos - 40):pos]
-    return bool(re.search(r"DOW[OÓ]D\s*:?\s*$", ctx)) or bool(re.search(r"[-–—•]\s*$", ctx))
+    osobny dokument "Wezwanie do zapłaty".
+
+    (03.07.2026) Kontekst rozszerzony z 40 do 200 zn. wstecz + dodatkowy test
+    na słowa DOWÓD/ZAŁĄCZNIK/W ZAŁĄCZENIU gdziekolwiek w tym oknie: OCR potrafi
+    zawinąć długi wiersz listy załączników tak, że "wezwanie do zapłaty..."
+    zaczyna nową linię BEZ wypunktowania bezpośrednio przed dopasowaniem
+    (np. "- wezwanie do zapłaty do pozwanego z dnia 24 października 2022 roku
+    wraz z dowodem nadania," łamane po "roku") — wtedy stary guard przepuszczał
+    i ostatnia strona pozwu stawała się osobnym "dokumentem"."""
+    ctx = tu[max(0, pos - 200):pos]
+    ctx_tail = ctx[-40:]
+    if re.search(r"DOW[OÓ]D\s*:?\s*$", ctx_tail) or re.search(r"[-–—•]\s*$", ctx_tail):
+        return True
+    return bool(re.search(r"DOW[OÓ]D|ZA[LŁ][AĄ]CZNIK|W\s+ZA[LŁ][AĄ]CZENIU", ctx))
 
 
 def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
@@ -95,6 +108,59 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         if _umorzenie_m:
             return ("postanowienie_umorzenie_egzekucji", "Postanowienie o umorzeniu postępowania egzekucyjnego", "evidence")
 
+    # Reguła 1d (03.07.2026): pisma komornicze — strona zaczynająca się od
+    # nagłówka kancelarii komorniczej ("Komornik Sądowy przy Sądzie Rejonowym
+    # ...", "Kancelaria Komornicza nr ...") to POCZĄTEK nowego pisma
+    # komorniczego; strony kontynuacji (boilerplate k.p.c., pouczenia) nie
+    # mają tego nagłówka → None → doklejane do bieżącego segmentu. Tytuł
+    # pisma (w pierwszych ~2500 zn., bo nagłówek+adresat+tabela tytułu
+    # wykonawczego potrafią zająć górną połowę strony) daje ODRĘBNY kind per
+    # rodzaj pisma — różne kindy tworzą osobne segmenty mimo scalania
+    # segmentów tego samego typu w detect_documents_by_pages(); bez tego
+    # 18-stronicowa paczka 7 pism komorniczych sklejała się w jeden segment
+    # (a jeden segment → detect_documents zwraca [] → cały plik szedł do
+    # klasyfikatora jako jeden dokument). MUSI być PO Regule 1c —
+    # postanowienie o umorzeniu też ma nagłówek komorniczy.
+    if re.search(r"KOMORNIK\s+S[ĄA]DOW|KANCELARIA\s+KOMORNICZ", tu[:600]):
+        _kom_head = tu[:2500]
+        _KOMORNIK_TITLES = [
+            (r"ZAWIADOMIENIE\s+O\s+WSZCZ[EĘ]CIU\s+POST[EĘ]POWANIA\s+EGZEKUCYJ",
+             "komornik_wszczecie_egzekucji", "Zawiadomienie o wszczęciu egzekucji"),
+            (r"ZAJ[EĘ]CIU\s+RACHUNKU\s+BANKOW",
+             "komornik_zajecie_rachunku", "Zajęcie rachunku bankowego"),
+            (r"WEZWANIE\s+DO\s+Z[LŁ]O[ŻZ]ENIA\s+WYKAZU\s+MAJ[AĄ]TKU",
+             "komornik_wezwanie_wykaz", "Wezwanie do złożenia wykazu majątku"),
+            (r"(?m)^\s*WYKAZ\s+MAJ[AĄ]TKU",
+             "komornik_wykaz_majatku", "Wykaz majątku"),
+            (r"ZAJ[EĘ]CI[EU]\s+WIERZYTELNO[SŚ]CI",
+             "komornik_zajecie_wierzytelnosci", "Zajęcie wierzytelności"),
+            (r"SKARGA\s+NA\s+CZYNNO[SŚ][CĆ][I]?\s+KOMORNIKA",
+             "komornik_skarga", "Skarga na czynności komornika (formularz)"),
+        ]
+        for _pat, _kind, _label in _KOMORNIK_TITLES:
+            if re.search(_pat, _kom_head):
+                return (_kind, _label, "evidence")
+        return ("pismo_komornicze", "Pismo komornicze", "evidence")
+
+    # Reguła 1e (03.07.2026): sądowe doręczenie nakazu zapłaty z pouczeniem —
+    # pismo przewodnie sądu ("DORĘCZENIE NAKAZU ZAPŁATY W POSTĘPOWANIU
+    # UPOMINAWCZYM Z POUCZENIEM"), po którym następują strony pouczenia.
+    # Bez tej reguły strony doręczenia+pouczenia były "unknown", a nuklearne
+    # scalanie (Krok 1 niżej) przemianowywało je na "pozew" — w efekcie UI
+    # pokazywało DWA nakazy, a dokumentem głównym zostawało doręczenie
+    # (bez kwoty) zamiast właściwego nakazu. Okno 600 zn.: tytuł leży po
+    # nagłówku sądu i polu adresata (~250-400 zn.).
+    # ZAWĘŻENIE (04.07.2026): (1) tytuł musi być na POCZĄTKU linii — strony
+    # POUCZENIA nakazu zawierają w treści frazę "gdy doręczenie nakazu
+    # zapłaty ma mieć miejsce poza granicami..." (klauzula o doręczeniu
+    # zagranicznym) i bez kotwicy linia środkowa uruchamiała regułę
+    # (nakaz_zapłaty+pozew.pdf str.3-8 odcinały się jako fałszywe
+    # "doręczenie"); (2) strona z nagłówkiem POUCZENIE na górze to strona
+    # pouczenia, nie pismo przewodnie.
+    if (re.search(r"(?m)^[^A-ZĄĆĘŁŃÓŚŹŻ]{0,5}DOR[EĘ]CZENIE[\s\S]{0,40}NAKAZU", tu[:600])
+            and not re.search(r"(?m)^\s*POUCZENIE\b", tu[:400])):
+        return ("doreczenie_sadowe", "Doręczenie nakazu z pouczeniem", "evidence")
+
     # Reguła 5a: "P O Z E W" ze spacjami — PRZED Rule 2 (nakaz).
     # EPU pozew zawiera w treści formularza "nakaz zapłaty w postępowaniu upominawczym"
     # (żądanie od sądu). Gdyby Rule 2 była pierwsza, pozew byłby błędnie klasyfikowany
@@ -142,9 +208,15 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         bool(re.search(r"(?m)^[^A-Z]{0,5}NAKAZ\s+ZAP", tu))
     )
     if not _is_nakaz_or_pozew_page:
+        # (03.07.2026) Okno ograniczone do pierwszych 800 zn.: PRAWDZIWE
+        # wezwanie ma tytuł w nagłówku strony (także po papierze firmowym —
+        # np. "OSTATECZNE PRZEDSĄDOWE WEZWANIE DO ZAPŁATY" InterRisk zaczyna
+        # się ~400-600 zn. od góry). Cytowania w "Dowód:"/liście załączników
+        # leżą głęboko na stronie (w art.299_pozew str.6 w ~2/3 strony) —
+        # limit pozycji odcina je nawet, gdy guard cytowań by nie zadziałał.
         _wez_m = (
-            re.search(r"PRZED[SŚ][AĄ]DOW\w{0,3}\s+WEZWANIE", tu) or
-            re.search(r"(?m)^\s*WEZWANIE\s+DO\s+ZAP[LŁ]?AT", tu)
+            re.search(r"PRZED[SŚ][AĄ]DOW\w{0,3}\s+WEZWANIE", tu[:800]) or
+            re.search(r"(?m)^\s*WEZWANIE\s+DO\s+ZAP[LŁ]?AT", tu[:800])
         )
         # Guard: jeśli dopasowanie jest poprzedzone etykietą "Dowód:" lub
         # wypunktowaniem (lista załączników), to cytowanie dowodu w innym
@@ -277,6 +349,40 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     _KOD_RE = re.compile(r"(?m)^\s*KOD\s+\S{5,}")
     _nakaz_set = {"nakaz_upominawczy", "nakaz_nakazowy"}
 
+    # Krok -1 (04.07.2026): spójność paczki komorniczej. Segment typu nakaz/
+    # pozew WCIŚNIĘTY między segmenty komornicze to prawie na pewno źle
+    # odcięty fragment pisma komorniczego, nie samodzielny dokument: tabela
+    # "Tytuł wykonawczy" cytuje pełny tytuł nakazu ("Nakaz zapłaty w
+    # postępowaniu upominawczym Sądu..."), a wielostronicowy boilerplate
+    # pouczeń k.p.c. bywa RÓŻNIE transkrybowany przez OCR między
+    # uruchomieniami (udokumentowana wariancja Azure DI) — raz strona wraca
+    # jako kontynuacja (None), raz łapie regułę nakazu/pozwu. Scal taki
+    # segment z poprzedzającym segmentem komorniczym. Warunek "przed i po
+    # jest segment komorniczy" chroni prawdziwe bundle (np. art299: nakaz
+    # leży między POZWEM a wnioskiem egzekucyjnym — wniosek_egzekucyjny i
+    # postanowienie_umorzenie NIE są w _komornik_kinds, więc reguła śpi).
+    _komornik_kinds = {
+        "komornik_wszczecie_egzekucji", "komornik_zajecie_rachunku",
+        "komornik_wezwanie_wykaz", "komornik_wykaz_majatku",
+        "komornik_zajecie_wierzytelnosci", "komornik_skarga",
+        "pismo_komornicze", "komornik",
+    }
+    if sum(1 for d in documents if d["doc_type"] in _komornik_kinds) >= 2:
+        _coherent: list[dict] = []
+        for _i, _d in enumerate(documents):
+            _prev_is_kom = bool(_coherent) and _coherent[-1]["doc_type"] in _komornik_kinds
+            _next_is_kom = any(
+                documents[_j]["doc_type"] in _komornik_kinds
+                for _j in range(_i + 1, len(documents))
+            )
+            if (_d["doc_type"] in (_nakaz_set | {"pozew"})
+                    and _prev_is_kom and _next_is_kom):
+                _coherent[-1]["pages"].extend(_d["pages"])
+                _coherent[-1]["text"] += "\n" + _d["text"]
+            else:
+                _coherent.append(_d)
+        documents = _coherent
+
     # Krok 0: jeśli brak "pozew" ale jest wzorzec [unknown → nakaz_bez_KOD → nakaz_z_KOD],
     # segment "unknown" to strona pozwu EPU → upgrade do "pozew".
     if not any(d["doc_type"] == "pozew" for d in documents):
@@ -316,17 +422,27 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
         (i for i, d in enumerate(documents) if d["doc_type"] in _nakaz_set),
         None
     )
+    # (03.07.2026) Warunek na scalanie: pre-blok musi zawierać segment typu
+    # pozew/unknown/wezwanie_zaplaty — to są rodzaje, które w bundlu EPU
+    # faktycznie SĄ stronami formularza pozwu i jego załączników (pierwotny
+    # cel tego kroku). Jeśli pre-blok składa się WYŁĄCZNIE z segmentów
+    # rozpoznanych jako inne, samodzielne pisma (doreczenie_sadowe,
+    # komornik_*, wniosek_egzekucyjny, postanowienie_umorzenie...), NIE wolno
+    # ich przemianowywać na "pozew" — np. sądowe doręczenie nakazu z
+    # pouczeniem (str.1-4 przed nakazem) stawało się fałszywym "pozwem".
+    _MERGEABLE_PRE_TYPES = {"pozew", "unknown", "wezwanie_zaplaty"}
     if _first_nakaz_idx is not None and _first_nakaz_idx > 0:
         _pre = documents[:_first_nakaz_idx]
-        _merged_pages = [p for d in _pre for p in d["pages"]]
-        _merged_text = "\n".join(d["text"] for d in _pre)
-        documents = [{
-            "doc_type": "pozew",
-            "label": "Pozew",
-            "role": "primary",
-            "pages": _merged_pages,
-            "text": _merged_text,
-        }] + documents[_first_nakaz_idx:]
+        if any(d["doc_type"] in _MERGEABLE_PRE_TYPES for d in _pre):
+            _merged_pages = [p for d in _pre for p in d["pages"]]
+            _merged_text = "\n".join(d["text"] for d in _pre)
+            documents = [{
+                "doc_type": "pozew",
+                "label": "Pozew",
+                "role": "primary",
+                "pages": _merged_pages,
+                "text": _merged_text,
+            }] + documents[_first_nakaz_idx:]
 
     # Usuń "unknown" tylko gdy są inne dokumenty
     documents = [d for d in documents if d["doc_type"] != "unknown" or len(documents) == 1]
