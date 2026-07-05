@@ -136,6 +136,13 @@ def _build_candidate_dict(
         # dokumentów niezwiązanych ze sprawą (przelew, faktura, wyciąg itp.).
         if ai_fields.get("czy_pismo_prawne") is not None:
             fields["czy_pismo_prawne"] = bool(ai_fields["czy_pismo_prawne"])
+        # (05.07.2026) Kategoria pisma wg AI — classify_document() używa jej
+        # jako bonusu (+15, tylko w koniunkcji z trafieniem tekstowym) i weta
+        # bonusu POZEW. Odpowiedź na meta-problem "nowy rodzaj dokumentu =
+        # nowa pułapka regexowa": AI rozumie rodzaj pisma niezależnie od
+        # konkretnego układu tekstu.
+        if ai_fields.get("rodzaj_pisma"):
+            fields["rodzaj_pisma"] = str(ai_fields["rodzaj_pisma"])
 
     # Kind segmentu ze splittera (04.07.2026) — deterministyczny sygnał
     # oparty na nagłówku strony (kancelaria komornicza itp.); classify_document

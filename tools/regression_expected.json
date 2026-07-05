@@ -74,5 +74,15 @@
     "amount": 1003.0,
     "deadline_days": 5,
     "gate": false
+  },
+  "pismo_przygotowawcze_kontynuacja.pdf": {
+    "main_type": ["PISMO_PROCESOWE_SADOWE"],
+    "amount": 142607.0,
+    "gate": false
+  },
+  "art.299_pismow_przygot._powoda.pdf": {
+    "main_type": ["PISMO_PROCESOWE_SADOWE"],
+    "amount": 19142.36,
+    "gate": false
   }
 }

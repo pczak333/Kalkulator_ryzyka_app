@@ -7,6 +7,29 @@ import pandas as pd
 _CSV_PATH = "../dane_wejściowe/csv/07_3_Typy_dokumentow.csv"
 _EXCLUDE_TYPES = {"DOKUMENT_NIECZYTELNY", "DOKUMENT_NIEPRAWNY", "DOKUMENT_NIEUSTALONY_PRAWNY"}
 
+# Tytuł pisma procesowego w toku postępowania (05.07.2026) — ten sam wzorzec
+# co Reguła 1a w doc_splitter.py (kotwica linii + lookahead "Z DNIA"
+# wykluczają cytowania typu "w piśmie przygotowawczym z dnia...").
+_PISMO_PROC_TITLE_RE = re.compile(
+    r"(?m)^\s{0,5}(?:PISM[OA]\s+PRZYGOTOWAWCZ\w*"
+    r"|ODPOWIED[ZŹŻ]\s+NA\s+(?:SPRZECIW|POZEW)\w*"
+    r"|REPLIKA\b)"
+    r"(?!\s+Z\s+DNIA)"
+)
+
+# (05.07.2026) Kategoria pisma wg AI (fields["rodzaj_pisma"], ai_extractor.py)
+# → rodzina kodów typów. Bonus +15 TYLKO w koniunkcji z trafieniem tekstowym
+# (raw_score >= 1) — pojedyncza halucynacja AI nie może przełączyć typu bez
+# żadnego dowodu w treści (wzór: czy_pismo_prawne).
+_RODZAJ_PISMA_FAMILIES: dict[str, callable] = {
+    "pozew":                     lambda c: "POZEW" in c,
+    "nakaz_zaplaty":             lambda c: "NAKAZ" in c,
+    "wezwanie_do_zaplaty":       lambda c: "WEZWANIE" in c,
+    "pismo_w_toku_postepowania": lambda c: c in ("PISMO_PROCESOWE_SADOWE", "POTWIERDZENIE_DORECZENIA"),
+    "pismo_komornicze":          lambda c: "KOMORNIK" in c or c in ("WNIOSEK_EGZEKUCYJNY", "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC"),
+    "decyzja_urzedowa":          lambda c: "ZUS" in c or "US_" in c or "ORGAN" in c,
+}
+
 def _load_doc_types() -> pd.DataFrame:
     return pd.read_csv(_CSV_PATH, sep=";", encoding="utf-8-sig", header=1)
 
@@ -54,6 +77,19 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     if (re.search(r"(?m)^[^A-ZĄĆĘŁŃÓŚŹŻ]{0,5}DOR[EĘ]CZENIE[\s\S]{0,40}NAKAZU", _head_500)
             and not re.search(r"(?m)^\s*POUCZENIE\b", text[:400].upper())):
         return "POTWIERDZENIE_DORECZENIA", 0.85
+
+    # (05.07.2026) Pismo procesowe w toku postępowania — tytuł "PISMO
+    # PRZYGOTOWAWCZE"/"ODPOWIEDŹ NA SPRZECIW/POZEW"/"REPLIKA" na początku
+    # linii. Okno 3000 zn. (większe niż 500 przy UZASADNIENIE): pakiet
+    # doręczeniowy zaczyna się sądowym pismem przewodnim (~1,3 tys. zn.), a
+    # dopiero po nim jest ODPIS właściwego pisma z tytułem
+    # (pismo_przygotowawcze_kontynuacja.pdf: tytuł na pozycji ~1750 pełnego
+    # tekstu). Bez tego shortcutu pismo przygotowawcze w sprawie z art. 299
+    # KSH klasyfikowało się jako POZEW (cytuje przepis + "wnoszę o" w
+    # wnioskach dowodowych dawało bonus POZEW +20).
+    _is_pismo_procesowe_title = bool(_PISMO_PROC_TITLE_RE.search(text[:3000].upper()))
+    if _is_pismo_procesowe_title:
+        return "PISMO_PROCESOWE_SADOWE", 0.7
 
     df = _load_doc_types()
     scores: dict[str, int] = {}
@@ -146,10 +182,17 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
         r"KOMORNIK\s+S[ĄA]DOW|KANCELARIA\s+KOMORNICZ",
         text[:600], re.IGNORECASE
     ))
+    # (05.07.2026) Pismo procesowe w toku postępowania też nie jest pozwem —
+    # zawiera "wnoszę o" (wnioski dowodowe, "wnoszę o oddalenie"), a w
+    # sprawach art. 299 KSH cytuje żądania pozwu. Sygnały: kind segmentu ze
+    # splittera (Reguła 1a) LUB kategoria pisma wg AI.
+    _rodzaj_pisma = str(fields.get("rodzaj_pisma") or "")
+    _is_pismo_procesowe = (_splitter_kind == "pismo_procesowe"
+                           or _rodzaj_pisma == "pismo_w_toku_postepowania")
     _has_pozew_signals = bool(re.search(
         r"(wnosimy\s+o|wnosz[eę]\s+o|P\s+O\s+Z\s+E\s+W)",
         text, re.IGNORECASE
-    )) and not _is_wniosek_egzekucyjny and not _is_komornik_letter
+    )) and not _is_wniosek_egzekucyjny and not _is_komornik_letter and not _is_pismo_procesowe
     if _has_pozew_signals:
         for _c in list(scores):
             if "POZEW" in _c:
@@ -167,6 +210,26 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
                      if fields.get("adresat") == "czlonek_zarzadu"
                      else "PISMO_KOMORNIK_SPOLKA")
         scores[_kom_code] = scores.get(_kom_code, 0) + 25
+
+    # (05.07.2026) Segment rozpoznany przez splitter jako pismo procesowe
+    # (Reguła 1a — tytuł pisma na pierwszej stronie segmentu) → bonus jak
+    # wyżej dla komornika. Strony kontynuacji scalone Krokiem -3 nie mają
+    # tytułu w swoim tekście, więc early-return może nie odpalić — kind ze
+    # splittera jest wtedy jedynym deterministycznym sygnałem.
+    if _splitter_kind == "pismo_procesowe":
+        scores["PISMO_PROCESOWE_SADOWE"] = scores.get("PISMO_PROCESOWE_SADOWE", 0) + 25
+
+    # (05.07.2026) Kategoria pisma wg AI (rodzaj_pisma z ai_extractor.py):
+    # +15 dla kodów zgodnej rodziny, ale TYLKO tam, gdzie tekst dał
+    # jakiekolwiek trafienie (raw_score >= 1) — koniunkcja chroni przed
+    # halucynacją AI (wzór czy_pismo_prawne). To systemowa odpowiedź na
+    # problem "nowy rodzaj dokumentu = nowa pułapka regexowa": AI rozpoznaje
+    # rodzaj pisma niezależnie od układu tekstu, którego regexy nie znają.
+    _fam = _RODZAJ_PISMA_FAMILIES.get(_rodzaj_pisma)
+    if _fam:
+        for _c in list(scores):
+            if _fam(_c) and raw_scores.get(_c, 0) >= 1:
+                scores[_c] += 15
 
     # Disambiguacja: sąd vs. komornik na podstawie wyciągniętego sad_organ.
     # (03.07.2026) KOMORNIK ma pierwszeństwo: kancelaria komornicza zawsze

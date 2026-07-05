@@ -22,6 +22,9 @@ _PROMPT_TEMPLATE = (
     "Wyciągnij następujące informacje w formacie JSON (null jeśli nie znaleziono):\n"
     "{{\n"
     '  "czy_pismo_prawne": true lub false,\n'
+    '  "rodzaj_pisma": "pozew" lub "nakaz_zaplaty" lub "wezwanie_do_zaplaty" '
+    'lub "pismo_w_toku_postepowania" lub "pismo_komornicze" lub '
+    '"decyzja_urzedowa" lub "inne" lub null,\n'
     '  "sygnatura": "sygnatura akt np. V GNc 2034/22/S",\n'
     '  "sad_organ": "pełna nazwa sądu lub organu",\n'
     '  "powod": "imię i nazwisko lub nazwa powoda/wierzyciela",\n'
@@ -48,6 +51,24 @@ _PROMPT_TEMPLATE = (
     "- true przy JAKIEJKOLWIEK wątpliwości — tekst po OCR bywa zniekształcony, "
     "a fragment uzasadnienia, pouczenia czy załącznika pisma procesowego też "
     "jest pismem prawnym.\n\n"
+    'Zasady dla pola "rodzaj_pisma" — wybierz kategorię GŁÓWNEGO pisma w '
+    "tekście (pomiń sądowe pismo przewodnie doręczające odpis, jeśli po nim "
+    "następuje właściwe pismo):\n"
+    '- "pozew": pozew inicjujący sprawę (tytuł POZEW, żądanie zasądzenia).\n'
+    '- "nakaz_zaplaty": nakaz zapłaty wydany przez sąd/e-sąd.\n'
+    '- "wezwanie_do_zaplaty": wezwanie do zapłaty (przedsądowe lub sądowe).\n'
+    '- "pismo_w_toku_postepowania": pismo w JUŻ TOCZĄCEJ SIĘ sprawie — pismo '
+    "przygotowawcze, odpowiedź na pozew/sprzeciw, replika, stanowisko strony, "
+    "sądowe pismo przewodnie doręczające odpisy pism (uwaga: takie pismo "
+    "często cytuje żądania pozwu i przepisy, np. art. 299 KSH — to NIE czyni "
+    "go pozwem).\n"
+    '- "pismo_komornicze": pismo komornika w postępowaniu egzekucyjnym '
+    "(zawiadomienie o wszczęciu egzekucji, zajęcie, wezwanie do wykazu "
+    "majątku) lub wniosek egzekucyjny/postanowienie o umorzeniu egzekucji.\n"
+    '- "decyzja_urzedowa": decyzja/zawiadomienie ZUS, urzędu skarbowego lub '
+    "innego organu.\n"
+    '- "inne": pismo prawne niepasujące do żadnej kategorii.\n'
+    "- null: nie da się ustalić (tekst zbyt zniekształcony).\n\n"
     'Zasady dla pola "adresat" — decyduje WYŁĄCZNIE forma prawna pozwanego/'
     "wzywanego (nie szukaj wprost słów \"art. 299\"/\"członek zarządu\" — ten "
     "kalkulator dotyczy tylko spraw odpowiedzialności członków zarządu, więc "

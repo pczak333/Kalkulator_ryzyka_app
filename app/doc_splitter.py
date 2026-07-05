@@ -56,6 +56,19 @@ _KOMORNIK_FORM_TITLES = [
      "komornik_wykaz_majatku", "Wykaz majątku", 400),
 ]
 
+# Tytuł pisma procesowego w toku postępowania (05.07.2026): pismo
+# przygotowawcze, odpowiedź na sprzeciw/pozew, replika. Kotwica początku
+# linii + negative lookahead na "Z DNIA" odróżniają WŁASNY tytuł strony od
+# cytowań w treści innych pism ("...w piśmie przygotowawczym z dnia 30
+# stycznia...", "doręcza odpis pisma przygotowawczego z dnia..."). Ten sam
+# wzorzec ma doc_classifier.py (early-return PISMO_PROCESOWE_SADOWE).
+_PISMO_PROC_TITLE_RE = re.compile(
+    r"(?m)^\s{0,5}(?:PISM[OA]\s+PRZYGOTOWAWCZ\w*"
+    r"|ODPOWIED[ZŹŻ]\s+NA\s+(?:SPRZECIW|POZEW)\w*"
+    r"|REPLIKA\b)"
+    r"(?!\s+Z\s+DNIA)"
+)
+
 
 def _is_evidence_citation(tu: str, pos: int) -> bool:
     """Czy dopasowanie w pozycji `pos` (w tekście już zuppercase'owanym `tu`) to
@@ -107,6 +120,17 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
             if "UPOMINAWCZ" in tu:
                 return ("nakaz_upominawczy", "Nakaz zapłaty (postępowanie upominawcze)", "evidence")
             return ("nakaz_nakazowy", "Nakaz zapłaty (postępowanie nakazowe)", "evidence")
+
+    # Reguła 1a (05.07.2026): pismo procesowe w toku postępowania — tytuł
+    # "PISMO PRZYGOTOWAWCZE"/"ODPOWIEDŹ NA SPRZECIW/POZEW"/"REPLIKA" na
+    # początku linii w nagłówku strony (pierwsze ~2500 zn. — tytuł leży po
+    # bloku adresowym, w pismo_przygotowawcze_kontynuacja.pdf ~390 zn. od
+    # góry). MUSI być PRZED Regułą 1: pismo przygotowawcze w sprawie z
+    # art. 299 KSH cytuje ten przepis wielokrotnie i bez tej reguły strona
+    # tytułowa pisma dostawała kind "pozew".
+    _pp_m = _PISMO_PROC_TITLE_RE.search(tu[:2500])
+    if _pp_m and not _is_evidence_citation(tu, _pp_m.start()):
+        return ("pismo_procesowe", "Pismo procesowe (kontynuacja postępowania)", "evidence")
 
     # Reguła 1: art. 299 KSH — strona zawiera pozew do zarządu
     if re.search(r"ART\.?\s*299.{0,20}K\.?S\.?H", tu):
@@ -378,6 +402,29 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     # jest własny segment typu nakaz (wtedy działa węższy Krok 0 poniżej).
     _KOD_RE = re.compile(r"(?m)^\s*KOD\s+\S{5,}")
     _nakaz_set = {"nakaz_upominawczy", "nakaz_nakazowy"}
+
+    # Krok -3 (05.07.2026): strony kontynuacji pisma procesowego złapane przez
+    # Regułę 1 (art. 299 → "pozew") → scal z poprzedzającym segmentem
+    # pismo_procesowe. Pismo przygotowawcze w sprawie z art. 299 KSH cytuje
+    # ten przepis na WIELU stronach (nie tylko tytułowej), a Reguła 1 działa
+    # per strona — nie można jej zawęzić bez psucia bundli EPU (tam strona
+    # uzasadnienia z art. 299 MUSI dostawać "pozew", żeby scalać się z
+    # formularzem pozwu). Scalamy więc po fakcie, ale TYLKO segmenty bez
+    # własnego tytułu pozwu (line-start "POZEW"/"P O Z E W") i bez kodu
+    # formularza EPU ("KOD [hash]") — prawdziwy pozew zawsze ma jedno z dwóch.
+    _POZEW_TITLE_RE = re.compile(r"(?m)^[^A-ZĄĆĘŁŃÓŚŹŻ]{0,10}POZEW\b|P\s+O\s+Z\s+E\s+W")
+    _merged_pp: list[dict] = []
+    for _d in documents:
+        _du = _d["text"].upper()
+        if (_d["doc_type"] == "pozew" and _merged_pp
+                and _merged_pp[-1]["doc_type"] == "pismo_procesowe"
+                and not _POZEW_TITLE_RE.search(_du)
+                and not _KOD_RE.search(_du)):
+            _merged_pp[-1]["pages"].extend(_d["pages"])
+            _merged_pp[-1]["text"] += "\n" + _d["text"]
+        else:
+            _merged_pp.append(_d)
+    documents = _merged_pp
 
     # Krok -2 (05.07.2026): strony kontynuacji pism komorniczych złapane przez
     # fallback Reguły 6 (kind "komornik": strona BEZ nagłówka kancelarii w
