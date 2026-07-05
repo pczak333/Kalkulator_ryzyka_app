@@ -19,6 +19,43 @@ _PAGE_DOC_PATTERNS = [
     (r"WEZWANIE\s+DO\s+ZAP[LŁ]?AT", "wezwanie_zaplaty", "Wezwanie do zapłaty", "evidence", 800),
 ]
 
+# Tytuły pism komorniczych (Reguła 1d) — na poziomie modułu, bo lista jest
+# potrzebna też poza _classify_page_segment(). Wzorce tolerują udokumentowane
+# artefakty OCR z realnych skanów (05.07.2026, egzekucja+zaj._rach.+wyk._majatku.pdf):
+# - "WEZWANIE DO ZLOZENIA WYKAZU MAJ }" (ucięta końcówka) → bez wymogu "MAJĄTKU",
+#   sam zwrot "wezwanie do złożenia wykazu" jest wystarczająco charakterystyczny;
+# - "ZAJĘCIE WIE RZYTELNOŚCI" / "ZAJECIU W IERZYTELNOŚCI" (spacja wtrącona
+#   w środek słowa) → \s* między pierwszymi literami słowa "wierzytelności";
+# - mianownik i celownik tytułu ("ZAJĘCIE"/"ZAJĘCIU" rachunku bankowego).
+_KOMORNIK_TITLES = [
+    (r"ZAWIADOMIENIE\s+O\s+WSZCZ[EĘ]CIU\s+POST[EĘ]POWANIA\s+EGZEKUCYJ",
+     "komornik_wszczecie_egzekucji", "Zawiadomienie o wszczęciu egzekucji"),
+    (r"ZAJ[EĘ]CI[EU]\s+RACHUNKU\s+BANKOW",
+     "komornik_zajecie_rachunku", "Zajęcie rachunku bankowego"),
+    (r"WEZWANIE\s+DO\s+Z[LŁ]O[ŻZ]ENIA\s+WYKAZU",
+     "komornik_wezwanie_wykaz", "Wezwanie do złożenia wykazu majątku"),
+    (r"(?m)^\s*WYKAZ\s+MAJ[AĄ]TKU",
+     "komornik_wykaz_majatku", "Wykaz majątku"),
+    (r"ZAJ[EĘ]CI[EU]\s+W\s*IE\s*RZYTELNO[SŚ]CI",
+     "komornik_zajecie_wierzytelnosci", "Zajęcie wierzytelności"),
+    (r"SKARGA\s+NA\s+CZYNNO[SŚ][CĆ][I]?\s+KOMORNIKA",
+     "komornik_skarga", "Skarga na czynności komornika (formularz)"),
+]
+
+# Reguła 1d': formularze komornicze BEZ nagłówka kancelarii na stronie —
+# urzędowy formularz skargi i wzór wykazu majątku to załączniki drukowane z
+# własnym tytułem na samej górze, bez papieru firmowego komornika, więc
+# Reguła 1d (wymagająca nagłówka kancelarii w pierwszych 600 zn.) ich nie
+# widzi i strony spadały do generycznego fallbacku Reguły 6 ("komornik").
+# Okna pozycji celowo ciasne (tytuł formularza jest na górze strony) —
+# wzmianki o skardze/wykazie w pouczeniach innych pism leżą głębiej.
+_KOMORNIK_FORM_TITLES = [
+    (r"URZ[EĘ]DOWY\s+FORMULARZ\s+SKARGI|SKARGA\s+NA\s+CZYNNO[SŚ][CĆ][I]?\s+KOMORNIKA",
+     "komornik_skarga", "Skarga na czynności komornika (formularz)", 600),
+    (r"(?m)^[^\n]{0,60}?WYKAZ\s+MAJ[AĄ]TKU",
+     "komornik_wykaz_majatku", "Wykaz majątku", 400),
+]
+
 
 def _is_evidence_citation(tu: str, pos: int) -> bool:
     """Czy dopasowanie w pozycji `pos` (w tekście już zuppercase'owanym `tu`) to
@@ -123,24 +160,17 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     # postanowienie o umorzeniu też ma nagłówek komorniczy.
     if re.search(r"KOMORNIK\s+S[ĄA]DOW|KANCELARIA\s+KOMORNICZ", tu[:600]):
         _kom_head = tu[:2500]
-        _KOMORNIK_TITLES = [
-            (r"ZAWIADOMIENIE\s+O\s+WSZCZ[EĘ]CIU\s+POST[EĘ]POWANIA\s+EGZEKUCYJ",
-             "komornik_wszczecie_egzekucji", "Zawiadomienie o wszczęciu egzekucji"),
-            (r"ZAJ[EĘ]CIU\s+RACHUNKU\s+BANKOW",
-             "komornik_zajecie_rachunku", "Zajęcie rachunku bankowego"),
-            (r"WEZWANIE\s+DO\s+Z[LŁ]O[ŻZ]ENIA\s+WYKAZU\s+MAJ[AĄ]TKU",
-             "komornik_wezwanie_wykaz", "Wezwanie do złożenia wykazu majątku"),
-            (r"(?m)^\s*WYKAZ\s+MAJ[AĄ]TKU",
-             "komornik_wykaz_majatku", "Wykaz majątku"),
-            (r"ZAJ[EĘ]CI[EU]\s+WIERZYTELNO[SŚ]CI",
-             "komornik_zajecie_wierzytelnosci", "Zajęcie wierzytelności"),
-            (r"SKARGA\s+NA\s+CZYNNO[SŚ][CĆ][I]?\s+KOMORNIKA",
-             "komornik_skarga", "Skarga na czynności komornika (formularz)"),
-        ]
         for _pat, _kind, _label in _KOMORNIK_TITLES:
             if re.search(_pat, _kom_head):
                 return (_kind, _label, "evidence")
         return ("pismo_komornicze", "Pismo komornicze", "evidence")
+
+    # Reguła 1d' (05.07.2026): formularze komornicze bez nagłówka kancelarii
+    # (urzędowy formularz skargi, wzór wykazu majątku) — rozpoznawane po
+    # własnym tytule na górze strony; patrz komentarz przy _KOMORNIK_FORM_TITLES.
+    for _pat, _kind, _label, _win in _KOMORNIK_FORM_TITLES:
+        if re.search(_pat, tu[:_win]):
+            return (_kind, _label, "evidence")
 
     # Reguła 1e (03.07.2026): sądowe doręczenie nakazu zapłaty z pouczeniem —
     # pismo przewodnie sądu ("DORĘCZENIE NAKAZU ZAPŁATY W POSTĘPOWANIU
@@ -348,6 +378,35 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     # jest własny segment typu nakaz (wtedy działa węższy Krok 0 poniżej).
     _KOD_RE = re.compile(r"(?m)^\s*KOD\s+\S{5,}")
     _nakaz_set = {"nakaz_upominawczy", "nakaz_nakazowy"}
+
+    # Krok -2 (05.07.2026): strony kontynuacji pism komorniczych złapane przez
+    # fallback Reguły 6 (kind "komornik": strona BEZ nagłówka kancelarii w
+    # pierwszych 600 zn., ale z "TYTUŁ WYKONAW..."/"KOMORNIK SĄDOW..." głębiej
+    # — tabela tytułu wykonawczego, pouczenia k.p.c., podpis komornika na
+    # ostatniej stronie) → scal z poprzedzającym pismem komorniczym. Nowe
+    # pismo komornicze ZAWSZE zaczyna się nagłówkiem kancelarii (Reguła 1d)
+    # albo tytułem formularza (Reguła 1d'), więc segment "komornik" tuż po
+    # segmencie komorniczym to kontynuacja, nie osobny dokument. Bez tego
+    # kroku str.2-4 (pouczenia zawiadomienia o wszczęciu egzekucji) odcinały
+    # się jako "Pismo komornicze (tytuł wykonawczy)", a segment wszczęcia
+    # (sama str.1) tracił kwotę i pouczenia — i przegrywał wybór dokumentu
+    # głównego. wniosek_egzekucyjny/postanowienie_umorzenie celowo POZA
+    # zbiorem celów scalania (jak w Kroku -1) — nie ruszać bundli art. 299.
+    _KOMORNIK_MERGE_TARGETS = {
+        "komornik_wszczecie_egzekucji", "komornik_zajecie_rachunku",
+        "komornik_wezwanie_wykaz", "komornik_wykaz_majatku",
+        "komornik_zajecie_wierzytelnosci", "komornik_skarga",
+        "pismo_komornicze", "komornik",
+    }
+    _merged_kom: list[dict] = []
+    for _d in documents:
+        if (_d["doc_type"] == "komornik" and _merged_kom
+                and _merged_kom[-1]["doc_type"] in _KOMORNIK_MERGE_TARGETS):
+            _merged_kom[-1]["pages"].extend(_d["pages"])
+            _merged_kom[-1]["text"] += "\n" + _d["text"]
+        else:
+            _merged_kom.append(_d)
+    documents = _merged_kom
 
     # Krok -1 (04.07.2026): spójność paczki komorniczej. Segment typu nakaz/
     # pozew WCIŚNIĘTY między segmenty komornicze to prawie na pewno źle

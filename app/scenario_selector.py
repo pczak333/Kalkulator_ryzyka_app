@@ -16,6 +16,15 @@ _K1_TO_DOC_TYPE: dict[tuple, str] = {
     ("K1_WEZWANIE_SADOWE_SPOLKA", False):           "WEZWANIE_SADOWE_SPOLKA",
     ("K1_WEZWANIE_SADOWE_CZLONEK_ZARZADU", False):  "WEZWANIE_SADOWE_CZLONEK_ZARZADU",
     ("K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU", False):  "ORGAN_PUBLICZNY_CZLONEK_ZARZADU",
+    # Pisma komornicze (05.07.2026): wariant epu=True celowo mapowany tak samo —
+    # pisma komornicze nie pochodzą z EPU, ale ekstrakcja AI potrafi błędnie
+    # zwrócić epu=true (np. gdy tytułem wykonawczym w piśmie jest nakaz EPU);
+    # scenariusze komornicze mają epu_flag=NIE, a kaskada w find_scenario()
+    # znajdzie je drugą próbą (dopasowanie bez warunku EPU).
+    ("K1_PISMO_KOMORNIK_SPOLKA", False):            "PISMO_KOMORNIK_SPOLKA",
+    ("K1_PISMO_KOMORNIK_SPOLKA", True):             "PISMO_KOMORNIK_SPOLKA",
+    ("K1_PISMO_KOMORNIK_CZLONEK_ZARZADU", False):   "PISMO_KOMORNIK_CZLONEK_ZARZADU",
+    ("K1_PISMO_KOMORNIK_CZLONEK_ZARZADU", True):    "PISMO_KOMORNIK_CZLONEK_ZARZADU",
     ("K1_INNE_NIE_WIEM", False):                    "DOKUMENT_NIEUSTALONY_PRAWNY",
 }
 

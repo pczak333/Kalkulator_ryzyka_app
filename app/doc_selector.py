@@ -13,6 +13,7 @@ _SPOLKA_TO_CZLONEK: dict[str, str] = {
     "NAKAZ_SPOLKA":             "NAKAZ_CZLONEK_ZARZADU",
     "POZEW_SPOLKA":             "POZEW_CZLONEK_ZARZADU",
     "WEZWANIE_SADOWE_SPOLKA":   "WEZWANIE_SADOWE_CZLONEK_ZARZADU",
+    "PISMO_KOMORNIK_SPOLKA":    "PISMO_KOMORNIK_CZLONEK_ZARZADU",
 }
 
 # Wzorzec do wykrywania czlonek zarządu w bundlu — rozszerza art.299 o frazy naturalne.
@@ -29,6 +30,7 @@ _UPGRADED_TYPE_TO_K1: dict[str, str] = {
     "NAKAZ_CZLONEK_ZARZADU":           "K1_NAKAZ_CZLONEK_ZARZADU",
     "POZEW_CZLONEK_ZARZADU":           "K1_POZEW_CZLONEK_ZARZADU",
     "WEZWANIE_SADOWE_CZLONEK_ZARZADU": "K1_WEZWANIE_SADOWE_CZLONEK_ZARZADU",
+    "PISMO_KOMORNIK_CZLONEK_ZARZADU":  "K1_PISMO_KOMORNIK_CZLONEK_ZARZADU",
 }
 
 _REMIS_THRESHOLD = 10  # różnica punktów poniżej której stosujemy reguły remisu
@@ -310,8 +312,55 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
     elif best_score - second_score < _REMIS_THRESHOLD:
         best_doc = _tiebreak(best_doc, second_doc)
 
+    # Twarda reguła (05.07.2026): w paczce pism komorniczych dokumentem głównym
+    # jest ZAWIADOMIENIE O WSZCZĘCIU POSTĘPOWANIA EGZEKUCYJNEGO — to ono
+    # inicjuje egzekucję i na nie się reaguje; zajęcia rachunku/wierzytelności,
+    # wezwania o wykaz majątku itd. to SKUTKI wszczęcia (ta sama sygnatura,
+    # ta sama egzekucja). Bez tej reguły scoring wybierał zajęcie rachunku,
+    # bo miało wyekstrahowany termin z pouczenia (+35 R17 +30 R19), a kwota
+    # w ogóle nie jest punktowana — wszczęcie z pełną kwotą przegrywało o ~55
+    # pkt. Sygnał wszczęcia: kind segmentu ze splittera (deterministyczny)
+    # LUB tytuł w nagłówku tekstu (fallback na wariancję OCR kindów).
+    _KOMORNIK_MAIN_CODES = {"PISMO_KOMORNIK_SPOLKA", "PISMO_KOMORNIK_CZLONEK_ZARZADU"}
+    _WSZCZECIE_RE = re.compile(
+        r"ZAWIADOMIENIE\s+O\s+WSZCZ[EĘ]CIU\s+POST[EĘ]POWANIA\s+EGZEKUCYJ",
+        re.IGNORECASE,
+    )
+
+    def _is_wszczecie_egzekucji(d: dict) -> bool:
+        if d.get("splitter_doc_type") == "komornik_wszczecie_egzekucji":
+            return True
+        return bool(_WSZCZECIE_RE.search(d.get("raw_text", "")[:2500]))
+
+    if best_doc.get("doc_type_code") in _KOMORNIK_MAIN_CODES and not _is_wszczecie_egzekucji(best_doc):
+        _wszczecia = [d for d, _ in scored
+                      if d.get("doc_type_code") in _KOMORNIK_MAIN_CODES
+                      and _is_wszczecie_egzekucji(d)]
+        if _wszczecia:
+            best_doc = _wszczecia[0]
+
     main = dict(best_doc)
     main["status"] = "GLOWNY"
+
+    # Kwota dokumentu głównego z paczki komorniczej (05.07.2026): jeśli główny
+    # nie ma kwoty, a inne pismo komornicze TEJ SAMEJ egzekucji (ta sama
+    # sygnatura, np. GKm 62/22) ma — przepisz ją. Wąski zakres (tylko typy
+    # komornicze, tylko zgodna sygnatura) — zabezpieczenie na wypadek, gdy
+    # wariancja OCR pozbawi segment główny kwoty, którą widać w innym piśmie.
+    if main.get("doc_type_code") in _KOMORNIK_MAIN_CODES and not main.get("amount"):
+        _sig = (main.get("sygnatura") or "").strip().upper()
+        _donors = [d for d in candidates
+                   if d is not best_doc
+                   and d.get("amount")
+                   and d.get("doc_type_code") in _KOMORNIK_MAIN_CODES
+                   and _sig
+                   and (d.get("sygnatura") or "").strip().upper() == _sig]
+        if _donors:
+            # Preferuj kwotę z zawiadomienia o wszczęciu; w razie braku —
+            # najwyższą (pouczenia cytują drobne kwoty ustawowe, np. grzywnę).
+            _wszcz_donors = [d for d in _donors if _is_wszczecie_egzekucji(d)]
+            _src = _wszcz_donors[0] if _wszcz_donors else max(_donors, key=lambda d: d["amount"])
+            main["amount"] = _src["amount"]
 
     # Fix B: bundle-level upgrade SPOLKA → CZLONEK_ZARZADU.
     # Szuka art. 299 KSH LUB "czlonek zarządu" w dowolnym dokumencie bundla.

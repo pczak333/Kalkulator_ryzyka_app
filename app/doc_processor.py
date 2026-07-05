@@ -29,6 +29,11 @@ _DOC_TYPE_TO_K1: dict[str, str] = {
     "DECYZJA_US_CZLONEK_ZARZADU":         "K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU",
     "ORGAN_PUBLICZNY_CZLONEK_ZARZADU":    "K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU",
     "PISMO_PROCESOWE_SADOWE":             "K1_INNE_NIE_WIEM",
+    # (05.07.2026) Pisma komornicze mają własną opcję K1 (CSV 08) i własne
+    # scenariusze (CSV 12) — wcześniej spadały na K1_INNE_NIE_WIEM, przez co
+    # ocena ryzyka twierdziła "nie wiadomo jakiego rodzaju jest pismo".
+    "PISMO_KOMORNIK_SPOLKA":              "K1_PISMO_KOMORNIK_SPOLKA",
+    "PISMO_KOMORNIK_CZLONEK_ZARZADU":     "K1_PISMO_KOMORNIK_CZLONEK_ZARZADU",
 }
 
 # Mapowanie liczby dni na bucket K2
@@ -72,6 +77,11 @@ class ProcessedDocument:
     ocr_notes: str = ""
     file_ext: str = ""
     splitter_segments: list | None = None  # DEBUG: segmenty ze splitter dla panelu
+    # (05.07.2026) Etykieta segmentu ze splittera (np. "Zajęcie rachunku
+    # bankowego") — UI dopisuje ją w "Zestawieniu dokumentów", żeby odróżnić
+    # od siebie pisma komornicze tej samej kategorii (wcześniej 7 pism jednej
+    # egzekucji wyświetlało się jako 7x identyczne "Pismo komornicze (spółka)").
+    splitter_label: str = ""
 
 
 def _build_candidate_dict(
@@ -345,6 +355,7 @@ def process_files(
             file_ext=d.get("file_ext", ""),
             deadline_date=d.get("deadline_date"),
             splitter_segments=d.get("splitter_segments"),
+            splitter_label=d.get("splitter_label", ""),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]

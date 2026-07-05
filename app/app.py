@@ -33,6 +33,8 @@ EPU_COMPATIBLE = {
     "K1_WEZWANIE_SADOWE_SPOLKA": "NIE",
     "K1_WEZWANIE_SADOWE_CZLONEK_ZARZADU": "NIE",
     "K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU": "NIE",
+    "K1_PISMO_KOMORNIK_SPOLKA": "NIE",
+    "K1_PISMO_KOMORNIK_CZLONEK_ZARZADU": "NIE",
     "K1_INNE_NIE_WIEM": "NIE",
 }
 
@@ -91,6 +93,25 @@ _NON_LEGAL_MAIN_TYPES = {
     "UMOWA_FAKTURA_KORESPONDENCJA",
     "POTWIERDZENIE_DORECZENIA",
 }
+
+# Etykiety splittera zbyt ogólne, żeby dopisywać je do nazwy pisma komorniczego
+_KOMORNIK_GENERIC_LABELS = {
+    "?", "", "Pismo komornicze", "Pismo komornika sądowego",
+    "Pismo komornicze (tytuł wykonawczy)",
+}
+
+
+def _komornik_display_label(doc) -> str:
+    """Etykieta dokumentu do wyświetlenia. Dla pism komorniczych dopisuje
+    rodzaj czynności ze splittera ("Zawiadomienie o wszczęciu egzekucji",
+    "Zajęcie rachunku bankowego"...) — bez tego paczka jednej egzekucji to
+    N identycznych pozycji "Pismo komornicze (spółka)" i nie widać, które
+    pismo jest które (zgłoszenie użytkownika 05.07.2026)."""
+    lbl = _doc_type_label(doc.doc_type_code)
+    if (doc.doc_type_code.startswith("PISMO_KOMORNIK")
+            and doc.splitter_label not in _KOMORNIK_GENERIC_LABELS):
+        lbl = f"{lbl} — {doc.splitter_label}"
+    return lbl
 
 _K7_BUCKETS_UI = [
     (10_000,  "K7_AMOUNT_UP_TO_10K"),
@@ -225,9 +246,9 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
 
     # Baner komorniczy: pisma dotyczące egzekucji. Egzekucja przeciwko spółce
     # to bezpośrednie przedpole art. 299 KSH — formularz ma sens dla oceny
-    # ryzyka osobistego członka zarządu. Tekst po stronie aplikacji, bo
-    # arkusze Excela nie mają (jeszcze) sekcji dla pism komorniczych —
-    # patrz decyzja produktowa 03.07.2026 w CLAUDE.md/memory.
+    # ryzyka osobistego członka zarządu. (05.07.2026) Pisma komornicze mają
+    # już własną opcję K1 i scenariusze w Excelu (CSV 08/09/12, BASE_102-109 i
+    # BASE_189-209) — baner pozostaje jako kontekst nad tabelą odczytu.
     _KOMORNIK_MAIN_TYPES = {
         "PISMO_KOMORNIK_SPOLKA", "PISMO_KOMORNIK_CZLONEK_ZARZADU",
         "WNIOSEK_EGZEKUCYJNY", "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC",
@@ -295,7 +316,7 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
     disp_powod   = corr_powod  if corr_powod  else main.powod
     disp_pozwany = corr_pozwany if corr_pozwany else main.pozwany
 
-    doc_label = _doc_type_label(main.doc_type_code)
+    doc_label = _komornik_display_label(main)
 
     termin_str = (
         f"{main.deadline_days} dni (liczony od dnia dostarczenia dokumentu)"
@@ -376,7 +397,7 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
     total = len(all_docs)
     with st.expander(f"📋 Zestawienie dokumentów w pliku ({total})", expanded=False):
         for i, doc in enumerate(all_docs, 1):
-            lbl = _doc_type_label(doc.doc_type_code)
+            lbl = _komornik_display_label(doc)
             p_start, p_end = doc.page_range
             page_info = f"str. {p_start}–{p_end}" if p_start != p_end else f"str. {p_start}"
             date_info = doc.delivery_date.strftime("%d.%m.%Y r.") if doc.delivery_date else ""

@@ -57,6 +57,8 @@
   },
   "egzekucja+zaj._rach.+wyk._majatku.pdf": {
     "main_type": ["PISMO_KOMORNIK_SPOLKA"],
+    "main_pages": [1, 4],
+    "amount": 111169.63,
     "aux_types_include": [["PISMO_KOMORNIK_SPOLKA", "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC"]],
     "gate": false
   },
