@@ -10,6 +10,7 @@ K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU;Pismo z ZUS / urzędu dotyczące odpowiedzial
 K1_INNE_NIE_WIEM;Inne / nie wiem;K1_document_weight;1;0;0;Niepewność co do rodzaju dokumentu powinna zwiększyć ostrożność, ale nie przesądza wysokiego ciężaru dokumentu.;0
 K1_PISMO_KOMORNIK_SPOLKA;Pismo komornicze (spółka);K1_document_weight;2;0;0;Pismo komornicze w egzekucji przeciwko spółce — zaawansowany etap sprawy i przedpole odpowiedzialności z art. 299 KSH, ale bez bezpośredniego roszczenia wobec członka zarządu (analogicznie do nakazu przeciwko spółce).;0
 K1_PISMO_KOMORNIK_CZLONEK_ZARZADU;Pismo komornicze (członek zarządu);K1_document_weight;3;0;0;Egzekucja z majątku osobistego członka zarządu na podstawie tytułu wykonawczego — jeden z najwyższych ciężarów gatunkowych.;0
+K1_WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU;Wezwanie przedsądowe (członek zarządu);K1_document_weight;2;0;0;Przedsądowe wezwanie powołujące się na art. 299 KSH i bezskuteczność egzekucji wobec spółki — poważnie wymierzone bezpośrednio w członka zarządu, ale to jeszcze nie dokument sądowy (analogicznie do wezwania sądowego skierowanego do członka zarządu).;0
 K2_DAYS_LEFT_0_3;0–3 dni kalendarzowe;K2_urgency;0;3;0;Najwyższa pilność. Bardzo krótki czas na reakcję.;0
 K2_DAYS_LEFT_4_7;4–7 dni kalendarzowych;K2_urgency;0;2;0;Wysoka pilność. Jest jeszcze czas, ale sprawa wymaga szybkiego działania.;0
 K2_DAYS_LEFT_8_14;8–14 dni kalendarzowych;K2_urgency;0;1;0;Umiarkowana pilność. Termin wymaga kontroli, ale nie jest jeszcze krytyczny.;0
