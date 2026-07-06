@@ -25,6 +25,11 @@ _K1_TO_DOC_TYPE: dict[tuple, str] = {
     ("K1_PISMO_KOMORNIK_SPOLKA", True):             "PISMO_KOMORNIK_SPOLKA",
     ("K1_PISMO_KOMORNIK_CZLONEK_ZARZADU", False):   "PISMO_KOMORNIK_CZLONEK_ZARZADU",
     ("K1_PISMO_KOMORNIK_CZLONEK_ZARZADU", True):    "PISMO_KOMORNIK_CZLONEK_ZARZADU",
+    # (06.07.2026) Przedsądowe wezwanie do zapłaty do członka zarządu — nie
+    # pochodzi z EPU, więc tylko wariant epu=False (w odróżnieniu od pism
+    # komorniczych, tu nie ma tytułu wykonawczego, który AI mogłaby pomylić
+    # z nakazem EPU).
+    ("K1_WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU", False): "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU",
     ("K1_INNE_NIE_WIEM", False):                    "DOKUMENT_NIEUSTALONY_PRAWNY",
 }
 

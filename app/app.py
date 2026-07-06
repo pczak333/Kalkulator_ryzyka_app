@@ -35,6 +35,7 @@ EPU_COMPATIBLE = {
     "K1_ORGAN_PUBLICZNY_CZLONEK_ZARZADU": "NIE",
     "K1_PISMO_KOMORNIK_SPOLKA": "NIE",
     "K1_PISMO_KOMORNIK_CZLONEK_ZARZADU": "NIE",
+    "K1_WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": "NIE",
     "K1_INNE_NIE_WIEM": "NIE",
 }
 
@@ -70,7 +71,7 @@ _DOC_TYPE_LABELS: dict[str, str] = {
     "PISMO_KOMORNIK_SPOLKA":              "Pismo komornicze (spółka)",
     "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC": "Postanowienie o umorzeniu egzekucji",
     "WNIOSEK_EGZEKUCYJNY":                "Wniosek o wszczęcie postępowania egzekucyjnego",
-    "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": "Wezwanie przedsądowe",
+    "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": "Wezwanie przedsądowe (członek zarządu)",
     "WEZWANIE_PRZEDSADOWE_SPOLKA":        "Wezwanie przedsądowe (spółka)",
     "DECYZJA_ZUS_US_SPOLKA":              "Decyzja ZUS / urzędu skarbowego (spółka)",
     "PISMO_PROCESOWE_SADOWE":             "Pismo procesowe w toczącym się postępowaniu",
@@ -92,6 +93,17 @@ _NON_LEGAL_MAIN_TYPES = {
     "ODPIS_KRS",
     "UMOWA_FAKTURA_KORESPONDENCJA",
     "POTWIERDZENIE_DORECZENIA",
+}
+
+# (06.07.2026) Przedsądowe wezwanie do zapłaty skierowane WYŁĄCZNIE do spółki
+# (zwykła faktura, bez art. 299 KSH) — to jest realne pismo prawne, w
+# odróżnieniu od _NON_LEGAL_MAIN_TYPES, dlatego osobny zbiór z własnym
+# tekstem ostrzeżenia. Decyzja użytkownika: kalkulator nie ma pchać takiego
+# dokumentu w pełną analizę ryzyka osobistego — ten sam mechanizm "ukryj
+# tabelę + zeruj pola formularza", co dla _NON_LEGAL_MAIN_TYPES, ale bez
+# sugerowania, że to nie jest prawdziwe pismo.
+_SPOLKA_OUT_OF_SCOPE_TYPES = {
+    "WEZWANIE_PRZEDSADOWE_SPOLKA",
 }
 
 # Etykiety splittera zbyt ogólne, żeby dopisywać je do nazwy pisma komorniczego
@@ -272,6 +284,25 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
                 "Warto więc wypełnić formularz poniżej, aby wstępnie ocenić "
                 "ryzyko osobiste wynikające z tej sprawy."
             )
+    # (06.07.2026) Przedsądowe wezwanie do zapłaty skierowane tylko do spółki
+    # (zwykła faktura, bez art. 299 KSH) — dostaje odrębne, bardziej wprost
+    # ostrzeżenie zamiast ogólnego banera "ryzyko pośrednie" poniżej: w
+    # przeciwieństwie do nakazu/pozwu/komornika przeciwko spółce, tu nie
+    # toczy się jeszcze żadne postępowanie, więc hedge'owany ton banera 6P
+    # ("na tym etapie...") byłby mylący.
+    elif main.doc_type_code in _SPOLKA_OUT_OF_SCOPE_TYPES:
+        st.warning(
+            "**Ten dokument dotyczy zobowiązania spółki, a nie "
+            "odpowiedzialności osobistej członka zarządu.**\n\n"
+            "Przesłane pismo to przedsądowe wezwanie do zapłaty skierowane "
+            "do spółki — nie zawiera odniesienia do odpowiedzialności "
+            "osobistej z art. 299 KSH. Ten kalkulator ocenia wyłącznie "
+            "ryzyko osobiste członków zarządu.\n\n"
+            "**Co można zrobić:** jeśli egzekucja wobec spółki okazała się "
+            "już bezskuteczna albo sprawa dotyczy też członka zarządu, "
+            "prześlij właściwy dokument — albo wypełnij formularz poniżej "
+            "ręcznie."
+        )
     # Baner "dokument dotyczy spółki" (ryzyko pośrednie) — wymagany przez
     # specyfikację (§13.2); treść z arkusza 6P (CSV 35), nie hardcode.
     elif "_SPOLKA" in main.doc_type_code:
@@ -307,6 +338,12 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             "członek zarządu — albo wypełnij formularz poniżej ręcznie, "
             "na podstawie posiadanych informacji."
         )
+    # Wezwanie przedsądowe do spółki (Typ 1, patrz _SPOLKA_OUT_OF_SCOPE_TYPES
+    # wyżej) dostało już własne ostrzeżenie w banerze powyżej — tu tylko
+    # dołączamy je do tego samego mechanizmu "ukryj tabelę / zeruj pola",
+    # żeby nie pokazywać osobno tabeli sygnatura/kwota/termin ani expandera
+    # korekty (formularz K1-K7 pozostaje dostępny niżej do ręcznego wypełnienia).
+    _is_non_legal_main = _is_non_legal_main or main.doc_type_code in _SPOLKA_OUT_OF_SCOPE_TYPES
 
     # Bieżące wartości z uwzględnieniem korekt
     corr_kwota = st.session_state.get("corr_kwota")
@@ -511,8 +548,13 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
                 # które zasilałyby formularz (kwota z przelewu/faktury to NIE
                 # kwota roszczenia, a "termin" z takiego dokumentu nie jest
                 # terminem procesowym). K1 spada na K1_INNE_NIE_WIEM
-                # (ścieżka arkusza 6S — dokument nieustalony).
-                if main_doc.doc_type_code in _NON_LEGAL_MAIN_TYPES:
+                # (ścieżka arkusza 6S — dokument nieustalony). To samo dla
+                # wezwania przedsądowego do samej spółki (Typ 1, 06.07.2026) —
+                # tu dane SĄ realne (prawdziwa faktura), ale świadomie nie
+                # budujemy dla tego typu ścieżki K1/scenariusza, więc nie mają
+                # cicho zasilać formularza jako gdyby to była ocena ryzyka
+                # osobistego członka zarządu.
+                if main_doc.doc_type_code in (_NON_LEGAL_MAIN_TYPES | _SPOLKA_OUT_OF_SCOPE_TYPES):
                     main_doc.amount = None
                     main_doc.k7_code = ""
                     main_doc.deadline_days = None

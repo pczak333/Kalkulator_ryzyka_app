@@ -34,6 +34,14 @@ _DOC_TYPE_TO_K1: dict[str, str] = {
     # ocena ryzyka twierdziła "nie wiadomo jakiego rodzaju jest pismo".
     "PISMO_KOMORNIK_SPOLKA":              "K1_PISMO_KOMORNIK_SPOLKA",
     "PISMO_KOMORNIK_CZLONEK_ZARZADU":     "K1_PISMO_KOMORNIK_CZLONEK_ZARZADU",
+    # (06.07.2026) Przedsądowe wezwanie do zapłaty do członka zarządu (powołuje
+    # się na art. 299 KSH) dostało własną opcję K1 (CSV 08) i scenariusze
+    # (CSV 12, BASE_210-224) — wcześniej spadało na K1_INNE_NIE_WIEM, przez co
+    # ocena ryzyka twierdziła "rodzaj pisma nie został ustalony" mimo
+    # poprawnej klasyfikacji. Wariant SPOLKA celowo NIE ma tu wpisu — zwykła
+    # faktura do spółki dostaje w app.py odrębny mechanizm ostrzeżenia
+    # (_SPOLKA_OUT_OF_SCOPE_TYPES), a nie ścieżkę K1/scenariusza.
+    "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": "K1_WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU",
 }
 
 # Mapowanie liczby dni na bucket K2
