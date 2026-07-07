@@ -95,5 +95,11 @@
     "main_type": ["WEZWANIE_PRZEDSADOWE_SPOLKA"],
     "amount": 10296.0,
     "gate": false
+  },
+  "wyrok.pdf": {
+    "main_type": ["WYROK_ZAOCZNY_SPOLKA"],
+    "amount": 51408.0,
+    "deadline_days": 14,
+    "gate": false
   }
 }

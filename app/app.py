@@ -75,6 +75,8 @@ _DOC_TYPE_LABELS: dict[str, str] = {
     "WEZWANIE_PRZEDSADOWE_SPOLKA":        "Wezwanie przedsądowe (spółka)",
     "DECYZJA_ZUS_US_SPOLKA":              "Decyzja ZUS / urzędu skarbowego (spółka)",
     "PISMO_PROCESOWE_SADOWE":             "Pismo procesowe w toczącym się postępowaniu",
+    "WYROK_ZAOCZNY_SPOLKA":               "Wyrok zaoczny (spółka)",
+    "WYROK_ZAOCZNY_CZLONEK_ZARZADU":      "Wyrok zaoczny (członek zarządu)",
     "ODPIS_KRS":                          "Odpis z KRS",
     "UMOWA_FAKTURA_KORESPONDENCJA":       "Umowa / faktura / korespondencja",
     "POTWIERDZENIE_DORECZENIA":           "Potwierdzenie doręczenia",
@@ -870,6 +872,77 @@ if "krs_answers" in st.session_state:
         )
         scenario["user_next_step_base"] = (
             "zebrać pełną dokumentację sprawy i przekazać do analizy w ramach Audytu 48h"
+        )
+
+    # (07.07.2026) Wyrok zaoczny — lekka integracja (decyzja produktowa): kod K1
+    # i scenariusz bazowy są reużyte z NAKAZ_SPOLKA/NAKAZ_CZLONEK_ZARZADU (ten sam
+    # 2-tygodniowy termin na sprzeciw) zamiast budowania nowej kategorii ze
+    # scenariuszami w CSV 12 — ale te teksty dosłownie mówią "nakaz zapłaty" i
+    # "sprzeciw albo zarzuty", co byłoby błędne dla wyroku (jedyna ścieżka
+    # zaskarżenia wyroku zaocznego to sprzeciw — "zarzuty" dotyczą tylko nakazu
+    # w postępowaniu nakazowym). user_summary_base: podmieniamy tylko frazę
+    # nazywającą dokument (dopasowania sprawdzone na wszystkich wierszach CSV 12
+    # obu typów) — zachowuje dynamiczny fragment o poziomie ryzyka/terminie.
+    # user_risk_explanation_base/user_practical_meaning_base: pełne nadpisanie
+    # (ten sam wzorzec co PISMO_PROCESOWE_SADOWE wyżej), bo różnią się w CSV 12
+    # tylko niuansem pilności, a wyrok ma rygor natychmiastowej wykonalności
+    # niezależnie od tego niuansu.
+    elif state.get("DOC_TYPE") == "WYROK_ZAOCZNY_SPOLKA":
+        doc_type = "WYROK_ZAOCZNY_SPOLKA"
+        scenario["user_summary_base"] = scenario["user_summary_base"].replace(
+            "Dokument wymagający reakcji to nakaz zapłaty przeciwko spółce.",
+            "Dokument wymagający reakcji to wyrok zaoczny przeciwko spółce "
+            "(z rygorem natychmiastowej wykonalności).",
+        )
+        scenario["user_risk_explanation_base"] = (
+            "Wyrok zaoczny wydany przeciwko spółce, z rygorem natychmiastowej "
+            "wykonalności, oznacza, że sąd już rozstrzygnął sprawę na korzyść "
+            "wierzyciela — w odróżnieniu od nakazu zapłaty, egzekucja może ruszyć "
+            "natychmiast, jeszcze przed upływem terminu na sprzeciw. Może to w "
+            "konsekwencji prowadzić do osobistej odpowiedzialności byłego członka "
+            "zarządu z art. 299 KSH, jeśli egzekucja przeciwko spółce okaże się "
+            "bezskuteczna."
+        )
+        scenario["user_practical_meaning_base"] = (
+            "Wyrok zaoczny jest skierowany do spółki — jedyną możliwą reakcją "
+            "spółki jest sprzeciw złożony w terminie wynikającym z pouczenia "
+            "(w odróżnieniu od nakazu zapłaty, nie ma tu alternatywy w postaci "
+            "zarzutów). Rygor natychmiastowej wykonalności oznacza, że wierzyciel "
+            "może prowadzić egzekucję jeszcze przed rozpoznaniem sprzeciwu. Brak "
+            "reakcji spółki utrwali wyrok, a po bezskuteczności egzekucji "
+            "wierzyciel może skierować roszczenie bezpośrednio wobec Ciebie jako "
+            "byłego członka zarządu z art. 299 KSH. Kluczowe jest ustalenie, czy "
+            "spółka ma pełnomocnika procesowego i czy planuje złożyć sprzeciw."
+        )
+    elif state.get("DOC_TYPE") == "WYROK_ZAOCZNY_CZLONEK_ZARZADU":
+        doc_type = "WYROK_ZAOCZNY_CZLONEK_ZARZADU"
+        for _old_phrase in (
+            "Dokument wymagający reakcji to nakaz zapłaty przeciwko członkowi zarządu.",
+            "Dokument wymagający reakcji: nakaz zapłaty przeciwko członkowi zarządu.",
+        ):
+            scenario["user_summary_base"] = scenario["user_summary_base"].replace(
+                _old_phrase,
+                _old_phrase.replace(
+                    "nakaz zapłaty przeciwko członkowi zarządu",
+                    "wyrok zaoczny przeciwko członkowi zarządu "
+                    "(z rygorem natychmiastowej wykonalności)",
+                ),
+            )
+        scenario["user_risk_explanation_base"] = (
+            "Wyrok zaoczny skierowany bezpośrednio do Ciebie jako byłego członka "
+            "zarządu, z rygorem natychmiastowej wykonalności, oznacza, że sąd już "
+            "rozstrzygnął sprawę na Twoją niekorzyść i wierzyciel może prowadzić "
+            "egzekucję jeszcze przed rozpoznaniem sprzeciwu. Termin na sprzeciw "
+            "jest ściśle określony i nie podlega przedłużeniu."
+        )
+        scenario["user_practical_meaning_base"] = (
+            "Wyrok zaoczny jest skierowany bezpośrednio do Ciebie — wierzyciel "
+            "dochodzi już Twojej odpowiedzialności osobistej, a rygor "
+            "natychmiastowej wykonalności pozwala mu prowadzić egzekucję jeszcze "
+            "przed rozpoznaniem sprzeciwu. Właściwą reakcją jest sprzeciw złożony "
+            "w terminie wskazanym w pouczeniu (w odróżnieniu od nakazu zapłaty, "
+            "nie ma tu alternatywy w postaci zarzutów). Kluczowe do ustalenia: "
+            "data doręczenia, treść pouczenia i podstawa roszczenia."
         )
 
     context = collect_context(state, doc_type, days_exact, risk_code=final_risk_code)

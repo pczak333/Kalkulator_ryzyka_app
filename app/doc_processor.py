@@ -42,6 +42,13 @@ _DOC_TYPE_TO_K1: dict[str, str] = {
     # faktura do spółki dostaje w app.py odrębny mechanizm ostrzeżenia
     # (_SPOLKA_OUT_OF_SCOPE_TYPES), a nie ścieżkę K1/scenariusza.
     "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": "K1_WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU",
+    # (07.07.2026) Wyrok zaoczny — lekka integracja (decyzja produktowa):
+    # zamiast własnej opcji K1/scenariuszy, reużywamy K1_NAKAZ_SPOLKA /
+    # K1_NAKAZ_CZLONEK_ZARZADU (ten sam 2-tygodniowy termin na sprzeciw).
+    # app.py nadpisuje fragmenty tekstu scenariusza, żeby poprawnie mówiły
+    # o wyroku zaocznym, nie o nakazie zapłaty — patrz app.py DOC_TYPE.
+    "WYROK_ZAOCZNY_SPOLKA":                "K1_NAKAZ_SPOLKA",
+    "WYROK_ZAOCZNY_CZLONEK_ZARZADU":       "K1_NAKAZ_CZLONEK_ZARZADU",
 }
 
 # Mapowanie liczby dni na bucket K2

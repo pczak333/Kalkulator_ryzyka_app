@@ -91,6 +91,29 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     if _is_pismo_procesowe_title:
         return "PISMO_PROCESOWE_SADOWE", 0.7
 
+    # (07.07.2026) Wyrok zaoczny — formuła "W IMIENIU RZECZYPOSPOLITEJ
+    # POLSKIEJ" prawnie występuje wyłącznie w wyrokach, nigdy w nakazach
+    # zapłaty, więc jest jednoznacznym sygnałem, którego generyczne słowa
+    # kluczowe (sprzeciw/zarzuty/pozwany — to samo słownictwo opisuje
+    # zaskarżanie NAKAZU, więc bez tego shortcutu wygrywały NAKAZ_*) nie
+    # widzą. Zgłoszenie użytkownika 07.07.2026: wyrok zaoczny przeciwko
+    # spółce (słowo "nakaz" nigdzie w tekście) klasyfikował się jako
+    # NAKAZ_SPOLKA z pewnością tylko 0.51. Lekka integracja (decyzja
+    # produktowa): kod K1 i scenariusz bazowy są reużyte z
+    # NAKAZ_SPOLKA/NAKAZ_CZLONEK_ZARZADU (patrz doc_processor.py
+    # _DOC_TYPE_TO_K1) — bez własnych wierszy w CSV 08/09/12; to jest
+    # jedyne miejsce, gdzie w ogóle trzeba rozpoznać ten typ osobno.
+    _head_800 = text[:800]
+    _is_wyrok_zaoczny = bool(
+        re.search(r"(?m)^\s{0,5}WYROK\b[\s\S]{0,20}?ZAOCZN\w*", _head_800, re.IGNORECASE)
+        and re.search(r"W\s+IMIENIU\s+RZECZYPOSPOLITEJ\s+POLSKIEJ", _head_800, re.IGNORECASE)
+    )
+    if _is_wyrok_zaoczny:
+        _wyrok_code = ("WYROK_ZAOCZNY_CZLONEK_ZARZADU"
+                       if fields.get("adresat") == "czlonek_zarzadu"
+                       else "WYROK_ZAOCZNY_SPOLKA")
+        return _wyrok_code, 0.85
+
     df = _load_doc_types()
     scores: dict[str, int] = {}
     # Surowe wyniki czysto tekstowe (słowa kluczowe + sygnały silne, PRZED
