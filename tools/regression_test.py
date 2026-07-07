@@ -39,7 +39,6 @@ DEFAULT_TEST_DIR = Path(os.environ.get("KRS_GUARD_TESTY_DIR", r"C:\Users\User\De
 EXPECTED_PATH = Path(__file__).resolve().parent / "regression_expected.json"
 
 sys.path.insert(0, str(APP_DIR))
-import os
 os.chdir(APP_DIR)  # doc_classifier czyta CSV 07 ścieżką względną ../dane_wejściowe
 
 from doc_processor import process_files  # noqa: E402
@@ -68,9 +67,16 @@ def _load_secrets() -> dict:
     return secrets
 
 
+_NO_GATE_TYPES = {"WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU"}
+
+
 def _gate_should_fire(main) -> bool:
+    # Musi być zgodne z warunkiem _person_doc w app.py (app/app.py) —
+    # typy w _NO_GATE_TYPES już kodują art. 299 w klasyfikacji, więc bramka
+    # jest tam redundantna i celowo nie powinna się pokazać.
     return (main.doc_type_code.endswith("_CZLONEK_ZARZADU")
-            and not is_company_name(main.pozwany))
+            and not is_company_name(main.pozwany)
+            and main.doc_type_code not in _NO_GATE_TYPES)
 
 
 def _check_file(pdf_path: Path, expected: dict, secrets: dict) -> list[str]:

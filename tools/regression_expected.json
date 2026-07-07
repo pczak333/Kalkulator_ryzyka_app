@@ -89,7 +89,7 @@
     "main_type": ["WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU"],
     "amount": 1067.03,
     "deadline_days": 3,
-    "gate": true
+    "gate": false
   },
   "przeds._wezw._do_zap2.pdf": {
     "main_type": ["WEZWANIE_PRZEDSADOWE_SPOLKA"],

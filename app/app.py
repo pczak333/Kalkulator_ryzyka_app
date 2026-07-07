@@ -583,9 +583,16 @@ if "doc_prefill" in st.session_state:
     # is_company_name() (doc_selector.py) zna też PEŁNE formy pisane ("spółka
     # z ograniczoną odpowiedzialnością") — poprzednia lokalna lista znała tylko
     # skróty z kropkami, więc bramka pojawiała się mimo pozwanej spółki.
+    # Typy z _NO_GATE_TYPES już kodują art. 299 KSH w samej klasyfikacji
+    # (np. wezwanie przedsądowe powołujące się wprost na art. 299 i
+    # bezskuteczną egzekucję wobec spółki) — pytanie bramki byłoby
+    # redundantne wobec tego, co dokument już potwierdza.
+    _NO_GATE_TYPES = {"WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU"}
+
     _pozwany_is_company = is_company_name(prefill.pozwany)
     _person_doc = (prefill.doc_type_code.endswith("_CZLONEK_ZARZADU")
-                   and not _pozwany_is_company)
+                   and not _pozwany_is_company
+                   and prefill.doc_type_code not in _NO_GATE_TYPES)
     if _person_doc:
         _gate = st.session_state.get("_art299_gate")
         if _gate is None:

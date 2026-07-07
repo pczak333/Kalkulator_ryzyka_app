@@ -1,31 +1,41 @@
 ---
 name: project-wezwania-przedsadowe
-description: Two-tier fix (06.07.2026) for pre-court demand letters (wezwanie przedsądowe) — company-only vs art.299 member liability
+description: Two-tier fix (06.07.2026, merged 07.07.2026) for pre-court demand letters (wezwanie przedsądowe) — company-only vs art.299 member liability, plus gate redundancy fix
 metadata: 
   node_type: memory
   type: project
   originSessionId: 145f6aeb-2d25-46d7-8efa-6afca27963da
 ---
 
-## Status as of 06.07.2026 (end of session)
+## Status as of 07.07.2026
 
-Fix is committed on branch `worktree-jest-problem-z-w-a-ciw-stateless-teapot`,
-pushed, PR #1 → `etap2` opened as **DRAFT**
-(https://github.com/pczak333/Kalkulator_ryzyka_app/pull/1) — **not merged**.
+**Merged to `etap2`**: the fix from PR #1 (commit `378a5f0` on branch
+`worktree-jest-problem-z-w-a-ciw-stateless-teapot`) landed on `etap2` as
+commit `f6d673f` — confirmed via `git patch-id` that both commits produce
+the byte-identical patch. It was applied as a fresh commit (not a literal
+`git cherry-pick`), so GitHub did not auto-detect the merge; PR #1 needs to
+be closed manually with a comment pointing at `f6d673f`.
 
-**Verified:** `tools/regression_test.py` (3/3 PASS on files present locally),
-a full backend pipeline simulation (scoring → hard_rules → scenario_selector
-→ text_builder) for both letter types, and that no scenario rows collide
-after removing BASE_138-140.
+**Second fix same area (07.07.2026)**: even with K1 correctly wired, the
+app still asked the art. 299 gate question ("czy sprawa dotyczy
+odpowiedzialności członka zarządu?") for `WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU`
+— redundant, since that doc type already encodes art. 299 in its own
+classification. Fixed with `_NO_GATE_TYPES = {"WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU"}`
+in `app/app.py` (`_person_doc` condition), mirrored in
+`tools/regression_test.py::_gate_should_fire()`, `regression_expected.json`
+updated (`gate: false` for `299_przeds._wezw._do_zap..pdf`).
 
-**Not verified:** manual click-through in a live `streamlit run app/app.py`
-session (no browser available in that session's environment). Before
-merging, someone should manually open both test files
-(`299_przeds._wezw._do_zap..pdf`, `przeds._wezw._do_zap2.pdf`) in the running
-app and confirm: Step 1 shows the correct K1 option pre-selected (not "Inne /
-nie wiem") for the member-liability letter, and the Type-1 warning branch
-renders correctly in place of the read-out table for the company-only
-letter.
+**Verified:** `tools/regression_test.py` (3/3 PASS on files present locally,
+including the gate fix), a full backend pipeline simulation (scoring →
+hard_rules → scenario_selector → text_builder) for both letter types, that
+no scenario rows collide after removing BASE_138-140, and a code-level
+review of the gate condition + K1 prefill wiring (`app.py:590-645`).
+
+**Still not done:** manual click-through in a live `streamlit run app/app.py`
+session with a real browser — no browser automation available in this
+session's environment either (no `chromium-cli`, Playwright installed but
+its Chromium binary isn't downloaded). If a discrepancy ever shows up in
+practice despite the code review, check this first.
 
 ## Recurring bug pattern: doc type classified correctly, K1 mapping missing
 
