@@ -9,6 +9,10 @@ oczekiwań w regression_expected.json.
 Użycie:
     python tools/regression_test.py [--dir C:\\Users\\User\\Desktop\\testy] [--only NAZWA_PLIKU]
 
+Domyślny katalog plików testowych: zmienna środowiskowa KRS_GUARD_TESTY_DIR,
+z fallbackiem na C:\\Users\\User\\Desktop\\testy (ścieżka różni się między
+komputerami — ustaw KRS_GUARD_TESTY_DIR zamiast edytować ten plik).
+
 Każde uruchomienie kosztuje kilka-kilkanaście centów (Azure DI + Claude
 Haiku na każdą stronę) — to akceptowalny koszt pewności, że poprawki mają
 zastosowanie ogólne, a nie tylko do wcześniej analizowanych plików.
@@ -25,12 +29,13 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APP_DIR = REPO_ROOT / "app"
-DEFAULT_TEST_DIR = Path(r"C:\Users\User\Desktop\testy")
+DEFAULT_TEST_DIR = Path(os.environ.get("KRS_GUARD_TESTY_DIR", r"C:\Users\User\Desktop\testy"))
 EXPECTED_PATH = Path(__file__).resolve().parent / "regression_expected.json"
 
 sys.path.insert(0, str(APP_DIR))

@@ -50,8 +50,17 @@ app/
 Poza `app/` istnieje też `tools/` (03.07.2026):
 ```
 tools/
-├── regression_test.py       # Automatyczna regresja pipeline'u: uruchamia process_files() (ta sama ścieżka co aplikacja, z OCR i AI) na plikach z C:\Users\User\Desktop\testy i porównuje z oczekiwaniami; użycie: python tools/regression_test.py [--dir ...] [--only NAZWA.pdf]; brakujące pliki → SKIP z ostrzeżeniem; koszt kilka-kilkanaście centów/przebieg (Azure DI + Haiku). URUCHAMIAĆ PO KAŻDEJ ZMIANIE w doc_*.py/ai_extractor.py — to jest odpowiedź na pytanie "czy poprawka jest ogólna, czy dopasowana do jednego pliku".
+├── regression_test.py       # Automatyczna regresja pipeline'u: uruchamia process_files() (ta sama ścieżka co aplikacja, z OCR i AI) na plikach testowych i porównuje z oczekiwaniami; użycie: python tools/regression_test.py [--dir ...] [--only NAZWA.pdf]; brakujące pliki → SKIP z ostrzeżeniem; koszt kilka-kilkanaście centów/przebieg (Azure DI + Haiku). URUCHAMIAĆ PO KAŻDEJ ZMIANIE w doc_*.py/ai_extractor.py — to jest odpowiedź na pytanie "czy poprawka jest ogólna, czy dopasowana do jednego pliku". (07.07.2026) `DEFAULT_TEST_DIR` czyta zmienną środowiskową `KRS_GUARD_TESTY_DIR` z fallbackiem na `C:\Users\User\Desktop\testy` — poprzednio ścieżka była zahardkodowana i przy pracy na innym komputerze (inny login Windows) trzeba było ją ręcznie edytować, co dawało niezacommitowaną zmianę wiszącą w working tree.
 └── regression_expected.json # Tabela oczekiwań per plik: main_type (lista akceptowalnych), main_pages, deadline_days, amount (±0,01), aux_types_include (listy alternatyw), gate (czy bramka art. 299 ma się pokazać); klucz nieobecny = nie sprawdzaj
+```
+
+Poza `app/` i `tools/` w repo są też (07.07.2026, praca na kilku komputerach):
+```
+plany/    # Kopie finalnych planów z trybu planowania Claude Code (po polsku) — lokalny plik planu
+          # (~/.claude/plans/...) jest per-komputer, więc kontynuacja pracy między komputerami
+          # opiera się na kopii w repo, nie na pliku lokalnym.
+memory/   # Kopia plików pamięci projektu Claude Code (~/.claude/projects/.../memory/) — ta sama
+          # przyczyna: pamięć jest per-komputer, repo jest źródłem prawdy dla ciągłości.
 ```
 
 **To run locally:**
@@ -207,6 +216,31 @@ co zostało zrobione, a co jeszcze pozostaje. Kontynuować?
 ```
 
 Próg ostrzeżenia: zadanie dotyka >4 plików LUB >80 linii kodu do zmiany LUB >3 arkuszy CSV/Excel jednocześnie.
+
+### Ciągłość pracy między komputerami (obowiązkowe, od 07.07.2026)
+Użytkownik pracuje na kilku komputerach. Pliki trybu planowania
+(`~/.claude/plans/...`) i pamięć projektu (`~/.claude/projects/.../memory/`)
+są zapisywane **lokalnie, per komputer** — bez poniższych zasad kontynuacja
+pracy gubi się przy zmianie komputera.
+
+- **Plany**: po zaakceptowaniu planu (koniec trybu plan mode), skopiuj jego
+  finalną treść do `plany/<opisowa-nazwa>.md` w repo i zacommituj razem z
+  resztą zmian tej sesji (albo od razu, jeśli implementacja się jeszcze nie
+  zaczyna). Lokalny plik planu zostaje jak jest — to mechanizm harnessu — ale
+  kopia w `plany/` jest źródłem prawdy dla kontynuacji między komputerami.
+- **Pamięć**: po każdej aktualizacji pliku w `~/.claude/projects/.../memory/`,
+  skopiuj ten sam plik do `memory/` w repo i zacommituj. `memory/MEMORY.md`
+  w repo ma być zawsze aktualną kopią lokalnego indeksu pamięci.
+- **Na starcie sesji**: jeśli lokalna pamięć/plany różnią się od tego, co
+  jest w `plany/`/`memory/` w repo (bo poprzednia sesja toczyła się na innym
+  komputerze) — repo wygrywa, zsynchronizuj z niego do lokalnego magazynu.
+  Jeśli użytkownik odwołuje się do "ostatniego planu"/kontynuacji, sprawdź
+  najpierw `plany/` i `memory/` w repo (posortowane po dacie modyfikacji),
+  nie tylko lokalne katalogi.
+- **Nie commituj** surowych logów sesji (`~/.claude/projects/.../*.jsonl`,
+  `subagents/`, `tool-results/`) — to nieustrukturyzowane transkrypty
+  rozmów, potencjalnie duże i wrażliwe, nie "pamięć" w sensie użytecznym dla
+  kontynuacji. Tylko pliki `.md` z folderu `memory/` mają trafiać do repo.
 
 ## Communication rules (non-negotiable)
 
