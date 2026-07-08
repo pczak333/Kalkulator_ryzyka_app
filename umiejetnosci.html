@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Umiejętności Claude Code — KRS Guard</title>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --card: #ffffff;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --accent: #6d5bd0;
+    --border: #e5e2da;
+    --badge-bg: #f0edfa;
+    --badge-text: #5b4bc0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --card: #1e2128;
+      --text: #e8e6e1;
+      --muted: #9aa0ab;
+      --accent: #a99df0;
+      --border: #2c303a;
+      --badge-bg: #2a2740;
+      --badge-text: #beb3f5;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    line-height: 1.55;
+    padding: 3rem 1.5rem 4rem;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 1.7rem; font-weight: 650; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); margin: 0.4rem 0 2.2rem; font-size: 0.95rem; }
+  h2 {
+    font-size: 0.82rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--accent);
+    margin: 2.2rem 0 0.8rem; padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.7rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.85rem 1rem;
+  }
+  .card .name { font-weight: 600; font-size: 0.95rem; font-family: Consolas, monospace; }
+  .card .desc { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+  .badge {
+    display: inline-block; font-size: 0.7rem; font-family: Consolas, monospace;
+    background: var(--badge-bg); color: var(--badge-text);
+    border-radius: 20px; padding: 0.05rem 0.55rem; margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+  footer { margin-top: 3rem; color: var(--muted); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Umiejętności Claude Code</h1>
+  <p class="subtitle">Projekt KRS Guard — Kalkulator Ryzyka Prawnego · stan na 08.07.2026 · liczby w plakietkach to koszt opisu skilla w kontekście (tokeny)</p>
+
+  <h2>Skille projektowe (w repo, .claude/skills/)</h2>
+  <div class="grid">
+    <div class="card"><span class="name">developing-with-streamlit</span><span class="badge">nowy</span>
+      <div class="desc">Wszystkie zadania Streamlit: tworzenie, stylowanie, motywy, wydajność, session state, wdrożenie. Oficjalny skill od twórców Streamlita.</div></div>
+    <div class="card"><span class="name">regex-vs-llm-structured-text</span><span class="badge">nowy</span>
+      <div class="desc">Framework decyzyjny: kiedy parsować tekst regexem, a kiedy LLM-em. Trafia w oś architektury doc_extractor / ai_extractor.</div></div>
+    <div class="card"><span class="name">prompt-engineering-patterns</span><span class="badge">nowy</span>
+      <div class="desc">Wzorce budowy promptów produkcyjnych: chain-of-thought, few-shot, szablony, debugowanie promptów.</div></div>
+    <div class="card"><span class="name">frontend-design</span><span class="badge">~70</span>
+      <div class="desc">Wskazówki świadomego projektowania UI — kierunek estetyczny, typografia, unikanie szablonowych domyślności.</div></div>
+    <div class="card"><span class="name">find-skills</span><span class="badge">~110</span>
+      <div class="desc">Meta-skill: wyszukiwanie i instalowanie kolejnych umiejętności z ekosystemu skills.sh.</div></div>
+  </div>
+
+  <h2>Pluginy (włączone w .claude/settings.json)</h2>
+  <div class="grid">
+    <div class="card"><span class="name">document-skills: xlsx</span><span class="badge">~320</span>
+      <div class="desc">Odczyt, edycja i tworzenie arkuszy Excel/CSV — używany przy synchronizacji CSV ↔ Excel w tym projekcie.</div></div>
+    <div class="card"><span class="name">document-skills: docx</span><span class="badge">~270</span>
+      <div class="desc">Tworzenie i edycja dokumentów Word (raporty, pisma, szablony, śledzenie zmian).</div></div>
+    <div class="card"><span class="name">document-skills: pptx</span><span class="badge">~240</span>
+      <div class="desc">Tworzenie i edycja prezentacji PowerPoint (slajdy, szablony, notatki prelegenta).</div></div>
+    <div class="card"><span class="name">document-skills: pdf</span><span class="badge">~150</span>
+      <div class="desc">Operacje na PDF: ekstrakcja tekstu i tabel, łączenie/dzielenie, formularze, OCR skanów.</div></div>
+    <div class="card"><span class="name">claude-api</span><span class="badge">~360</span>
+      <div class="desc">Referencja Claude API / Anthropic SDK: modele, ceny, parametry, streaming, tool use, cache — dla ai_extractor.py i doc_ocr.py.</div></div>
+  </div>
+
+  <h2>Wbudowane (Claude Code)</h2>
+  <div class="grid">
+    <div class="card"><span class="name">dataviz</span><span class="badge">~380</span>
+      <div class="desc">Zasady projektowania wykresów, dashboardów i wizualizacji danych.</div></div>
+    <div class="card"><span class="name">artifact-design</span><span class="badge">~20</span>
+      <div class="desc">Podstawy projektowania Artifactów (stron publikowanych na claude.ai).</div></div>
+    <div class="card"><span class="name">update-config</span><span class="badge">~240</span>
+      <div class="desc">Konfiguracja Claude Code przez settings.json: uprawnienia, hooki, zmienne środowiskowe.</div></div>
+    <div class="card"><span class="name">keybindings-help</span><span class="badge">~80</span>
+      <div class="desc">Dostosowywanie skrótów klawiszowych (keybindings.json).</div></div>
+    <div class="card"><span class="name">verify</span><span class="badge">~150</span>
+      <div class="desc">Weryfikacja zmiany end-to-end przed commitem — uruchomienie realnego przepływu, nie tylko testów.</div></div>
+    <div class="card"><span class="name">code-review</span><span class="badge">~140</span>
+      <div class="desc">Przegląd bieżącego diffa pod kątem błędów poprawności i uproszczeń.</div></div>
+    <div class="card"><span class="name">simplify</span><span class="badge">~60</span>
+      <div class="desc">Porządki w zmienionym kodzie: reużycie, uproszczenia, wydajność (bez szukania bugów).</div></div>
+    <div class="card"><span class="name">security-review</span><span class="badge">~30</span>
+      <div class="desc">Przegląd bezpieczeństwa zmian na bieżącej gałęzi.</div></div>
+    <div class="card"><span class="name">review</span><span class="badge">~30</span>
+      <div class="desc">Recenzja pull requesta na GitHubie.</div></div>
+    <div class="card"><span class="name">run</span><span class="badge">~120</span>
+      <div class="desc">Uruchomienie aplikacji projektu, by zobaczyć zmianę w działaniu (np. streamlit run).</div></div>
+    <div class="card"><span class="name">loop</span><span class="badge">~120</span>
+      <div class="desc">Cykliczne uruchamianie promptu lub komendy w zadanym interwale.</div></div>
+    <div class="card"><span class="name">schedule</span><span class="badge">~130</span>
+      <div class="desc">Harmonogramy agentów w chmurze (zadania cron, jednorazowe przypomnienia).</div></div>
+    <div class="card"><span class="name">fewer-permission-prompts</span><span class="badge">~60</span>
+      <div class="desc">Analiza transkryptów i budowa allowlisty ograniczającej pytania o uprawnienia.</div></div>
+    <div class="card"><span class="name">init</span><span class="badge">~20</span>
+      <div class="desc">Inicjalizacja nowego pliku CLAUDE.md z dokumentacją repozytorium.</div></div>
+  </div>
+
+  <footer>Źródło: wynik komendy /context z sesji 08.07.2026. Skille oznaczone „nowy" będą widoczne w /context od następnej sesji. Agent projektowy: record-manager (audytor pipeline'u dokumentów).</footer>
+</main>
+</body>
+</html>
