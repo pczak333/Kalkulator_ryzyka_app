@@ -14,7 +14,10 @@ komputerach użytkownika: `.agents/skills/` (źródło zarządzane przez `npx sk
 a od przeglądu ekosystemu przez find-skills (2026-07-08) też:
 `developing-with-streamlit` (oficjalny od Streamlita, do app.py),
 `regex-vs-llm-structured-text` (oś architektury doc_extractor vs ai_extractor),
-`prompt-engineering-patterns` (do promptu ekstrakcyjnego ai_extractor.py).
+`prompt-engineering-patterns` (do promptu ekstrakcyjnego ai_extractor.py),
+`agent-browser` (vercel-labs/agent-browser — automatyzacja przeglądarki, np. testowanie
+Streamlita na żywo; stub — wymaga globalnego `npm i -g agent-browser && agent-browser install`
+per komputer, instrukcje robocze przez `agent-browser skills get core`).
 Pluginy projektu w `.claude/settings.json` → `enabledPlugins`:
 `document-skills@anthropic-agent-skills`, `claude-api@anthropic-agent-skills`.
 

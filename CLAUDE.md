@@ -85,7 +85,11 @@ w app.py; ma skrypt discover.py ładujący docsy zgodne z zainstalowaną wersją
 `regex-vs-llm-structured-text` (affaan-m/everything-claude-code — framework decyzyjny
 regex vs LLM przy parsowaniu tekstu; dokładnie oś architektury doc_extractor.py/ai_extractor.py),
 `prompt-engineering-patterns` (wshobson/agents — wzorce promptów; do rozwoju promptu
-ekstrakcyjnego w ai_extractor.py).
+ekstrakcyjnego w ai_extractor.py),
+`agent-browser` (vercel-labs/agent-browser, 08.07.2026 — automatyzacja przeglądarki CLI:
+klikanie/formularze/zrzuty ekranu, przydatne do testowania aplikacji Streamlit na żywo;
+UWAGA: SKILL.md to tylko stub — wymaga globalnego CLI `npm i -g agent-browser &&
+agent-browser install`, a właściwe instrukcje ładuje się przez `agent-browser skills get core`).
 Włączone pluginy: `document-skills@anthropic-agent-skills` (xlsx/docx/pptx/pdf),
 `claude-api@anthropic-agent-skills`.
 Historia: `vercel-react-best-practices` zainstalowany i usunięty 08.07.2026 (dotyczy React/Next.js,
