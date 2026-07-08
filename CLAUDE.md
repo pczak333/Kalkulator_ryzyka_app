@@ -63,6 +63,30 @@ memory/   # Kopia plików pamięci projektu Claude Code (~/.claude/projects/.../
           # przyczyna: pamięć jest per-komputer, repo jest źródłem prawdy dla ciągłości.
 ```
 
+### Skille i pluginy Claude Code (08.07.2026)
+
+Skille projektowe instalowane przez `npx skills add <github-repo> --skill <nazwa>` żyją W REPO
+(commitowane — dostępne na obu komputerach bez rekonfiguracji):
+```
+.agents/skills/    # Źródło zarządzane przez npx skills (uniwersalne dla wielu agentów)
+.claude/skills/    # Miejsce, z którego czyta Claude Code; npx tworzy tu symlink do .agents/,
+                   # ale git na Windows (core.symlinks=false) rozwija go do zwykłych plików —
+                   # celowo tak zostawione, bo kopia działa po checkout na drugim komputerze,
+                   # a symlink z absolutną ścieżką by się tam zepsuł.
+skills-lock.json   # Rejestr zainstalowanych skilli (źródło + hash). UWAGA: `npx skills remove`
+                   # usuwa pliki skilla, ale NIE czyści jego wpisu tutaj — trzeba ręcznie.
+.claude/settings.json  # `enabledPlugins` — pluginy włączone dla projektu (współdzielone przez repo).
+```
+Zainstalowane skille: `frontend-design` (anthropics/skills — wskazówki projektowania UI),
+`find-skills` (vercel-labs/skills — meta-skill: wyszukiwanie/instalacja kolejnych skilli;
+proponowane przez niego instalacje weryfikować przed uruchomieniem).
+Włączone pluginy: `document-skills@anthropic-agent-skills` (xlsx/docx/pptx/pdf),
+`claude-api@anthropic-agent-skills`.
+Historia: `vercel-react-best-practices` zainstalowany i usunięty 08.07.2026 (dotyczy React/Next.js,
+projekt jest Python+Streamlit); plugin `frontend-design@claude-plugins-official` odinstalowany
+08.07.2026 jako duplikat wersji skillowej (pluginy projektowe odinstalowuje się
+`claude plugin uninstall <nazwa> --scope project` — domyślny scope to user i wtedy komenda zawodzi).
+
 **To run locally:**
 ```bash
 streamlit run app/app.py
