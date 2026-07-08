@@ -79,7 +79,13 @@ skills-lock.json   # Rejestr zainstalowanych skilli (źródło + hash). UWAGA: `
 ```
 Zainstalowane skille: `frontend-design` (anthropics/skills — wskazówki projektowania UI),
 `find-skills` (vercel-labs/skills — meta-skill: wyszukiwanie/instalacja kolejnych skilli;
-proponowane przez niego instalacje weryfikować przed uruchomieniem).
+proponowane przez niego instalacje weryfikować przed uruchomieniem),
+`developing-with-streamlit` (streamlit/agent-skills, oficjalny — wszystkie zadania Streamlit
+w app.py; ma skrypt discover.py ładujący docsy zgodne z zainstalowaną wersją Streamlita),
+`regex-vs-llm-structured-text` (affaan-m/everything-claude-code — framework decyzyjny
+regex vs LLM przy parsowaniu tekstu; dokładnie oś architektury doc_extractor.py/ai_extractor.py),
+`prompt-engineering-patterns` (wshobson/agents — wzorce promptów; do rozwoju promptu
+ekstrakcyjnego w ai_extractor.py).
 Włączone pluginy: `document-skills@anthropic-agent-skills` (xlsx/docx/pptx/pdf),
 `claude-api@anthropic-agent-skills`.
 Historia: `vercel-react-best-practices` zainstalowany i usunięty 08.07.2026 (dotyczy React/Next.js,

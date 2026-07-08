@@ -10,7 +10,11 @@ metadata:
 Skille projektowe (od 2026-07-08) są commitowane do repo, żeby działały na obu
 komputerach użytkownika: `.agents/skills/` (źródło zarządzane przez `npx skills`) +
 `.claude/skills/` (czyta Claude Code) + `skills-lock.json`. Zainstalowane:
-`frontend-design` (anthropics/skills), `find-skills` (vercel-labs/skills).
+`frontend-design` (anthropics/skills), `find-skills` (vercel-labs/skills),
+a od przeglądu ekosystemu przez find-skills (2026-07-08) też:
+`developing-with-streamlit` (oficjalny od Streamlita, do app.py),
+`regex-vs-llm-structured-text` (oś architektury doc_extractor vs ai_extractor),
+`prompt-engineering-patterns` (do promptu ekstrakcyjnego ai_extractor.py).
 Pluginy projektu w `.claude/settings.json` → `enabledPlugins`:
 `document-skills@anthropic-agent-skills`, `claude-api@anthropic-agent-skills`.
 
