@@ -80,6 +80,7 @@ _DOC_TYPE_LABELS: dict[str, str] = {
     "WYROK_ZAOCZNY_SPOLKA":               "Wyrok zaoczny (spółka)",
     "WYROK_ZAOCZNY_CZLONEK_ZARZADU":      "Wyrok zaoczny (członek zarządu)",
     "ODPIS_KRS":                          "Odpis z KRS",
+    "POSTANOWIENIE_KRS_Z_URZEDU":         "Postanowienie sądu rejestrowego (KRS)",
     "UMOWA_FAKTURA_KORESPONDENCJA":       "Umowa / faktura / korespondencja",
     "POTWIERDZENIE_DORECZENIA":           "Potwierdzenie doręczenia",
     "DOKUMENT_NIEPRAWNY":                 "Dokument niezwiązany ze sprawą sądową",
@@ -108,6 +109,19 @@ _NON_LEGAL_MAIN_TYPES = {
 # sugerowania, że to nie jest prawdziwe pismo.
 _SPOLKA_OUT_OF_SCOPE_TYPES = {
     "WEZWANIE_PRZEDSADOWE_SPOLKA",
+}
+
+# (14.07.2026) Postanowienie sądu REJESTROWEGO KRS wydane z urzędu (np.
+# rozwiązanie nieaktywnej/bezmajątkowej spółki bez likwidacji) — to prawdziwe
+# postanowienie sądu (jak _SPOLKA_OUT_OF_SCOPE_TYPES, nie generyczny
+# "niezwiązany dokument" jak _NON_LEGAL_MAIN_TYPES), ale nie jest sporem o
+# zapłatę: nie ma powoda ani kwoty roszczenia. Osobny zbiór z własnym
+# ostrzeżeniem, bo generyczny tekst "nie wygląda na pismo sądowe" byłby tu
+# nieprawdziwy i mylący dla klienta, który widzi przed sobą realne
+# postanowienie sądu. Ten sam mechanizm "ukryj tabelę + zeruj pola
+# formularza" co pozostałe dwa zbiory.
+_KRS_REJESTROWE_OUT_OF_SCOPE_TYPES = {
+    "POSTANOWIENIE_KRS_Z_URZEDU",
 }
 
 # Etykiety splittera zbyt ogólne, żeby dopisywać je do nazwy pisma komorniczego
@@ -307,6 +321,28 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             "prześlij właściwy dokument — albo wypełnij formularz poniżej "
             "ręcznie."
         )
+    # (14.07.2026) Postanowienie sądu rejestrowego KRS z urzędu — zobacz
+    # _KRS_REJESTROWE_OUT_OF_SCOPE_TYPES wyżej. Osobny, bardziej wprost
+    # komunikat niż generyczny "ryzyko pośrednie" (§13.2) poniżej: to nie
+    # jest jeszcze żadna sprawa o zapłatę, więc hedge'owany ton banera 6P
+    # ("na tym etapie...") byłby mylący — ale samo wykreślenie spółki bez
+    # majątku jest istotnym kontekstem, gdyby w przyszłości pojawił się
+    # wierzyciel i sprawa art. 299 KSH.
+    elif main.doc_type_code in _KRS_REJESTROWE_OUT_OF_SCOPE_TYPES:
+        st.warning(
+            "**To postanowienie sądu rejestrowego KRS, nie spór o zapłatę.**\n\n"
+            "Przesłany dokument dotyczy postępowania rejestrowego z urzędu o "
+            "rozwiązanie spółki bez likwidacji (najczęściej z powodu braku "
+            "majątku lub działalności) — nie ma tu powoda ani kwoty "
+            "roszczenia, więc ten kalkulator nie ma czego ocenić.\n\n"
+            "**Warto jednak to śledzić:** jeśli spółka zostanie wykreślona "
+            "bez majątku, a później zgłosi się wierzyciel, to dokładnie ten "
+            "scenariusz może otworzyć drogę do odpowiedzialności członka "
+            "zarządu z art. 299 KSH.\n\n"
+            "**Co można zrobić:** jeśli pojawi się właściwe pismo od "
+            "wierzyciela albo sądu w sprawie o zapłatę, prześlij je do "
+            "analizy — albo wypełnij formularz poniżej ręcznie."
+        )
     # Baner "dokument dotyczy spółki" (ryzyko pośrednie) — wymagany przez
     # specyfikację (§13.2); treść z arkusza 6P (CSV 35), nie hardcode.
     elif "_SPOLKA" in main.doc_type_code:
@@ -347,7 +383,11 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
     # dołączamy je do tego samego mechanizmu "ukryj tabelę / zeruj pola",
     # żeby nie pokazywać osobno tabeli sygnatura/kwota/termin ani expandera
     # korekty (formularz K1-K7 pozostaje dostępny niżej do ręcznego wypełnienia).
-    _is_non_legal_main = _is_non_legal_main or main.doc_type_code in _SPOLKA_OUT_OF_SCOPE_TYPES
+    _is_non_legal_main = (
+        _is_non_legal_main
+        or main.doc_type_code in _SPOLKA_OUT_OF_SCOPE_TYPES
+        or main.doc_type_code in _KRS_REJESTROWE_OUT_OF_SCOPE_TYPES
+    )
 
     # Bieżące wartości z uwzględnieniem korekt
     corr_kwota = st.session_state.get("corr_kwota")
@@ -558,7 +598,11 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
                 # budujemy dla tego typu ścieżki K1/scenariusza, więc nie mają
                 # cicho zasilać formularza jako gdyby to była ocena ryzyka
                 # osobistego członka zarządu.
-                if main_doc.doc_type_code in (_NON_LEGAL_MAIN_TYPES | _SPOLKA_OUT_OF_SCOPE_TYPES):
+                if main_doc.doc_type_code in (
+                    _NON_LEGAL_MAIN_TYPES
+                    | _SPOLKA_OUT_OF_SCOPE_TYPES
+                    | _KRS_REJESTROWE_OUT_OF_SCOPE_TYPES
+                ):
                     main_doc.amount = None
                     main_doc.k7_code = ""
                     main_doc.deadline_days = None

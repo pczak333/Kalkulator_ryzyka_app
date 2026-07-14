@@ -114,6 +114,32 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
                        else "WYROK_ZAOCZNY_SPOLKA")
         return _wyrok_code, 0.85
 
+    # (14.07.2026) Postanowienie sądu REJESTROWEGO KRS wydane Z URZĘDU (np.
+    # rozwiązanie nieaktywnej/bezmajątkowej spółki bez likwidacji, art. 25a/25b
+    # ustawy o KRS) — to nie jest spór o zapłatę: nie ma powoda/wierzyciela,
+    # nie ma kwoty roszczenia. Generyczne słowa kluczowe sądowe ("sąd",
+    # "wezwać", "termin") dawały tylko słabe zwycięstwo WEZWANIE_SADOWE_SPOLKA
+    # (pewność 0.52) mimo że AI poprawnie wyciągnęła sad_organ="...Wydział
+    # Gospodarczy Krajowego Rejestru Sądowego" i powod=None — te pola nie były
+    # dotąd nigdzie użyte jako sygnał klasyfikacji (zgłoszenie użytkownika:
+    # poprawny odczyt dokumentu nie miał żadnego wpływu na dalszą analizę).
+    # Koniunkcja (sąd REJESTROWY + brak powoda + "z urzędu"/tytuł POSTANOWIENIE)
+    # jest celowo strukturalna, nie zależna od jednej frazy — łapie też
+    # przyszłe, nieznane dziś warianty postępowań rejestrowych z urzędu (np.
+    # wezwanie do uzupełnienia wpisu), nie tylko akurat "rozwiązanie bez
+    # likwidacji". Prawdziwy spór (pozew/nakaz/wezwanie) zawsze ma powoda —
+    # sąd "zwykły"/gospodarczy rozpoznający spory nigdy nie jest jednocześnie
+    # "Wydziałem ... Krajowego Rejestru Sądowego".
+    _sad_organ_lower = (fields.get("sad_organ") or "").lower()
+    _is_sad_rejestrowy = bool(re.search(r"rejestrow\w*|rejestru\s+s[aą]dowego", _sad_organ_lower))
+    _powod = fields.get("powod")
+    _powod_empty = not _powod or str(_powod).strip().lower() in ("", "none", "brak")
+    _head_1500 = text[:1500]
+    _has_postanowienie_title = bool(re.search(r"(?m)^\s{0,5}POSTANOWIENIE\b", _head_800, re.IGNORECASE))
+    _has_z_urzedu = bool(re.search(r"z\s+urz[eę]du", _head_1500, re.IGNORECASE))
+    if _is_sad_rejestrowy and _powod_empty and (_has_postanowienie_title or _has_z_urzedu):
+        return "POSTANOWIENIE_KRS_Z_URZEDU", 0.85
+
     df = _load_doc_types()
     scores: dict[str, int] = {}
     # Surowe wyniki czysto tekstowe (słowa kluczowe + sygnały silne, PRZED

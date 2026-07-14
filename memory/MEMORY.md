@@ -6,3 +6,4 @@
 - [Wezwania przedsądowe — merged 07.07](project_wezwania_przedsadowe.md) — K1 mapping bug pattern + gate redundancy fix; merged to etap2 (PR #1 needs manual close)
 - [Wyrok zaoczny — lekka integracja + fix 14.07](project_wyrok_zaoczny.md) — reuse K1/scenariusza dla nowego typu, ale DAJ MU WŁASNY kod K1 (reuse leciał do UI-label); zweryfikowane live
 - [Skille i pluginy w repo — 08.07](project_skills_setup.md) — 6 skilli commitowanych w .agents/.claude/skills (m.in. developing-with-streamlit, regex-vs-llm, agent-browser); pułapki: skills-lock nie czyści się sam, plugin uninstall wymaga --scope project, agent-browser wymaga globalnego CLI per komputer
+- [Out-of-scope doc detection — 14.07](project_out_of_scope_detection.md) — użyj już wyciągniętych pól (sad_organ, powod) jako strukturalnego sygnału klasyfikacji, nie tylko keyword score; wzorzec ogólny, nie jednorazowa łatka
