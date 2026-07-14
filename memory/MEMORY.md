@@ -1,5 +1,6 @@
 # Memory Index
 
+- [📌 Sesja 14.07 — podsumowanie, ZACZNIJ TU](session_2026-07-14_summary.md) — 6 napraw na etap2, wszystko commitowane+pushowane (ostatni commit cce132b); wspólny wątek: OCR/AI już czyta poprawnie, błąd zawsze jest w warstwie decyzji, która to ignoruje
 - [GitHub repo setup](project_github.md) — repo at github.com/pczak333/Kalkulator_ryzyka_app; commit + push after every meaningful change
 - [Git workflow feedback](feedback_git_workflow.md) — commit + push after every meaningful change; clear messages; no bundling unrelated changes
 - [Etap2 klasyfikator — stan i todo](project_etap2_classifier.md) — PISMO_PROCESOWE_SADOWE, naprawa cache+sad_organ w doc_classifier.py; do weryfikacji jutro 2026-06-26
