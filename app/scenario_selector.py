@@ -30,6 +30,17 @@ _K1_TO_DOC_TYPE: dict[tuple, str] = {
     # komorniczych, tu nie ma tytułu wykonawczego, który AI mogłaby pomylić
     # z nakazem EPU).
     ("K1_WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU", False): "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU",
+    # (14.07.2026) Wyrok zaoczny ma własny kod K1 (patrz doc_processor.py), ale
+    # celowo mapuje z powrotem na NAKAZ_SPOLKA/NAKAZ_CZLONEK_ZARZADU — lekka
+    # integracja reużywa scenariusz nakazu (ten sam 2-tygodniowy termin na
+    # sprzeciw), a app.py po znalezieniu scenariusza podmienia fragmenty tekstu
+    # mówiące "nakaz zapłaty" na "wyrok zaoczny". Bez tego wpisu find_scenario()
+    # spadłby na DOKUMENT_NIEUSTALONY_PRAWNY i podmiana tekstu w app.py nic by
+    # nie znalazła do zastąpienia.
+    ("K1_WYROK_ZAOCZNY_SPOLKA", False):             "NAKAZ_SPOLKA",
+    ("K1_WYROK_ZAOCZNY_SPOLKA", True):              "EPU_NAKAZ_SPOLKA",
+    ("K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU", False):    "NAKAZ_CZLONEK_ZARZADU",
+    ("K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU", True):     "EPU_NAKAZ_CZLONEK_ZARZADU",
     ("K1_INNE_NIE_WIEM", False):                    "DOKUMENT_NIEUSTALONY_PRAWNY",
 }
 

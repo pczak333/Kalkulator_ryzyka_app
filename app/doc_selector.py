@@ -32,7 +32,10 @@ _UPGRADED_TYPE_TO_K1: dict[str, str] = {
     "POZEW_CZLONEK_ZARZADU":           "K1_POZEW_CZLONEK_ZARZADU",
     "WEZWANIE_SADOWE_CZLONEK_ZARZADU": "K1_WEZWANIE_SADOWE_CZLONEK_ZARZADU",
     "PISMO_KOMORNIK_CZLONEK_ZARZADU":  "K1_PISMO_KOMORNIK_CZLONEK_ZARZADU",
-    "WYROK_ZAOCZNY_CZLONEK_ZARZADU":   "K1_NAKAZ_CZLONEK_ZARZADU",
+    # (14.07.2026) własny kod K1 zamiast K1_NAKAZ_CZLONEK_ZARZADU — patrz
+    # doc_processor.py._DOC_TYPE_TO_K1 (ta sama zmiana, zduplikowana tu, żeby
+    # uniknąć circular importu z doc_processor.py).
+    "WYROK_ZAOCZNY_CZLONEK_ZARZADU":   "K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU",
 }
 
 _REMIS_THRESHOLD = 10  # różnica punktów poniżej której stosujemy reguły remisu

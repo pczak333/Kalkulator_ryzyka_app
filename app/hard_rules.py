@@ -13,6 +13,14 @@ class HardRuleResult:
 
 # Komunikaty z CSV 11 (hard-coded odzwierciedlenie Excela; nie na stałe – patrz uwaga poniżej)
 # Reguły są utrzymywane w CSV 11; poniżej odwzorowanie logiki warunków.
+
+# (14.07.2026) Wyrok zaoczny (członek zarządu) ma osobny kod K1
+# (K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU, patrz doc_processor.py) od nakazu zapłaty,
+# ale tę samą pilność (rygor natychmiastowej wykonalności) — HR02/HR04 muszą
+# nadal odpalać się dla obu kodów, inaczej rozdzielenie K1 po cichu obniżyłoby
+# ochronę tego przypadku przy krótkim terminie.
+_NAKAZ_LIKE_CZLONEK_CODES = ("K1_NAKAZ_CZLONEK_ZARZADU", "K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU")
+
 _RULE_DEFS = [
     {
         "id": "HR01",
@@ -30,7 +38,7 @@ _RULE_DEFS = [
     {
         "id": "HR02",
         "condition": lambda s: (
-            s.get("K1") == "K1_NAKAZ_CZLONEK_ZARZADU"
+            s.get("K1") in _NAKAZ_LIKE_CZLONEK_CODES
             and s.get("K2") == "K2_DAYS_LEFT_0_3"
         ),
         "min_risk": "RISK_URGENT",
@@ -56,7 +64,7 @@ _RULE_DEFS = [
     {
         "id": "HR04",
         "condition": lambda s: (
-            s.get("K1") == "K1_NAKAZ_CZLONEK_ZARZADU"
+            s.get("K1") in _NAKAZ_LIKE_CZLONEK_CODES
             and s.get("K2") == "K2_DAYS_LEFT_4_7"
         ),
         "min_risk": "RISK_HIGH",

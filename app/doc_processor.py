@@ -43,12 +43,21 @@ _DOC_TYPE_TO_K1: dict[str, str] = {
     # (_SPOLKA_OUT_OF_SCOPE_TYPES), a nie ścieżkę K1/scenariusza.
     "WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU": "K1_WEZWANIE_PRZEDSADOWE_CZLONEK_ZARZADU",
     # (07.07.2026) Wyrok zaoczny — lekka integracja (decyzja produktowa):
-    # zamiast własnej opcji K1/scenariuszy, reużywamy K1_NAKAZ_SPOLKA /
-    # K1_NAKAZ_CZLONEK_ZARZADU (ten sam 2-tygodniowy termin na sprzeciw).
-    # app.py nadpisuje fragmenty tekstu scenariusza, żeby poprawnie mówiły
-    # o wyroku zaocznym, nie o nakazie zapłaty — patrz app.py DOC_TYPE.
-    "WYROK_ZAOCZNY_SPOLKA":                "K1_NAKAZ_SPOLKA",
-    "WYROK_ZAOCZNY_CZLONEK_ZARZADU":       "K1_NAKAZ_CZLONEK_ZARZADU",
+    # zamiast własnej kategorii scenariuszy w CSV 12, scoring i tekst scenariusza
+    # są reużyte z NAKAZ_SPOLKA/NAKAZ_CZLONEK_ZARZADU (ten sam 2-tygodniowy
+    # termin na sprzeciw) — patrz scenario_selector.py _K1_TO_DOC_TYPE i app.py
+    # (nadpisuje fragmenty tekstu scenariusza, żeby poprawnie mówiły o wyroku
+    # zaocznym, nie o nakazie zapłaty). (14.07.2026) Kod K1 dostał WŁASNE
+    # wartości K1_WYROK_ZAOCZNY_* (zamiast K1_NAKAZ_*) — poprzednie reużycie
+    # kodu K1 nakazu wyciekało do UI: Krok 1 formularza pre-zaznaczał etykietę
+    # "Nakaz zapłaty (spółka)", a panel techniczny pokazywał "Kod K1:
+    # K1_NAKAZ_SPOLKA" dla dokumentu poprawnie rozpoznanego i wyświetlanego
+    # jako "Wyrok zaoczny (spółka)" — zgłoszenie użytkownika na żywym teście.
+    # Scoring (CSV 09) i mapowanie zwrotne do scenariusza (scenario_selector.py)
+    # dla nowych kodów są identyczne jak dla NAKAZ_*, więc treść wyniku się nie
+    # zmienia — zmienia się tylko widoczna etykieta/kod w Kroku 1 i panelu.
+    "WYROK_ZAOCZNY_SPOLKA":                "K1_WYROK_ZAOCZNY_SPOLKA",
+    "WYROK_ZAOCZNY_CZLONEK_ZARZADU":       "K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU",
 }
 
 # Mapowanie liczby dni na bucket K2

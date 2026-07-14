@@ -1,6 +1,6 @@
 ---
 name: project-wyrok-zaoczny
-description: "Wyrok zaoczny misclassified as NAKAZ_SPOLKA (07.07.2026) — new \"light integration\" pattern (recognize + relabel, reuse existing K1/scenario instead of building a full new category)"
+description: "Wyrok zaoczny misclassified as NAKAZ_SPOLKA (07.07.2026) — new \"light integration\" pattern (recognize + relabel, reuse existing K1/scenario instead of building a full new category); 14.07.2026 follow-up fix: light integration leaked into K1 UI label, gave wyrok its own K1 code"
 metadata: 
   node_type: memory
   type: project
@@ -106,3 +106,56 @@ reappeared) had already confirmed the same result on the raw OCR text
 from the user's screenshot, and confirmed the `user_summary_base` text
 override matches 100% of the 15 `NAKAZ_SPOLKA` + 11
 `NAKAZ_CZLONEK_ZARZADU` scenario rows in CSV 12 — both checks agree.
+
+## Follow-up bug + fix (14.07.2026): light integration leaked into the UI
+
+First live test in Streamlit (not caught by `regression_test.py`, which
+only checks `main_type`/`amount`/`deadline_days`/`gate`, never K1)
+surfaced a real bug: Krok 1 of the form pre-selected **"Nakaz zapłaty
+(spółka)"** and the technical panel showed `Kod K1: K1_NAKAZ_SPOLKA` for
+a document whose title/summary/panel "Typ dokumentu" all correctly said
+`WYROK_ZAOCZNY_SPOLKA`. Root cause: `_DOC_TYPE_TO_K1` mapped the new
+doc types onto the *existing* `K1_NAKAZ_SPOLKA`/`K1_NAKAZ_CZLONEK_ZARZADU`
+codes, and that same K1 code drives both (a) scoring/scenario-text reuse
+(intentional) and (b) the label shown in Krok 1 + the raw code in the
+technical panel (not intentional — nobody had traced that far). The
+07.07 `app.py` text-override block runs only *after* form submit and
+never touches Krok 1's pre-selection or the technical panel, both of
+which read `prefill.k1_code` baked in at `doc_processor.py` time.
+
+**Lesson for future "light integration" cases**: reusing an existing K1
+code gets you scoring + scenario-text reuse "for free", but it also
+silently reuses that K1 code's **CSV 08 label** — visible confirmation
+bias risk (client sees two contradictory document names on the same
+screen). The fix is not to abandon the light-integration pattern, but to
+split the two concerns: give the new type **its own K1 code** (own CSV
+08 label, own CSV 09 scoring row — copied 1:1 from the reused type) while
+keeping `scenario_selector.py`'s `_K1_TO_DOC_TYPE` reverse-mapping
+pointed at the *original* type, so `find_scenario()` still resolves to
+the reused scenario text and the existing `app.py` override block (which
+matches on `state["DOC_TYPE"]`, independent of K1) keeps working
+unchanged.
+
+Also caught in the same fix: `hard_rules.py`'s HR02/HR04 (urgent-deadline
+safety overrides) checked `K1 == "K1_NAKAZ_CZLONEK_ZARZADU"` by exact
+string — splitting the K1 code would have silently *removed* that safety
+net for wyrok-zaoczny-członek-zarządu with a short deadline. Extended
+both to match a small tuple of "nakaz-like" K1 codes instead of a single
+literal. **Checklist for next light-integration case**: grep the whole
+`app/` tree for every literal usage of the reused K1 code before deciding
+the new code is a safe drop-in — it showed up in 4 places beyond
+`doc_processor.py`: `scenario_selector.py` (`_K1_TO_DOC_TYPE`),
+`doc_selector.py` (`_UPGRADED_TYPE_TO_K1`, a duplicate mapping kept
+separate to avoid a circular import), `app.py` (`EPU_COMPATIBLE`), and
+`hard_rules.py` (HR02/HR04 conditions).
+
+Files touched: CSV 08/09/11 + Excel sheets `4_Formularz_6_krokow`/
+`5_Punktacja_formularza`/`5B_Twarde_reguly` (synced via a one-off
+openpyxl script, not by hand — direct cell edits by row-index lookup on
+`answer_code_AI`); `doc_processor.py`, `scenario_selector.py`,
+`doc_selector.py`, `hard_rules.py`, `app.py`. Verified: `k1_code` for
+`wyrok.pdf` is now `K1_WYROK_ZAOCZNY_SPOLKA`, CSV 08 label resolves to
+"Wyrok zaoczny (spółka)", `resolve_doc_type()` still resolves to
+`NAKAZ_SPOLKA` (scenario text unchanged), HR02 fires correctly for
+`K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU` + `K2_DAYS_LEFT_0_3`, full regression
+suite still green.
