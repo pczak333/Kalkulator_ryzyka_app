@@ -1,6 +1,7 @@
 """KRS Guard — Kalkulator Ryzyka Prawnego (Streamlit MVP)."""
 import sys
 import os
+import re
 sys.path.insert(0, os.path.dirname(__file__))
 
 import streamlit as st
@@ -129,6 +130,38 @@ _KOMORNIK_GENERIC_LABELS = {
     "?", "", "Pismo komornicze", "Pismo komornika sądowego",
     "Pismo komornicze (tytuł wykonawczy)",
 }
+
+
+# (14.07.2026) Formy spółkowe do usunięcia przy porównywaniu nazw wierzycieli —
+# "MIPROMET Sp. z o.o." i "MIPROMET Spółka z ograniczoną odpowiedzialnością"
+# to ta sama firma zapisana inaczej, nie powinny wypadać jako "różny wierzyciel".
+_PARTY_SUFFIX_RE = re.compile(
+    r"\b(sp[oó]łk[a-ząćęłńóśźż]*\s+z\s+ograniczon[aą]\s+odpowiedzialno[sś]ci[aą]"
+    r"|sp\.?\s*z\s*o\.?\s*o\.?"
+    r"|s\.?\s*a\.?"
+    r"|sp[oó]łk[a-ząćęłńóśźż]*\s+akcyjn[aą]"
+    r"|sp\.?\s*k\.?"
+    r"|sp[oó]łk[a-ząćęłńóśźż]*\s+komandytow[a-ząćęłńóśźż]*)\b",
+    re.IGNORECASE,
+)
+
+
+def _normalize_party_name(name: str) -> str:
+    n = _PARTY_SUFFIX_RE.sub(" ", name.upper())
+    n = re.sub(r"[^\wĄĆĘŁŃÓŚŹŻ]+", " ", n)
+    return " ".join(n.split()).strip()
+
+
+def _parties_differ(a: str | None, b: str | None) -> bool:
+    """True gdy dwie nazwy stron (np. wierzycieli) wyglądają na WYRAŹNIE różne
+    podmioty — nie tylko inny zapis tej samej firmy. Puste/brakujące wartości
+    nigdy nie liczą się jako "różne" (brak fałszywego alarmu przy braku danych)."""
+    if not a or not b:
+        return False
+    na, nb = _normalize_party_name(a), _normalize_party_name(b)
+    if not na or not nb:
+        return False
+    return na not in nb and nb not in na
 
 
 def _komornik_display_label(doc) -> str:
@@ -527,6 +560,36 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
                 st.text_input("Powód", value=main.powod or "", key="corr_powod")
             with c3:
                 st.text_input("Pozwany", value=main.pozwany or "", key="corr_pozwany")
+
+    # (14.07.2026) Ostrzeżenie, gdy dokument(y) pomocnicze wskazują innego
+    # wierzyciela (powód) niż dokument główny — silny, ogólny sygnał "to
+    # dwie różne sprawy", bezpieczny dla prawdziwych bundli (tam wierzyciel
+    # jest zawsze ten sam w całej paczce, nawet gdy sygnatura legalnie się
+    # różni — np. numer Km komornika vs sygnatura sądowa w łańcuchu
+    # nakaz→egzekucja→umorzenie). Zgłoszenie użytkownika: dwa niezwiązane
+    # pisma (różny wierzyciel, różna sygnatura) wgrane razem — kalkulator
+    # poprawnie wybrał dokument główny, ale nigdzie nie zaznaczył, że
+    # dokument pomocniczy dotyczy innej sprawy.
+    _unrelated_aux = [
+        d for d in aux
+        if _parties_differ(main.powod, d.powod)
+    ]
+    if _unrelated_aux:
+        _details = "; ".join(
+            f'"{_komornik_display_label(d)}" — wierzyciel: **{d.powod}**'
+            for d in _unrelated_aux
+        )
+        st.warning(
+            "**Uwaga: część przesłanych dokumentów może dotyczyć innej "
+            "sprawy.**\n\n"
+            f"Dokument główny wskazuje wierzyciela **{main.powod}**, ale "
+            f"dokument(y) pomocnicze wskazują innego wierzyciela: "
+            f"{_details}.\n\n"
+            "Jeśli to pomyłka, prześlij dokumenty każdej sprawy osobno w "
+            "oddzielnych analizach. Jeśli to zamierzone (np. kilku "
+            "wierzycieli tego samego dłużnika) — możesz kontynuować, ale "
+            "ocena ryzyka poniżej dotyczy WYŁĄCZNIE dokumentu głównego."
+        )
 
     # Ochrona danych
     st.markdown(
