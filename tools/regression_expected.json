@@ -101,5 +101,10 @@
     "amount": 51408.0,
     "deadline_days": 14,
     "gate": false
+  },
+  "postanowienie.pdf": {
+    "main_type": ["POSTANOWIENIE_KRS_Z_URZEDU"],
+    "amount": null,
+    "gate": false
   }
 }

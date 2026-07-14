@@ -77,15 +77,41 @@ category, check whether the existing banner wording is still true for the new ca
 before reusing it — if it would say something factually wrong, it needs its own set
 + banner text, not a shoehorn into the nearest existing one.
 
-## Verification caveat (14.07.2026)
+## Verified live (14.07.2026, follow-up session)
 
-No PDF file was available for this test case — only a `.docx` OCR-text dump and two
-screenshots (the actual PDF had vanished from `C:\Users\User\Desktop\testy\` again,
-the same recurring cross-session file-loss issue noted in
-[[project_wyrok_zaoczny]]). Verified `doc_classifier.classify_document()` directly
-against the real extracted text/fields (0.85, correct) plus synthetic sanity checks
-(a real lawsuit with a plaintiff, and a bailiff document with no plaintiff, both
-correctly do NOT trigger the new rule) — but never exercised the actual Streamlit
-upload → banner → zeroed-fields path end-to-end. Do that live pass once the PDF
-resurfaces, and add it to `regression_expected.json`
-(`main_type: ["POSTANOWIENIE_KRS_Z_URZEDU"], gate: false`).
+The PDF (`postanowienie.pdf`) resurfaced in `C:\Users\User\Desktop\testy\` — same
+recurring cross-session file-loss/reappearance issue as [[project_wyrok_zaoczny]], no
+root cause ever established, just plan around it. User uploaded it live in Streamlit
+and confirmed the banner ("To postanowienie sądu rejestrowego KRS, nie spór o
+zapłatę") and the "Zestawienie dokumentów" label both render correctly. Added to
+`regression_expected.json` (`main_type: ["POSTANOWIENIE_KRS_Z_URZEDU"], amount: null,
+gate: false`) — `tools/regression_test.py --only postanowienie.pdf` passes.
+
+## Follow-on issue found during this live test: form stays active under the banner
+
+The out-of-scope banner mechanism (this file, `_NON_LEGAL_MAIN_TYPES`/
+`_SPOLKA_OUT_OF_SCOPE_TYPES`/`_KRS_REJESTROWE_OUT_OF_SCOPE_TYPES` in `app.py`) hides
+the claim-data table and zeroes K7/deadline/amount, but never gated the Krok 1-7 form
+itself — it renders unconditionally as a top-level script block in `app.py`
+(`~line 686` onward, no `if`/gate wrapping it at all), so it appeared fully active and
+clickable right under a banner that says "there's nothing here to evaluate." Fixed
+(same session) by reusing the existing art.299-gate `st.stop()` pattern
+(`app.py:644-678`, the only prior precedent for conditionally blocking form
+rendering) — the form is now hidden behind an explicit opt-in button ("Mimo to chcę
+wypełnić formularz ręcznie") rather than rendering by default. Lesson for next
+out-of-scope category: the banner-and-zero-fields mechanism was never actually
+"deactivating" anything downstream — it just changed what's displayed *above* an
+otherwise-unaffected form. Check this every time a new out-of-scope type is added.
+
+## Related: same underlying lesson applied to a different signal (14.07.2026)
+
+Same session, different document (`KS_postanowienie.pdf` — a bailiff's order
+*resuming* a suspended enforcement, not dissolving/out-of-scope at all): the
+classifier and extractor correctly read the document but wrongly treated it as
+urgent. Not a duplicate of this out-of-scope pattern (the document IS in scope — it's
+an active enforcement against a natural person, art. 299 KSH gate is legitimately
+relevant) — see [[project_komornik_boilerplate_deadlines]] for that fix. Mentioned
+here because it was reported in the same user message and diagnosed with the same
+underlying discipline: distrust a single regex/keyword match without checking whether
+it's inside boilerplate (pouczenie) text rather than the operative part of the
+document.
