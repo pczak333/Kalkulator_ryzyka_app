@@ -38,6 +38,15 @@ _PROMPT_TEMPLATE = (
     "GŁÓWNĄ i odsetki/koszty, zwróć NALEŻNOŚĆ GŁÓWNĄ (bez odsetek i kosztów). "
     "Kwotę łączną zwróć tylko wtedy, gdy dokument nie podaje osobno należności "
     "głównej.\n\n"
+    'Zasady dla pola "termin_dni": zwróć SUBSTANTYWNY termin na odpowiedź, '
+    "zapłatę albo inną czynność żądaną od adresata. NIE zwracaj terminu na "
+    "wniesienie skargi na czynność komornika (art. 767 KPC, standardowo 7 dni) "
+    "— to jest odrębny, opcjonalny termin na ZASKARŻENIE tej jednej czynności "
+    "komornika, występujący jako stały akapit pouczenia w niemal każdym piśmie "
+    "komorniczym, nie termin na odpowiedź czy spłatę. Jeśli dokument (np. "
+    "postanowienie o podjęciu zawieszonego postępowania egzekucyjnego) nie "
+    "żąda od adresata żadnej czynności w określonym terminie poza tym prawem "
+    "do zaskarżenia, zwróć null.\n\n"
     'Zasady dla pola "sad_organ": zwróć organ WYDAJĄCY pismo (sąd, komornik, '
     "urząd). Jeśli pismo pochodzi od firmy lub pełnomocnika (np. przedsądowe "
     "wezwanie do zapłaty), zwróć null. IGNORUJ sąd rejestrowy wymieniony w "

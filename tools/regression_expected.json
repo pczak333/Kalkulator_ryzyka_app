@@ -106,5 +106,11 @@
     "main_type": ["POSTANOWIENIE_KRS_Z_URZEDU"],
     "amount": null,
     "gate": false
+  },
+  "KS_postanowienie.pdf": {
+    "main_type": ["PISMO_KOMORNIK_CZLONEK_ZARZADU"],
+    "amount": null,
+    "deadline_days": null,
+    "gate": true
   }
 }

@@ -40,6 +40,16 @@ _KOMORNIK_TITLES = [
      "komornik_zajecie_wierzytelnosci", "Zajęcie wierzytelności"),
     (r"SKARGA\s+NA\s+CZYNNO[SŚ][CĆ][I]?\s+KOMORNIKA",
      "komornik_skarga", "Skarga na czynności komornika (formularz)"),
+    # (14.07.2026) Postanowienie o PODJĘCIU (wznowieniu) wcześniej zawieszonego
+    # postępowania egzekucyjnego — notyfikacja o kontynuacji ZNANEJ sprawy, nie
+    # nowa czynność egzekucyjna ani nowe żądanie (w odróżnieniu od pozostałych
+    # kindów wyżej). Osobny kind, żeby app.py mógł pokazać łagodniejszy baner
+    # (patrz app.py, gałąź komornicza) zamiast "najpóźniejszy etap sprawy,
+    # wymaga szybkiej reakcji" — ten tekst pasuje do zajęcia majątku, nie do
+    # informacyjnego wznowienia. Zgłoszenie użytkownika (KS_postanowienie.pdf):
+    # dokument dostawał generyczny kind "pismo_komornicze" i alarmistyczny baner.
+    (r"PODJ[AĄ][ĆC]\s+ZAWIESZON\w*\s+POST[EĘ]POWANIE\s+EGZEKUCYJ",
+     "komornik_podjecie_zawieszonego", "Podjęcie zawieszonego postępowania"),
 ]
 
 # Reguła 1d': formularze komornicze BEZ nagłówka kancelarii na stronie —
@@ -184,9 +194,26 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     # postanowienie o umorzeniu też ma nagłówek komorniczy.
     if re.search(r"KOMORNIK\s+S[ĄA]DOW|KANCELARIA\s+KOMORNICZ", tu[:600]):
         _kom_head = tu[:2500]
+        # (14.07.2026) Dopasowanie wg NAJWCZEŚNIEJSZEJ pozycji w tekście, nie
+        # wg kolejności na liście _KOMORNIK_TITLES (wzorem Reguły 6 niżej) —
+        # boilerplate pouczenia "Skarga na czynność komornika... w terminie
+        # 7 dni" (art. 767 KPC) występuje w niemal KAŻDYM piśmie komorniczym,
+        # więc wzorzec `komornik_skarga` fałszywie dopasowywał się do tego
+        # akapitu, a przy dopasowaniu wg kolejności listy wygrywał z
+        # prawdziwym tytułem dokumentu, jeśli `komornik_skarga` był bliżej
+        # początku listy niż faktyczny typ. Ujawnione przy dodaniu
+        # `komornik_podjecie_zawieszonego` (postanowienie ma własny tytuł
+        # wcześnie w tekście, ale boilerplate skargowy w Pouczeniu dalej też
+        # pasuje do wzorca `komornik_skarga` i był sprawdzany pierwszy).
+        _best_pos = len(_kom_head) + 1
+        _best_result = None
         for _pat, _kind, _label in _KOMORNIK_TITLES:
-            if re.search(_pat, _kom_head):
-                return (_kind, _label, "evidence")
+            _m = re.search(_pat, _kom_head)
+            if _m and _m.start() < _best_pos:
+                _best_pos = _m.start()
+                _best_result = (_kind, _label, "evidence")
+        if _best_result:
+            return _best_result
         return ("pismo_komornicze", "Pismo komornicze", "evidence")
 
     # Reguła 1d' (05.07.2026): formularze komornicze bez nagłówka kancelarii

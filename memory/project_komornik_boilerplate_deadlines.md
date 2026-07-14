@@ -1,6 +1,6 @@
 ---
 name: project-komornik-boilerplate-deadlines
-description: "Bailiff document deadline extraction grabs the generic art. 767 KPC skarga-na-czynność-komornika complaint window (usually 7 days) instead of a real substantive deadline — same class of bug as prior boilerplate-pouczenie fixes, not yet generalized to this specific phrase. Diagnosed 14.07.2026, fix in progress same session."
+description: "Bailiff document deadline extraction grabs the generic art. 767 KPC skarga-na-czynność-komornika complaint window (usually 7 days) instead of a real substantive deadline — same class of bug as prior boilerplate-pouczenie fixes. Fixed 14.07.2026 (extraction guard + new splitter kind + softer banner); also surfaced and fixed a list-order-vs-position bug in _KOMORNIK_TITLES matching, and a gap where single-document uploads never ran through the splitter at all."
 metadata:
   node_type: memory
   type: project
@@ -44,19 +44,51 @@ page) — boilerplate pouczenie text mistaken for the substantive deadline — b
 specific phrase (art. 767 skarga window) had never been guarded against before,
 because no prior test document surfaced it.
 
-## Fix approach (see CLAUDE.md doc_extractor.py/ai_extractor.py/doc_splitter.py/app.py
-entries for the final, implemented version — this file captures the diagnosis and
-reasoning, not a step-by-step of what changed)
+## Fix implemented (14.07.2026, same session)
 
 Two layers, matching how every other "boilerplate misread as substance" bug in this
-codebase got fixed: (1) a general **guard** in the deadline extractor rejecting any
-match preceded by "skarg"/"art. 767" nearby (this helps every bailiff document, not
-just this one — a genuinely general fix, not a one-off), and (2) **recognizing this
-specific bailiff sub-type** (resumption of a suspended proceeding) so its banner tone
-is appropriately lower-key than an active seizure notice — while keeping it inside
-the normal `PISMO_KOMORNIK_CZLONEK_ZARZADU` type (still a real, in-scope enforcement
-matter against a natural person; the art. 299 KSH gate remains legitimate and should
-still show).
+codebase got fixed — see CLAUDE.md's `doc_extractor.py`/`ai_extractor.py`/
+`doc_splitter.py`/`doc_processor.py`/`app.py` entries for full detail:
+
+1. **General guard** in `doc_extractor.py` (`_is_skarga_komornika_context()`/
+   `_first_non_skarga_match()`): rejects any deadline match preceded within ~150
+   chars by "skarg"/"art. 767" — applied to both extraction passes (keyword-proximity
+   and whole-text fallback). This helps every bailiff document, not just this one.
+   Mirrored in `ai_extractor.py`'s prompt with a new `termin_dni` rule block (it had
+   none before, unlike `kwota_zl`/`sad_organ`).
+2. **New splitter kind** `komornik_podjecie_zawieszonego` in `doc_splitter.py`
+   (`_KOMORNIK_TITLES`), plus a new `app.py` banner branch keyed on
+   `main.splitter_label` — softer tone ("to nie jest nowe żądanie...") instead of
+   "najpóźniejszy etap sprawy, wymaga szybkiej reakcji". Stays inside
+   `PISMO_KOMORNIK_CZLONEK_ZARZADU` (still real, in-scope enforcement against a
+   natural person — art. 299 KSH gate and the full K1-K7 form remain active, in
+   contrast to [[project_out_of_scope_detection]]'s pattern).
+
+**Two additional bugs surfaced and fixed while implementing #2, worth remembering
+independently:**
+
+- `doc_processor.py`'s single-document code path (`detect_documents_by_pages()`
+  returns `[]` when a file is just one logical document — true for this 1-2 page
+  PDF) never called the splitter's per-page classifier at all, so
+  `ProcessedDocument.splitter_label` was silently always `""` for any singly-uploaded
+  file. Only multi-document bundles got splitter-kind metadata. Fixed by calling
+  `_classify_page_segment()` on the whole text in that branch too — same fix
+  incidentally improves classification confidence for single-file komornik uploads in
+  general (they now get the same `splitter_kind` bonus signal in `doc_classifier.py`
+  that bundle members already got).
+- `doc_splitter.py`'s `_KOMORNIK_TITLES` matching picked the first pattern that
+  matched **anywhere** in the header window, in **list order** — not by position in
+  the text. The `komornik_skarga` pattern (`SKARGA NA CZYNNOŚĆ KOMORNIKA`) also
+  matches the standard art. 767 boilerplate in the Pouczenie section of nearly every
+  bailiff letter, so it silently shadowed any new kind added *after* it in the list —
+  exactly what happened to the new `komornik_podjecie_zawieszonego` entry (its true
+  title appears early in the text, but list-order matching ignored that and picked
+  `komornik_skarga`'s later, boilerplate match instead, because that pattern came
+  first in the list). This had been silently "working" for the 5 pre-existing kinds
+  only because they all happened to be listed *before* `komornik_skarga`. Fixed by
+  switching to earliest-*position*-wins matching (mirroring the existing Reguła 6
+  fallback's `best_pos` pattern) — a general fix that removes a latent trap for any
+  future kind appended to the list.
 
 ## Lesson
 
@@ -68,3 +100,25 @@ equivalent protection — it's the weakest link in `doc_extractor.py` and worth
 auditing for other boilerplate phrases that could false-positive the same way
 (anything from a generic "Pouczenie" section: right to appeal, right to object, right
 to request installments, statute-of-limitations notices, etc.).
+
+Broader lesson from the two bugs found *while implementing* the fix (see above): both
+were latent, previously-masked-by-luck problems in shared infrastructure
+(`doc_splitter.py`'s title matching, `doc_processor.py`'s single-doc path) that only
+became visible because a new case exercised a code path nothing had exercised before.
+When adding a new recognized document sub-type to an existing dispatch list/matching
+loop, don't just add the entry — verify empirically end-to-end (`process_files()` on
+the real file, not just the specific function you touched) that it actually reaches
+the UI, rather than assuming the wiring documented for *other* similar types
+generalizes automatically.
+
+## Verified (14.07.2026)
+
+`process_files()` on the real `KS_postanowienie.pdf`: `deadline_days=None` (was `7`),
+`splitter_label="Podjęcie zawieszonego postępowania"` (was `""`), doc_type/K1 code
+unchanged (`PISMO_KOMORNIK_CZLONEK_ZARZADU`/`K1_PISMO_KOMORNIK_CZLONEK_ZARZADU`).
+Synthetic regression checks: a real 14-day wezwanie-do-wykazu-majątku deadline still
+extracts correctly even with the same art. 767 boilerplate present elsewhere in the
+document; a genuine "SKARGA NA CZYNNOŚCI KOMORNIKA" complaint form (title at the very
+top) still classifies as `komornik_skarga`. Added to `regression_expected.json`
+(`main_type: ["PISMO_KOMORNIK_CZLONEK_ZARZADU"], deadline_days: null, gate: true`),
+`tools/regression_test.py --only KS_postanowienie.pdf` passes.

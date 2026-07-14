@@ -92,6 +92,31 @@ _TERMIN_PATTERNS = [
     r"termin\s+(\d+)\s+dni",
 ]
 
+# (14.07.2026) Boilerplate "prawo do wniesienia skargi na czynność komornika"
+# (art. 767 §1/§4 KPC) to standardowy akapit w niemal KAŻDYM piśmie komorniczym —
+# termin (zwykle 7 dni) na zaskarżenie TEJ konkretnej czynności komornika, nie
+# termin na odpowiedź/spłatę. Bez tego guardu Przebieg 2 (przeszukuje cały tekst
+# bez ograniczenia kontekstowego) regularnie łapał ten termin jako "termin na
+# reakcję" dla dokumentów, które w ogóle nie wymagają żadnej odpowiedzi (np.
+# postanowienie o podjęciu zawieszonego postępowania egzekucyjnego —
+# KS_postanowienie.pdf, zgłoszenie użytkownika: "prawdopodobnie nie wymaga
+# reakcji"). Generyczny guard, nie łatka na jeden dokument — dotyczy każdego
+# pisma komorniczego z tym standardowym pouczeniem.
+_SKARGA_KOMORNIKA_RE = re.compile(r"skarg[aęi]|art\.?\s*767", re.IGNORECASE)
+
+
+def _is_skarga_komornika_context(text: str, match_start: int, window: int = 150) -> bool:
+    start = max(0, match_start - window)
+    return bool(_SKARGA_KOMORNIKA_RE.search(text[start:match_start]))
+
+
+def _first_non_skarga_match(pattern: str, text: str) -> re.Match | None:
+    for m in re.finditer(pattern, text, re.IGNORECASE):
+        if not _is_skarga_komornika_context(text, m.start()):
+            return m
+    return None
+
+
 # Słowa kluczowe akcji — szukamy terminu w ich pobliżu (±400 znaków).
 # "nakazuje pozwanemu" MUSI być pierwsze: termin "w ciągu dwóch tygodni" jest bezpośrednio
 # po formule operatywnej nakazu (str. 1 nakazu). "sprzeciw" pojawia się też w pouczeniu
@@ -286,7 +311,8 @@ def _find_deadline_near_keyword(text: str) -> int | None:
             best_days = None
             for pattern, days in _TERMIN_WRITTEN:
                 m = re.search(pattern, window, re.IGNORECASE)
-                if m and (best_match is None or m.start() < best_match.start()):
+                if (m and not _is_skarga_komornika_context(text, start + m.start())
+                        and (best_match is None or m.start() < best_match.start())):
                     best_match = m
                     best_days = days
             if best_match is not None:
@@ -294,7 +320,7 @@ def _find_deadline_near_keyword(text: str) -> int | None:
             # Sprawdź wzorce cyfrowe w oknie
             for pattern in _TERMIN_PATTERNS:
                 m = re.search(pattern, window, re.IGNORECASE)
-                if m:
+                if m and not _is_skarga_komornika_context(text, start + m.start()):
                     try:
                         days = int(m.group(1))
                         if 1 <= days <= 365:
@@ -399,7 +425,7 @@ def extract_fields(text: str) -> dict:
         _best_m = None
         _best_days = None
         for pattern, days in _TERMIN_WRITTEN:
-            m = re.search(pattern, text, re.IGNORECASE)
+            m = _first_non_skarga_match(pattern, text)
             if m and (_best_m is None or m.start() < _best_m.start()):
                 _best_m = m
                 _best_days = days
@@ -408,7 +434,7 @@ def extract_fields(text: str) -> dict:
 
     if result["deadline_days"] is None:
         for pattern in _TERMIN_PATTERNS:
-            m = re.search(pattern, text, re.IGNORECASE)
+            m = _first_non_skarga_match(pattern, text)
             if m:
                 try:
                     days = int(m.group(1))

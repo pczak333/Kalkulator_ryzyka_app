@@ -234,7 +234,7 @@ def _process_single_doc(
     Przetwarza jeden plik → lista kandydatów.
     Zwraca N > 1 elementów gdy PDF zawiera wiele logicznych dokumentów.
     """
-    from doc_splitter import detect_documents_by_pages
+    from doc_splitter import detect_documents_by_pages, _classify_page_segment
 
     has_scans = any(p["is_scan"] for p in pages)
 
@@ -298,12 +298,28 @@ def _process_single_doc(
             ]
         return candidates
 
-    # Plik jednolity — klasyfikuj cały tekst
-    return [_build_candidate_dict(
+    # Plik jednolity — klasyfikuj cały tekst.
+    # (14.07.2026) Wywołaj też _classify_page_segment() na całym tekście, żeby
+    # nadać splitter_kind/splitter_label — wcześniej ta ścieżka (jedyny
+    # dokument w pliku; detect_documents_by_pages() zwraca [] gdy <=1 segment,
+    # patrz docstring wyżej) w ogóle nie przechodziła przez splitter, więc
+    # pojedynczo wgrane pismo komornicze (np. postanowienie o podjęciu
+    # zawieszonego postępowania, KS_postanowienie.pdf) nie dostawało swojego
+    # podtypu — app.py nie miało jak pokazać dedykowanego, łagodniejszego
+    # banera zamiast domyślnego "wymaga szybkiej reakcji". Ta sama
+    # klasyfikacja co przy segmentacji wielostronicowej (linie wyżej), tylko
+    # na całym pliku zamiast per-segment.
+    _single_classification = _classify_page_segment(full_text)
+    _single_kind = _single_classification[0] if _single_classification else ""
+    _single_label = _single_classification[1] if _single_classification else "?"
+    _cand = _build_candidate_dict(
         full_text, ocr_quality, ocr_engine, ocr_notes, file_ext,
         (pages[0]["page_num"], pages[-1]["page_num"]),
         api_key=api_key,
-    )]
+        splitter_kind=_single_kind,
+    )
+    _cand["splitter_label"] = _single_label
+    return [_cand]
 
 
 def process_files(

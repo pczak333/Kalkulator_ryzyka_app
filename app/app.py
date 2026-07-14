@@ -206,7 +206,7 @@ def reset_calculator():
     for key in ["krs_answers", "krs_epu", "krs_days_exact", "test_pwd",
                 "doc_prefill", "doc_aux",
                 "corr_kwota", "corr_powod", "corr_pozwany",
-                "_last_uploaded_names", "_art299_gate",
+                "_last_uploaded_names", "_art299_gate", "_manual_form_opt_in",
                 "k1", "k2", "k7", "epu", "delivery_date", "deadline_days"]:
         st.session_state.pop(key, None)
     # Klucze widżetów bez prefill — ustaw explicite na None/False, NIE pop.
@@ -284,7 +284,28 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
         "WNIOSEK_EGZEKUCYJNY", "UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC",
     }
     if main.doc_type_code in _KOMORNIK_MAIN_TYPES:
-        if main.doc_type_code == "PISMO_KOMORNIK_CZLONEK_ZARZADU":
+        # (14.07.2026) Postanowienie o podjęciu (wznowieniu) wcześniej
+        # zawieszonego postępowania egzekucyjnego — notyfikacja o kontynuacji
+        # ZNANEJ sprawy, nie nowa czynność egzekucyjna ani nowe żądanie.
+        # Rozpoznane strukturalnie przez doc_splitter.py (splitter_label),
+        # patrz _KOMORNIK_TITLES tam — sprawdzane PRZED generycznym banerem
+        # "najpóźniejszy etap sprawy, wymaga szybkiej reakcji" (który pasuje
+        # do zajęcia majątku, nie do informacyjnego wznowienia). Zgłoszenie
+        # użytkownika: KS_postanowienie.pdf dostawał ten sam alarmistyczny
+        # tekst mimo że sentencja to wyłącznie "podjąć zawieszone
+        # postępowanie" — bez nowego żądania.
+        if main.splitter_label == "Podjęcie zawieszonego postępowania":
+            st.info(
+                "**Komornik wznowił wcześniej zawieszone postępowanie "
+                "egzekucyjne.** To nie jest nowe żądanie ani nowa czynność "
+                "egzekucyjna — sprawa, o której już wiadomo, jest po prostu "
+                "kontynuowana. Dokument nie nakłada obowiązkowego terminu na "
+                "odpowiedź (chyba że chcesz zaskarżyć samo postanowienie — "
+                "wtedy masz 7 dni na skargę na czynność komornika, art. 767 "
+                "KPC). Formularz poniżej pozwoli wstępnie ocenić sytuację, "
+                "a pełną analizę zapewnia Audyt 48h."
+            )
+        elif main.doc_type_code == "PISMO_KOMORNIK_CZLONEK_ZARZADU":
             st.info(
                 "**Pismo komornicze dotyczące egzekucji z majątku osobistego.** "
                 "Komornik prowadzi czynności bezpośrednio wobec osoby fizycznej — "
@@ -676,6 +697,27 @@ if "doc_prefill" in st.session_state:
             )
             st.stop()
         # _gate == "yes" → kontynuuj normalnie
+
+    # (14.07.2026) Formularz K1-K7 nie renderuje się domyślnie dla dokumentów
+    # poza zakresem kalkulatora (patrz _NON_LEGAL_MAIN_TYPES/
+    # _SPOLKA_OUT_OF_SCOPE_TYPES/_KRS_REJESTROWE_OUT_OF_SCOPE_TYPES) — banery
+    # tych typów mówią "nie mam czego tu ocenić", ale formularz mimo to
+    # wyglądał na w pełni aktywny, gotowy do wypełnienia kolejny krok
+    # (zgłoszenie użytkownika, żywy test postanowienie.pdf: baner poprawny,
+    # ale zaraz pod nim aktywna lista radiobuttonów Kroku 1). Ten sam wzorzec
+    # st.stop() co bramka art. 299 wyżej — ale opt-in zamiast twardej
+    # blokady, żeby zachować obietnicę z treści banerów ("wypełnij formularz
+    # poniżej ręcznie"): przycisk odsłania formularz na wyraźne żądanie.
+    _is_out_of_scope_doc = prefill.doc_type_code in (
+        _NON_LEGAL_MAIN_TYPES
+        | _SPOLKA_OUT_OF_SCOPE_TYPES
+        | _KRS_REJESTROWE_OUT_OF_SCOPE_TYPES
+    )
+    if _is_out_of_scope_doc and not st.session_state.get("_manual_form_opt_in"):
+        if st.button("Mimo to chcę wypełnić formularz ręcznie", use_container_width=True):
+            st.session_state["_manual_form_opt_in"] = True
+            st.rerun()
+        st.stop()
 
     st.divider()
 else:
