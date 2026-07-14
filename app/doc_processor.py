@@ -106,6 +106,14 @@ class ProcessedDocument:
     # od siebie pisma komornicze tej samej kategorii (wcześniej 7 pism jednej
     # egzekucji wyświetlało się jako 7x identyczne "Pismo komornicze (spółka)").
     splitter_label: str = ""
+    # (14.07.2026) Krótki, przyjazny opis dokumentu wygenerowany przez AI
+    # (ai_extractor.py, pole "opis_dokumentu") — używany w app.py do
+    # spersonalizowania banera "poza zakresem" ("Rozpoznaliśmy ten dokument
+    # jako: ...") zamiast generycznego tekstu, niezależnie od tego, jaki
+    # konkretnie nieistotny dokument użytkownik wgra (faktura, bilet,
+    # paragon...) — bez potrzeby dodawania nowego kodu/etykiety w CSV 07 dla
+    # każdego możliwego typu.
+    doc_description: str | None = None
 
 
 def _build_candidate_dict(
@@ -167,6 +175,10 @@ def _build_candidate_dict(
         # konkretnego układu tekstu.
         if ai_fields.get("rodzaj_pisma"):
             fields["rodzaj_pisma"] = str(ai_fields["rodzaj_pisma"])
+        # (14.07.2026) Krótki opis dokumentu wygenerowany przez AI — patrz
+        # ProcessedDocument.doc_description i app.py (baner "poza zakresem").
+        if ai_fields.get("opis_dokumentu"):
+            fields["doc_description"] = str(ai_fields["opis_dokumentu"])
 
     # Kind segmentu ze splittera (04.07.2026) — deterministyczny sygnał
     # oparty na nagłówku strony (kancelaria komornicza itp.); classify_document
@@ -217,6 +229,7 @@ def _build_candidate_dict(
         "sad_organ": fields.get("sad_organ"),
         "powod": fields.get("powod"),
         "pozwany": fields.get("pozwany"),
+        "doc_description": fields.get("doc_description"),
         "ocr_notes": ocr_notes,
         "file_ext": file_ext,
         "deadline_date": deadline_date_val,
@@ -403,6 +416,7 @@ def process_files(
             deadline_date=d.get("deadline_date"),
             splitter_segments=d.get("splitter_segments"),
             splitter_label=d.get("splitter_label", ""),
+            doc_description=d.get("doc_description"),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]

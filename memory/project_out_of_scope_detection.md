@@ -1,6 +1,6 @@
 ---
 name: project-out-of-scope-detection
-description: "General pattern for detecting documents the calculator shouldn't analyze — use already-extracted structured fields (sad_organ, powod) as gating signals, not just keyword score. Applied 14.07.2026 to KRS ex-officio dissolution orders, then a personal PIT tax return — the latter also exposed that a fixed keyword-count threshold is unreliable for long (multi-page) documents."
+description: "General pattern for detecting documents the calculator shouldn't analyze — use already-extracted structured fields (sad_organ, powod) as gating signals, not just keyword score. Applied 14.07.2026 to KRS ex-officio dissolution orders, then a personal PIT tax return (exposed threshold fragility on long docs), then generalized further: AI now generates a short human-readable description of ANY irrelevant document (faktura, bilet, paragon...) shown in the warning banner, instead of hand-coding a new type per document family."
 metadata:
   node_type: memory
   type: project
@@ -169,3 +169,40 @@ Verified: `process_files()` on the real file (`DECYZJA_ZUS_US_SPOLKA` 0.667 →
 `DOKUMENT_NIEPRAWNY` 0.9), synthetic sanity check on a real nakaz (unaffected), added
 to `regression_expected.json` (`main_type: ["DOKUMENT_NIEPRAWNY"], gate: false`),
 `tools/regression_test.py --only pit_2025.pdf` passes.
+
+## User pushback: don't hand-code a type per document family — generalize (14.07.2026, next turn)
+
+After the PIT fix landed, I proposed adding a dedicated `DOKUMENT_NIEPRAWNY_PIT` type +
+label so the UI would say "Zeznanie podatkowe (PIT)" instead of the generic label. User
+explicitly rejected this framing — not because it's wrong for PIT specifically, but
+because it doesn't scale: *"chodzi mi o sytuację gdy będą wgrywane przez użytkownika
+zupełnie inne dokumenty... faktura, bilet, rachunek z restauracji, paragon, list itd."*
+Building a new CSV-07 type + `_DOC_TYPE_LABELS` entry per document family is exactly the
+whack-a-mole pattern this whole memory file already documents as a recurring failure
+mode — it doesn't generalize to the unbounded space of things a user might upload.
+
+**Better fix, actually implemented**: instead of a static label keyed on `doc_type_code`,
+have the AI (which already reads the full text of every document, no extra API call)
+generate a short, natural-language description of what the document *actually is* —
+`ai_extractor.py`'s new `opis_dokumentu` field, always populated (independent of
+`czy_pismo_prawne`). Threaded through as `ProcessedDocument.doc_description`
+(`doc_processor.py`, same pattern as `sad_organ`/`powod`/`pozwany`). The
+`_NON_LEGAL_MAIN_TYPES` banner in `app.py` now opens with "**Rozpoznaliśmy ten dokument
+jako: {opis}.**" when available, falling back to the old generic sentence when AI is
+unavailable. Verified on synthetic texts: a restaurant invoice → "faktura za usługę
+gastronomiczną", a PKP ticket → "bilet kolejowy PKP Intercity", a supermarket receipt →
+"paragon ze sklepu spożywczego" — each natural and specific, zero new code per document
+type. This is explicitly a UX/trust play, stated by the user: *"żeby uzytkownik został
+zaskoczony i chciał później rzeczywiście skorzystać z kalkulatora"* — a sharp, correct
+recognition of an irrelevant document is meant to build confidence that the tool will
+handle a real legal document competently too.
+
+**Lesson**: when a fix works but only for the one reported document, ask whether the
+*next* occurrence of the same complaint would need the same manual work repeated. If
+yes (as with a new type+label per document family), look for a way to make the
+*existing* AI call do the generalization instead of writing more static mapping code.
+This is the same meta-lesson as the very first entry in this file, one level higher:
+first we learned to trust already-extracted *structured* fields (`sad_organ`, `powod`)
+over keyword scoring; here we learned to trust an *unstructured, generative* AI field
+over a static lookup table, for the specific sub-problem of "describe this one-off
+irrelevant document to the user."

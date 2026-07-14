@@ -32,8 +32,20 @@ _PROMPT_TEMPLATE = (
     '  "termin_dni": liczba_lub_null,\n'
     '  "kwota_zl": liczba_lub_null,\n'
     '  "adresat": "czlonek_zarzadu" lub "spolka" lub "organ" lub null,\n'
-    '  "epu": true lub false\n'
+    '  "epu": true lub false,\n'
+    '  "opis_dokumentu": "krótki, przyjazny opis (3-8 słów) czym dokument '
+    'faktycznie jest"\n'
     "}}\n\n"
+    'Zasady dla pola "opis_dokumentu": wypełnij ZAWSZE, niezależnie od '
+    "wartości innych pól. Krótki (3-8 słów), konkretny, po polsku, w języku "
+    "zrozumiałym dla klienta bez wykształcenia prawniczego — nazwij CO to "
+    "jest, nie oceniaj czy jest ważne. Przykłady dobrego opisu: \"faktura za "
+    "usługi hostingowe\", \"bilet kolejowy\", \"paragon ze sklepu "
+    "spożywczego\", \"prywatna korespondencja\", \"zeznanie podatkowe "
+    "PIT-36\", \"potwierdzenie przelewu bankowego\", \"pozew o zapłatę\", "
+    "\"nakaz zapłaty w postępowaniu upominawczym\", \"wezwanie do zapłaty od "
+    "komornika\". Nie pisz \"dokument prawny\"/\"dokument nieprawny\" — "
+    "zawsze podaj konkretną nazwę rodzaju dokumentu.\n\n"
     'Zasady dla pola "kwota_zl": gdy dokument rozbija roszczenie na należność '
     "GŁÓWNĄ i odsetki/koszty, zwróć NALEŻNOŚĆ GŁÓWNĄ (bez odsetek i kosztów). "
     "Kwotę łączną zwróć tylko wtedy, gdy dokument nie podaje osobno należności "

@@ -388,9 +388,23 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
     # dalszej drogi (właściwe pismo albo formularz ręczny).
     _is_non_legal_main = main.doc_type_code in _NON_LEGAL_MAIN_TYPES
     if _is_non_legal_main:
-        st.warning(
+        # (14.07.2026) Gdy AI wygenerowała krótki opis dokumentu
+        # (`doc_description`, ai_extractor.py), otwieramy baner konkretnym
+        # rozpoznaniem zamiast generycznego zdania — ten sam mechanizm
+        # działa dla KAŻDEGO nieistotnego dokumentu (faktura, bilet, paragon,
+        # PIT, prywatny list...), bez potrzeby nowego kodu/etykiety w CSV 07
+        # za każdym razem. Fallback na generyczny tekst, gdy AI niedostępna
+        # (brak klucza API) — zachowanie sprzed tej zmiany.
+        _opening = (
+            f"**Rozpoznaliśmy ten dokument jako: {main.doc_description}.** "
+            "To nie jest pismo prawne dotyczące odpowiedzialności członka "
+            "zarządu spółki (art. 299 KSH), więc nie mamy tu czego ocenić."
+            if main.doc_description else
             "**Przesłany plik nie wygląda na pismo sądowe, komornicze ani "
-            "urzędowe wymagające reakcji.**\n\n"
+            "urzędowe wymagające reakcji.**"
+        )
+        st.warning(
+            f"{_opening}\n\n"
             "Dokumenty takie jak potwierdzenie przelewu, faktura, umowa czy "
             "odpis z KRS mogą być pomocne jako materiał dodatkowy, ale ocena "
             "ryzyka wymaga właściwego pisma w sprawie (np. pozwu, nakazu "
