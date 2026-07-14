@@ -1,6 +1,6 @@
 ---
 name: project-out-of-scope-detection
-description: "General pattern for detecting documents the calculator shouldn't analyze — use already-extracted structured fields (sad_organ, powod) as gating signals, not just keyword score. First applied 14.07.2026 to KRS ex-officio dissolution orders."
+description: "General pattern for detecting documents the calculator shouldn't analyze — use already-extracted structured fields (sad_organ, powod) as gating signals, not just keyword score. Applied 14.07.2026 to KRS ex-officio dissolution orders, then a personal PIT tax return — the latter also exposed that a fixed keyword-count threshold is unreliable for long (multi-page) documents."
 metadata:
   node_type: memory
   type: project
@@ -115,3 +115,57 @@ here because it was reported in the same user message and diagnosed with the sam
 underlying discipline: distrust a single regex/keyword match without checking whether
 it's inside boilerplate (pouczenie) text rather than the operative part of the
 document.
+
+## Third out-of-scope instance: PIT tax return, next session — and the threshold trap
+
+User (visibly frustrated — "znowu mamy ten sam błąd, który miał być rozwiązany",
+"poważny błąd... co może zniechęcić potencjalnych użytkowników") uploaded their own
+15-page PIT-36 (personal annual tax return, native digital PDF). Classified as
+`DECYZJA_ZUS_US_SPOLKA` ("Decyzja ZUS/urzędu skarbowego (spółka)") at 0.667 confidence
+— again with every identifying field (`sad_organ`, `sygnatura`, `powod`, `pozwany`,
+`addressee`) correctly extracted as `null`, again ignored by classification.
+
+Root cause was subtly different from the KRS case and taught a **new, important
+lesson**: I added the obvious general fix first — a backstop keyed on "no identifying
+fields at all" conjuncted with the existing weak-raw-score threshold (`< 4`, copied
+from the `DOKUMENT_NIEPRAWNY` rule). It worked on a synthetic 3000-char excerpt of the
+document but **failed on the real, full 15-page file** — raw score for
+`DECYZJA_ZUS_US_SPOLKA` was exactly 4 (not `< 4`), purely from volume: a long,
+repetitive tax form re-triggers generic single-point keywords ("podatnik", "urząd
+skarbowy", "spółka" in a business-income section, "płatnik") many times across 15
+pages, accumulating a score with zero real correlation to document length. **A fixed
+keyword-count threshold that was calibrated on a one-page bank-transfer receipt does
+not transfer to a fifteen-page government form.** This is a distinct, generalizable
+risk: any future keyword-count-based backstop in this codebase should be treated with
+suspicion for long documents.
+
+Fixed with two layers, not one:
+1. Kept the general "no identifying fields + weak raw score" backstop (still useful
+   for short unknown documents, the original bank-transfer case) — see
+   `doc_classifier.py`.
+2. **Added a deterministic, non-threshold early-return** for the specific, unique,
+   unambiguous marker this document family has: "POLTAX" (the e-Deklaracje system
+   header, present on literally every Polish PIT form) or a `PIT` + 2-digit form code
+   pattern (PIT-36/37/28/38/39...) in the first 1500 chars → `DOKUMENT_NIEPRAWNY` 0.9,
+   completely bypassing the scoring loop and its threshold fragility. This mirrors how
+   `WYROK_ZAOCZNY_SPOLKA` was solved (unique phrase match, not scoring) rather than
+   the KRS case's structural-conjunction approach — picked because PIT forms have an
+   unmistakable, unique textual fingerprint that a scoring threshold shouldn't be
+   trusted to reliably outweigh at any document length.
+3. Also tightened `ai_extractor.py`'s `czy_pismo_prawne` prompt: documents the client
+   **submits to** an authority (own tax return, declaration, application) should be
+   `False`, not just documents received **from** one. The AI's literal instruction to
+   return `True` for "anything urzędowe" is what let a legitimately-official-but-
+   irrelevant document through in the first place.
+
+**Lesson for the next occurrence of this bug class**: when a fix relies on "raw
+keyword score below N", verify it against the *actual, full-length* real document, not
+a truncated excerpt — length-insensitive thresholds silently degrade as document size
+grows. When a document type has a unique, deterministic textual fingerprint (a form
+code, a fixed header phrase), prefer a phrase-match early-return over a scoring
+threshold — it can't be out-argued by volume.
+
+Verified: `process_files()` on the real file (`DECYZJA_ZUS_US_SPOLKA` 0.667 →
+`DOKUMENT_NIEPRAWNY` 0.9), synthetic sanity check on a real nakaz (unaffected), added
+to `regression_expected.json` (`main_type: ["DOKUMENT_NIEPRAWNY"], gate: false`),
+`tools/regression_test.py --only pit_2025.pdf` passes.

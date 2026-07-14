@@ -112,5 +112,9 @@
     "amount": null,
     "deadline_days": null,
     "gate": true
+  },
+  "pit_2025.pdf": {
+    "main_type": ["DOKUMENT_NIEPRAWNY"],
+    "gate": false
   }
 }

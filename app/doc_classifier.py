@@ -58,6 +58,33 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     # Obrona drugiej linii: jeśli segment zaczyna się od nagłówka UZASADNIENIE,
     # to nie jest nakaz ani pozew — to kontynuacja pozwu (tabela dowodów, uzasadnienie).
     # Azure DI może garblować "UZASADNIENIE" jako "ŁUZASADNIENIE" (garbled first char).
+    # (14.07.2026) Polski formularz podatkowy PIT — zeznanie/deklaracja
+    # SKŁADANA PRZEZ podatnika DO urzędu skarbowego, jednoznacznie NIE jest
+    # pismem w sprawie tego kalkulatora (nie ma organu WYDAJĄCEGO pismo, nie
+    # ma powoda/pozwanego, nie jest decyzją ani wezwaniem skierowanym DO
+    # klienta — to klient sam składa ten dokument). Deterministyczny wzorzec
+    # zamiast polegania wyłącznie na scoringu słów kluczowych: wielostronicowy
+    # (kilkanaście stron) formularz PIT akumuluje wystarczająco dużo
+    # generycznych trafień ("podatnik", "urząd skarbowy", "spółka" w
+    # kontekście działalności gospodarczej) samą objętością tekstu, żeby
+    # ogólny backstop "brak danych identyfikujących sprawę" (niżej, próg
+    # < 4, kalibrowany na krótkie dokumenty jak potwierdzenie przelewu) NIE
+    # zawsze wystarczył. Zgłoszenie użytkownika: PIT-36 (15 stron, natywny
+    # PDF) sklasyfikowany jako "Decyzja ZUS/urzędu skarbowego (spółka)" z
+    # pewnością 0.667 mimo że sad_organ/sygnatura/powod/pozwany/addressee w
+    # panelu technicznym wyszły WSZYSTKIE `null` — raw score
+    # DECYZJA_ZUS_US_SPOLKA wynosił dokładnie 4 (cztery słabe, generyczne
+    # słowa kluczowe z samej objętości formularza), więc próg "< 4" ogólnego
+    # backstopu o włos nie zadziałał. "PIT" + 2 cyfry (formularz PIT-36/37/
+    # 28/38/39...) i "POLTAX" (nagłówek systemu e-Deklaracje na KAŻDYM
+    # formularzu PIT) to unikalne, jednoznaczne markery — żaden dokument
+    # sądowy/komorniczy/urzędowa decyzja nigdy ich nie zawiera.
+    _head_1500_pit = text[:1500].upper()
+    if (re.search(r"\bPOLTAX\b", _head_1500_pit)
+            or re.search(r"\bPIT[\s\-‑]{0,2}\d{2}\b", _head_1500_pit)
+            or re.search(r"ZEZNANIE\s+O\s+WYSOKO[SŚ]CI\s+OSI[AĄ]GNI[EĘ]TEGO\s+DOCHODU", _head_1500_pit)):
+        return "DOKUMENT_NIEPRAWNY", 0.9
+
     # 500 zn.: str.3 ma ~50 zn. garblowanej tabeli, potem "ŁUZASADNIENIE" at ~90 zn.
     _head_500 = text[:500].upper()
     if re.search(r"[ŁL]?UZASADNIENIE", _head_500):
@@ -315,6 +342,33 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     # dostawał ODPIS_KRS z pewnością 0.85 (jedno słabe słowo "zarząd").
     if fields.get("czy_pismo_prawne") is False and _max_raw < 4:
         return "DOKUMENT_NIEPRAWNY", 0.9
+
+    # (14.07.2026) Dokument BEZ ŻADNYCH danych identyfikujących sprawę
+    # (sad_organ/sygnatura/powod/pozwany wszystkie puste) i tylko śladowe
+    # trafienia słów kluczowych (< 4) — niezależnie od werdyktu AI
+    # `czy_pismo_prawne`. Prompt AI każe zwracać True przy jakiejkolwiek
+    # wątpliwości i przy CZYMKOLWIEK "urzędowym" (patrz ai_extractor.py) —
+    # ale własne zeznanie podatkowe (PIT) SKŁADANE PRZEZ podatnika DO urzędu
+    # jest formalnie "urzędowe", mimo że nie jest ŻADNĄ decyzją/pismem w
+    # sprawie skierowanym DO klienta. Taki dokument nie ma organu wydającego
+    # (bo to nie urząd nic nie wydaje, tylko podatnik składa), nie ma
+    # sygnatury sprawy, nie ma powoda/pozwanego — same puste pola to
+    # znacznie mocniejszy, bardziej ogólny sygnał niż pojedynczy werdykt AI.
+    # Zgłoszenie użytkownika: PIT-36 (15 stron, natywny PDF, OCR HIGH)
+    # sklasyfikowany jako "Decyzja ZUS/urzędu skarbowego (spółka)" z
+    # pewnością 0.667 mimo że WSZYSTKIE pola identyfikacyjne w panelu
+    # technicznym wyszły `null` — te poprawnie wyciągnięte (puste) dane nie
+    # miały żadnego wpływu na klasyfikację. Ten sam próg `_max_raw < 4` co
+    # reguła DOKUMENT_NIEPRAWNY wyżej, ale bez wymogu `czy_pismo_prawne is
+    # False` — sama nieobecność jakichkolwiek danych sprawy wystarcza.
+    _no_identifying_fields = not any([
+        fields.get("sad_organ"), fields.get("sygnatura"),
+        fields.get("powod"), fields.get("pozwany"),
+    ])
+    if (_no_identifying_fields and _max_raw < 4
+            and not _has_nakaz_formula and not _has_pozew_signals
+            and not _is_komornik_segment):
+        return "DOKUMENT_NIEUSTALONY_PRAWNY", 0.3
 
     # Backstop bez AI (brak klucza API / błąd AI → brak pola czy_pismo_prawne):
     # jeśli najmocniejszy dowód tekstowy to pojedyncze słabe słowo (≤ 1)
