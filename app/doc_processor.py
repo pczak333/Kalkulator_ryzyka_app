@@ -114,6 +114,18 @@ class ProcessedDocument:
     # paragon...) — bez potrzeby dodawania nowego kodu/etykiety w CSV 07 dla
     # każdego możliwego typu.
     doc_description: str | None = None
+    # (14.07.2026) Rodzaj kwoty w `amount` — "glowna" (należność główna,
+    # dokument rozbija roszczenie) albo "laczna" (brak rozbicia, jedyna
+    # podana kwota) — patrz ai_extractor.py "kwota_zl_rodzaj". Używane w
+    # app.py do podpisania rubryki "Kwota roszczenia", żeby użytkownik miał
+    # pewność, jaki rodzaj kwoty widzi.
+    amount_type: str | None = None
+    # Wartość przedmiotu sporu (WPS) — wartość PROCEDURALNA (podstawa opłaty
+    # sądowej/właściwości sądu, art. 20 k.p.c.), wypełniana TYLKO gdy
+    # dokument wprost podaje ją osobno i różni się od `amount` (należności
+    # głównej). Czysto informacyjna — NIE zasila K7/scoringu, tylko
+    # dodatkowy wiersz w tabeli dokumentu głównego w app.py.
+    wps_amount: float | None = None
 
 
 def _build_candidate_dict(
@@ -161,6 +173,15 @@ def _build_candidate_dict(
             try:
                 fields["amount"] = float(ai_fields["kwota_zl"])
                 fields["k7_code"] = _amount_to_k7(fields["amount"])
+            except (ValueError, TypeError):
+                pass
+        # (14.07.2026) Rodzaj kwoty + wartość przedmiotu sporu — patrz
+        # ProcessedDocument.amount_type/wps_amount i app.py.
+        if ai_fields.get("kwota_zl_rodzaj") in ("glowna", "laczna"):
+            fields["amount_type"] = ai_fields["kwota_zl_rodzaj"]
+        if ai_fields.get("wartosc_przedmiotu_sporu_zl") is not None:
+            try:
+                fields["wps_amount"] = float(ai_fields["wartosc_przedmiotu_sporu_zl"])
             except (ValueError, TypeError):
                 pass
         # Werdykt AI "czy to w ogóle pismo prawne" — classify_document() używa
@@ -230,6 +251,8 @@ def _build_candidate_dict(
         "powod": fields.get("powod"),
         "pozwany": fields.get("pozwany"),
         "doc_description": fields.get("doc_description"),
+        "amount_type": fields.get("amount_type"),
+        "wps_amount": fields.get("wps_amount"),
         "ocr_notes": ocr_notes,
         "file_ext": file_ext,
         "deadline_date": deadline_date_val,
@@ -417,6 +440,8 @@ def process_files(
             splitter_segments=d.get("splitter_segments"),
             splitter_label=d.get("splitter_label", ""),
             doc_description=d.get("doc_description"),
+            amount_type=d.get("amount_type"),
+            wps_amount=d.get("wps_amount"),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]

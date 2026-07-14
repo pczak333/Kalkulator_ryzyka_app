@@ -31,6 +31,8 @@ _PROMPT_TEMPLATE = (
     '  "pozwany": "imię i nazwisko lub nazwa pozwanego/dłużnika/wzywanego",\n'
     '  "termin_dni": liczba_lub_null,\n'
     '  "kwota_zl": liczba_lub_null,\n'
+    '  "kwota_zl_rodzaj": "glowna" lub "laczna" lub null,\n'
+    '  "wartosc_przedmiotu_sporu_zl": liczba_lub_null,\n'
     '  "adresat": "czlonek_zarzadu" lub "spolka" lub "organ" lub null,\n'
     '  "epu": true lub false,\n'
     '  "opis_dokumentu": "krótki, przyjazny opis (3-8 słów) czym dokument '
@@ -50,6 +52,20 @@ _PROMPT_TEMPLATE = (
     "GŁÓWNĄ i odsetki/koszty, zwróć NALEŻNOŚĆ GŁÓWNĄ (bez odsetek i kosztów). "
     "Kwotę łączną zwróć tylko wtedy, gdy dokument nie podaje osobno należności "
     "głównej.\n\n"
+    'Zasady dla pola "kwota_zl_rodzaj": "glowna", gdy zwrócona `kwota_zl` to '
+    "należność główna wyodrębniona z rozbicia (dokument osobno wymienia "
+    "odsetki/koszty). \"laczna\", gdy dokument NIE rozbija roszczenia i "
+    "`kwota_zl` to jedyna/łączna podana kwota. null, gdy `kwota_zl` jest "
+    "null.\n\n"
+    'Zasady dla pola "wartosc_przedmiotu_sporu_zl": zwróć liczbę WYŁĄCZNIE '
+    "gdy dokument WPROST podaje osobno oznaczoną \"Wartość przedmiotu sporu\" "
+    "(albo skrót WPS/w.p.s.) jako samodzielną etykietę z kwotą — to "
+    "PROCEDURALNA wartość (podstawa opłaty sądowej/właściwości sądu), często "
+    "zawiera odsetki naliczone do dnia wniesienia pozwu, więc bywa WYŻSZA od "
+    "należności głównej. Zwróć null, gdy: dokument nie wspomina wprost "
+    "\"wartości przedmiotu sporu\"/WPS; ta wartość jest LICZBOWO IDENTYCZNA z "
+    "`kwota_zl` (nie duplikuj tej samej liczby); albo w ogóle nie ma "
+    "rozbicia kwot w dokumencie.\n\n"
     'Zasady dla pola "termin_dni": zwróć SUBSTANTYWNY termin na odpowiedź, '
     "zapłatę albo inną czynność żądaną od adresata. NIE zwracaj terminu na "
     "wniesienie skargi na czynność komornika (art. 767 KPC, standardowo 7 dni) "

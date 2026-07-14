@@ -116,5 +116,10 @@
   "pit_2025.pdf": {
     "main_type": ["DOKUMENT_NIEPRAWNY"],
     "gate": false
+  },
+  "pozew_o_zapłate_pko.pdf": {
+    "main_type": ["EPU_POZEW_CZLONEK_ZARZADU", "POZEW_CZLONEK_ZARZADU"],
+    "amount": 81922.78,
+    "gate": true
   }
 }

@@ -442,6 +442,36 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
         f"{disp_amount:,.2f} zł".replace(",", " ").replace(".", ",")
         if disp_amount else None
     )
+    # (14.07.2026) Dopisek pod kwotą tłumaczący, jaki to rodzaj kwoty — patrz
+    # ai_extractor.py "kwota_zl_rodzaj"/ProcessedDocument.amount_type.
+    # Pomijamy dopisek, gdy użytkownik ręcznie poprawił kwotę (corr_kwota) —
+    # dotyczyłby wtedy już nieaktualnej, auto-wyciągniętej wartości.
+    _amount_caption = None if corr_kwota else {
+        "glowna": "należność główna, bez odsetek i kosztów",
+        "laczna": "kwota łączna — brak rozbicia w dokumencie",
+    }.get(main.amount_type)
+    if kwota_str and _amount_caption:
+        kwota_str += (
+            f"<div style='font-size:0.78rem;font-weight:400;"
+            f"color:#6b7280;margin-top:2px;'>({_amount_caption})</div>"
+        )
+
+    # Wartość przedmiotu sporu (WPS) — czysto informacyjna druga pozycja, gdy
+    # dokument wprost ją podaje i różni się liczbowo od kwoty roszczenia.
+    # Pomijamy, gdy użytkownik ręcznie poprawił kwotę główną.
+    _show_wps = bool(
+        main.wps_amount and not corr_kwota
+        and (not disp_amount or abs(main.wps_amount - disp_amount) > 0.01)
+    )
+    wps_str = None
+    if _show_wps:
+        wps_str = f"{main.wps_amount:,.2f} zł".replace(",", " ").replace(".", ",")
+        wps_str += (
+            "<div style='font-size:0.78rem;font-weight:400;"
+            "color:#6b7280;margin-top:2px;'>"
+            "(z odsetkami/kosztami — podstawa opłaty sądowej, nie realne "
+            "zadłużenie)</div>"
+        )
 
     def _row(label: str, value: str | None, color: str = "#1a1a1a") -> str:
         if not value:
@@ -459,6 +489,7 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
         _row("Sygnatura akt", main.sygnatura)
         + _row("Sąd / organ", main.sad_organ)
         + _row("Kwota roszczenia", kwota_str, "#c62828")
+        + _row("Wartość przedmiotu sporu", wps_str, "#6b7280")
         + _row("Termin na reakcję", termin_str, "#c62828")
         + _row("Powód", disp_powod)
         + _row("Pozwany", disp_pozwany)
