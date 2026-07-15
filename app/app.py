@@ -152,16 +152,42 @@ def _normalize_party_name(name: str) -> str:
     return " ".join(n.split()).strip()
 
 
+_PERSON_NAME_MAX_TOKENS = 3
+
+
+def _same_person_reordered(na: str, nb: str) -> bool:
+    """True, gdy obie znormalizowane nazwy to ten sam zestaw 2-3 tokenów w
+    innej kolejności (np. "FALISZEWSKA BARBARA" vs "BARBARA FALISZEWSKA" —
+    ta sama osoba, imię i nazwisko zamienione miejscami między dokumentami
+    tej samej paczki — zgłoszenie użytkownika 15.07.2026). Limit 2-3 tokenów
+    celowo: tyle ma zwykłe imię+nazwisko (ew. z drugim imieniem). Krótkie
+    nazwy firm po usunięciu formy spółkowej (np. "KILOUTOU POLSKA") mogłyby
+    teoretycznie też trafić w ten zakres, ale to DODATKOWY warunek obok
+    substring-checku w `_parties_differ()` (który już poprawnie łapie
+    warianty zapisu firm) — nie jego zamiennik."""
+    ta, tb = na.split(), nb.split()
+    if not (2 <= len(ta) <= _PERSON_NAME_MAX_TOKENS
+            and 2 <= len(tb) <= _PERSON_NAME_MAX_TOKENS):
+        return False
+    return set(ta) == set(tb)
+
+
 def _parties_differ(a: str | None, b: str | None) -> bool:
     """True gdy dwie nazwy stron (np. wierzycieli) wyglądają na WYRAŹNIE różne
-    podmioty — nie tylko inny zapis tej samej firmy. Puste/brakujące wartości
-    nigdy nie liczą się jako "różne" (brak fałszywego alarmu przy braku danych)."""
+    podmioty — nie tylko inny zapis tej samej firmy albo tej samej osoby z
+    imieniem/nazwiskiem zapisanym w innej kolejności. Puste/brakujące
+    wartości nigdy nie liczą się jako "różne" (brak fałszywego alarmu przy
+    braku danych)."""
     if not a or not b:
         return False
     na, nb = _normalize_party_name(a), _normalize_party_name(b)
     if not na or not nb:
         return False
-    return na not in nb and nb not in na
+    if na in nb or nb in na:
+        return False
+    if _same_person_reordered(na, nb):
+        return False
+    return True
 
 
 def _komornik_display_label(doc) -> str:

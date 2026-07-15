@@ -26,6 +26,14 @@ _PAGE_DOC_PATTERNS = [
 #   sam zwrot "wezwanie do złożenia wykazu" jest wystarczająco charakterystyczny;
 # - "ZAJĘCIE WIE RZYTELNOŚCI" / "ZAJECIU W IERZYTELNOŚCI" (spacja wtrącona
 #   w środek słowa) → \s* między pierwszymi literami słowa "wierzytelności";
+# - (15.07.2026) "ZAJĘCIU WIEFR YTELNOŚCI" (wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf):
+#   głębsze zniekształcenie niż sama spacja — "RZ" odczytane jako "FR" (literowa
+#   pomyłka OCR, nie tylko wtrącona spacja), więc \s*-tolerancja w środku słowa
+#   nie wystarczyła. Wzorzec nie wymaga już poprawnego odczytu prefiksu
+#   "WIE...RZ" w ogóle — wystarczy "ZAJĘCI[EU]" w pobliżu (do 25 zn.) końcówki
+#   "YTELNOŚCI", unikalnej dla słowa "wierzytelności" (żadne inne powszechne
+#   słowo prawne nie kończy się na "ytelności"), więc nie grozi to fałszywymi
+#   dopasowaniami mimo luźniejszego okna;
 # - mianownik i celownik tytułu ("ZAJĘCIE"/"ZAJĘCIU" rachunku bankowego).
 _KOMORNIK_TITLES = [
     (r"ZAWIADOMIENIE\s+O\s+WSZCZ[EĘ]CIU\s+POST[EĘ]POWANIA\s+EGZEKUCYJ",
@@ -36,7 +44,7 @@ _KOMORNIK_TITLES = [
      "komornik_wezwanie_wykaz", "Wezwanie do złożenia wykazu majątku"),
     (r"(?m)^\s*WYKAZ\s+MAJ[AĄ]TKU",
      "komornik_wykaz_majatku", "Wykaz majątku"),
-    (r"ZAJ[EĘ]CI[EU]\s+W\s*IE\s*RZYTELNO[SŚ]CI",
+    (r"ZAJ[EĘ]CI[EU][\s\S]{0,25}?YTELNO[SŚ]CI",
      "komornik_zajecie_wierzytelnosci", "Zajęcie wierzytelności"),
     (r"SKARGA\s+NA\s+CZYNNO[SŚ][CĆ][I]?\s+KOMORNIKA",
      "komornik_skarga", "Skarga na czynności komornika (formularz)"),
@@ -142,6 +150,28 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     if _pp_m and not _is_evidence_citation(tu, _pp_m.start()):
         return ("pismo_procesowe", "Pismo procesowe (kontynuacja postępowania)", "evidence")
 
+    # Reguła 1a' (15.07.2026): wyrok zaoczny — ten sam sygnał co early-return
+    # w doc_classifier.py (formuła "W IMIENIU RZECZYPOSPOLITEJ POLSKIEJ" +
+    # "WYROK...ZAOCZNY" występuje WYŁĄCZNIE w wyrokach, nigdy w nakazach
+    # zapłaty), ale tu na poziomie STRONY — bez tej reguły strona wyroku nie
+    # pasowała do ŻADNEJ reguły splittera (klasyfikator ma swój wyrokowy
+    # early-return od 07.07.2026, ale działa dopiero na już sklejonym
+    # segmencie — za późno, by wytyczyć granicę strony), wpadała w
+    # None/kontynuację i cicho doklejała się do sąsiedniego pisma
+    # komorniczego (zgłoszenie użytkownika 15.07.2026,
+    # wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf: str.1-4 wyroku sklejone ze
+    # str.5-6 zawiadomienia o wszczęciu egzekucji w jeden fałszywy segment
+    # str.1-6). MUSI być PRZED Regułą 1 (art. 299 → pozew): uzasadnienie
+    # wyroku przeciw spółce mogłoby cytować art. 299 KSH na stronie
+    # tytułowej. Strony kontynuacji (uzasadnienie, str. 2-4) nie mają
+    # własnego "W IMIENIU..." i nie złapią tej reguły — jeśli cytują
+    # art. 299, Reguła 1 może je błędnie odciąć jako "pozew"; naprawia to
+    # Krok -3 niżej (rozszerzony o kind "wyrok_zaoczny", tym samym wzorcem
+    # co już istniejący dla "pismo_procesowe").
+    if (re.search(r"(?m)^\s{0,5}WYROK\b[\s\S]{0,20}?ZAOCZN\w*", tu[:800])
+            and re.search(r"W\s+IMIENIU\s+RZECZYPOSPOLITEJ\s+POLSKIEJ", tu[:800])):
+        return ("wyrok_zaoczny", "Wyrok zaoczny", "primary")
+
     # Reguła 1: art. 299 KSH — strona zawiera pozew do zarządu
     if re.search(r"ART\.?\s*299.{0,20}K\.?S\.?H", tu):
         return ("pozew", "Pozew (art. 299 KSH)", "primary")
@@ -192,7 +222,34 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
     # (a jeden segment → detect_documents zwraca [] → cały plik szedł do
     # klasyfikatora jako jeden dokument). MUSI być PO Regule 1c —
     # postanowienie o umorzeniu też ma nagłówek komorniczy.
-    if re.search(r"KOMORNIK\s+S[ĄA]DOW|KANCELARIA\s+KOMORNICZ", tu[:600]):
+    # (15.07.2026) Bramka rozszerzona: nagłówek kancelarii bywa na tyle
+    # silnie zniekształcony przez OCR (np. "Kaemornik Sądowy"/"Kancelaria
+    # Kuojnomicza"), że nie pasuje do żadnego wariantu regexu, mimo że tytuł
+    # WŁAŚCIWEGO pisma na tej samej stronie ("ZAWIADOMIENIE O ZAJĘCIU
+    # WIEFR YTELNOŚCI..." — wstawiona losowa litera w środek słowa, inny typ
+    # zniekształcenia niż dotąd tolerowany) jest odczytany na tyle dobrze, że
+    # pasuje. Dodatkowy sygnał "SYGN" w pierwszych 700 zn. (skrócone "Sygn."/
+    # "Sygn. akt" przed numerem sprawy komorniczej — obecne na KAŻDEJ
+    # stronie rozpoczynającej nowe pismo komornicze w tym pliku testowym,
+    # nieobecne na ŻADNEJ stronie kontynuacji) otwiera próbę dopasowania
+    # tytułu z `_KOMORNIK_TITLES` NAWET gdy nagłówek kancelarii zawiódł.
+    # Bez tej zmiany strona spadała do generycznego fallbacku Reguły 6
+    # (kind "komornik") i doklejała się do POPRZEDNIEGO pisma komorniczego w
+    # Kroku -2 — mimo że była NOWYM, odrębnym pismem (zgłoszenie użytkownika
+    # 15.07.2026, wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf: str.13-14
+    # "Zawiadomienie o zajęciu wierzytelności" sklejone ze str.11-12 "Zajęcie
+    # rachunku bankowego" w jeden fałszywy segment str.11-14).
+    # WAŻNE: fallback "pismo_komornicze" (gdy ŻADEN konkretny tytuł nie
+    # pasuje) pozostaje warunkowany WYŁĄCZNIE czystym nagłówkiem, nie samym
+    # "SYGN" — inne typy pism (nakaz, pozew) też zwykle mają "Sygn. akt" w
+    # nagłówku, więc sam ten sygnał, bez pasującego tytułu komorniczego, nie
+    # jest wystarczającym dowodem, że to pismo komornicze (musi przejść do
+    # dalszych reguł: 1e/2/2b/3/5a/5a'/6). Guard `_is_evidence_citation()` w
+    # pętli dopasowania chroni przed złapaniem tytułu WYMIENIONEGO w liście
+    # dowodów/załączników innego pisma — ten sam mechanizm, co Reguła 1b/1a.
+    _kom_letterhead = bool(re.search(r"KOMORNIK\s+S[ĄA]DOW|KANCELARIA\s+KOMORNICZ", tu[:600]))
+    _kom_sygn = bool(re.search(r"SYGN", tu[:700]))
+    if _kom_letterhead or _kom_sygn:
         _kom_head = tu[:2500]
         # (14.07.2026) Dopasowanie wg NAJWCZEŚNIEJSZEJ pozycji w tekście, nie
         # wg kolejności na liście _KOMORNIK_TITLES (wzorem Reguły 6 niżej) —
@@ -209,12 +266,13 @@ def _classify_page_segment(page_text: str) -> Optional[tuple[str, str, str]]:
         _best_result = None
         for _pat, _kind, _label in _KOMORNIK_TITLES:
             _m = re.search(_pat, _kom_head)
-            if _m and _m.start() < _best_pos:
+            if _m and _m.start() < _best_pos and not _is_evidence_citation(tu, _m.start()):
                 _best_pos = _m.start()
                 _best_result = (_kind, _label, "evidence")
         if _best_result:
             return _best_result
-        return ("pismo_komornicze", "Pismo komornicze", "evidence")
+        if _kom_letterhead:
+            return ("pismo_komornicze", "Pismo komornicze", "evidence")
 
     # Reguła 1d' (05.07.2026): formularze komornicze bez nagłówka kancelarii
     # (urzędowy formularz skargi, wzór wykazu majątku) — rozpoznawane po
@@ -439,12 +497,19 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     # formularzem pozwu). Scalamy więc po fakcie, ale TYLKO segmenty bez
     # własnego tytułu pozwu (line-start "POZEW"/"P O Z E W") i bez kodu
     # formularza EPU ("KOD [hash]") — prawdziwy pozew zawsze ma jedno z dwóch.
+    # (15.07.2026) Zbiór celów scalania rozszerzony o "wyrok_zaoczny" — ten
+    # sam problem: strona uzasadnienia wyroku cytująca art. 299 KSH nie ma
+    # własnego "W IMIENIU..." (Reguła 1a' wymaga tego w oknie 800 zn.), więc
+    # Reguła 1 mogłaby ją błędnie odciąć jako "pozew"; te same guardy
+    # (brak własnego tytułu pozwu, brak KOD) chronią prawdziwy, samodzielny
+    # pozew przed połknięciem.
     _POZEW_TITLE_RE = re.compile(r"(?m)^[^A-ZĄĆĘŁŃÓŚŹŻ]{0,10}POZEW\b|P\s+O\s+Z\s+E\s+W")
+    _PISMO_PROC_MERGE_TARGETS = {"pismo_procesowe", "wyrok_zaoczny"}
     _merged_pp: list[dict] = []
     for _d in documents:
         _du = _d["text"].upper()
         if (_d["doc_type"] == "pozew" and _merged_pp
-                and _merged_pp[-1]["doc_type"] == "pismo_procesowe"
+                and _merged_pp[-1]["doc_type"] in _PISMO_PROC_MERGE_TARGETS
                 and not _POZEW_TITLE_RE.search(_du)
                 and not _KOD_RE.search(_du)):
             _merged_pp[-1]["pages"].extend(_d["pages"])
@@ -478,11 +543,23 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     # na dwa aux zamiast jednego). Bezpieczne dla ochrony bundli art. 299 z
     # Kroku -1 opisanej wyżej — ten krok tylko DOKLEJA generyczną kontynuację
     # BEZPOŚREDNIO PO postanowieniu, nie przesuwa granic segmentów wstecz.
+    # (15.07.2026) wyrok_zaoczny DOŁĄCZONY do celów scalania — strona
+    # kontynuacji wyroku (np. z podpisem/pieczęcią komornika egzekwującego
+    # wyrok gdzieś na dole strony) złapana przez generyczny fallback Reguły 6
+    # (kind "komornik") powinna doklejać się z powrotem do wyroku, nie
+    # stawać się osobnym segmentem. Bezpieczne: ten krok reaguje TYLKO na
+    # generyczny kind "komornik" (nigdy na konkretnie nazwany
+    # komornik_wszczecie_egzekucji itp.), więc nie skleja wyroku z sąsiednim,
+    # odrębnie tytułowanym pismem komorniczym. Celowo NIE dołączony do
+    # _komornik_kinds w Kroku -1 niżej — wyrok to odrębny dokument
+    # egzekwowany przez otaczające pisma komornicze, nie fragment paczki
+    # egzekucyjnej (analogicznie do celowo wykluczonego wniosek_egzekucyjny).
     _KOMORNIK_MERGE_TARGETS = {
         "komornik_wszczecie_egzekucji", "komornik_zajecie_rachunku",
         "komornik_wezwanie_wykaz", "komornik_wykaz_majatku",
         "komornik_zajecie_wierzytelnosci", "komornik_skarga",
         "pismo_komornicze", "komornik", "postanowienie_umorzenie_egzekucji",
+        "wyrok_zaoczny",
     }
     _merged_kom: list[dict] = []
     for _d in documents:

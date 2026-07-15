@@ -159,3 +159,82 @@ openpyxl script, not by hand — direct cell edits by row-index lookup on
 `NAKAZ_SPOLKA` (scenario text unchanged), HR02 fires correctly for
 `K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU` + `K2_DAYS_LEFT_0_3`, full regression
 suite still green.
+
+## Third bug (15.07.2026): missing splitter-level rule — no page boundary at all
+
+User re-tested `wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf`, a 20-page
+komornik bundle that *also* contains a wyrok zaoczny among the bailiff
+documents (str.5-6). `doc_classifier.py`'s 07.07.2026 early-return (the
+fix above) only runs on an *already-merged page segment* — it has no
+effect if the wyrok's own pages never became a distinct segment in the
+first place. That's exactly what was happening: `doc_splitter.py` (the
+page-boundary layer, upstream of the classifier) had **zero** awareness
+of wyrok-zaoczny pages — no rule anywhere in `_classify_page_segment()`
+matched "WYROK...ZAOCZNY"/"W IMIENIU RZECZYPOSPOLITEJ POLSKIEJ". The
+wyrok's title page fell through every rule to `None` (unrecognized) and
+was silently absorbed as a "continuation" of the neighboring bailiff
+document — str.5-6 (wyrok) merged into str.1-4's
+`komornik_wszczecie_egzekucji` segment into one wrong str.1-6 block.
+
+**Same recurring lesson as the first two bugs on this document type**:
+the classifier eventually learns to recognize a type, but a sibling layer
+upstream (here, the splitter) doesn't automatically inherit that
+knowledge — each layer that makes a type-sensitive decision needs its own
+explicit rule, even when the signal (same two phrases) is identical.
+
+**Fix**: added a new splitter rule (Reguła 1a', `doc_splitter.py`, placed
+right after Reguła 1a "pismo procesowe" and before Reguła 1 "art. 299 →
+pozew" — must precede Reguła 1 because a wyrok's own uzasadnienie could
+cite art. 299 KSH) mirroring the classifier's signal exactly: "WYROK" +
+"ZAOCZN" + "W IMIENIU RZECZYPOSPOLITEJ POLSKIEJ" in the first ~800 chars
+→ kind `wyrok_zaoczny`. Continuation pages of the wyrok (its own
+uzasadnienie, no "W IMIENIU..." on their own) risked the same problem
+Krok -3 already solves for `pismo_procesowe` (a continuation page that
+cites art. 299 could get mis-caught by Reguła 1 as "pozew") — generalized
+Krok -3's merge-target set to `{"pismo_procesowe", "wyrok_zaoczny"}`
+instead of a single hardcoded string. Added `wyrok_zaoczny` to
+`_KOMORNIK_MERGE_TARGETS` (Krok -2, so a stray generic-fallback
+continuation page reattaches to the wyrok) but deliberately **not** to
+`_komornik_kinds` (Krok -1's art. 299 chain-protection set) — the wyrok
+is a separate document being enforced by the surrounding bailiff letters,
+the same reasoning that already excludes `wniosek_egzekucyjny` from that
+set.
+
+**Second, independent bug found in the same file**: str.11-14 was also
+wrongly merged (two genuinely different bailiff documents — zajęcie
+rachunku bankowego then zajęcie wierzytelności — collapsed into one
+`komornik_zajecie_rachunku` segment). Root cause had nothing to do with
+the wyrok: str.13's own letterhead ("Kaemornik Sądowy"/"Kancelaria
+Kuojnomicza") was too OCR-garbled to pass Reguła 1d's strict letterhead
+gate, so its real title ("ZAWIADOMIENIE O ZAJĘCIU WIE**FR** YTELNOŚCI" —
+a genuine character-substitution OCR error, "RZ"→"FR", not just a stray
+space) never even got compared against `_KOMORNIK_TITLES`. First attempt
+at a fix (drop the letterhead gate entirely, match titles unconditionally)
+caused a **real regression**: str.8, a genuine continuation/pouczenie
+page with no letterhead of its own, has the near-universal art. 767
+skarga-deadline boilerplate paragraph in its body, which then falsely
+matched the `komornik_skarga` title pattern — the exact failure mode the
+letterhead gate was *already* protecting against
+(see [[project_komornik_boilerplate_deadlines]]). Caught by re-running the
+diagnostic on the same cached OCR text before moving on, not by regression
+suite (this exact page combination isn't in the suite). Final fix:
+narrowed instead of removed the gate — added a second, narrower signal
+("SYGN" present in the first 700 chars, empirically present on every
+document-start page in this file and absent from every continuation page)
+that *also* permits attempting the specific-title match, but the generic
+`pismo_komornicze` fallback (used when no specific title matches) still
+requires the original clean letterhead — so a page with "SYGN" but no
+letterhead and no title match correctly falls through to later rules
+instead of being force-classified as a bailiff letter. Also tightened the
+`komornik_zajecie_wierzytelnosci` pattern itself to match on the
+"YTELNOŚCI" suffix (unique to "wierzytelności", no other common legal
+word ends that way) within 25 chars of "ZAJĘCI[EU]", instead of requiring
+the corrupted "WIE...RZ" prefix to read cleanly.
+
+**Verified**: `doc_splitter.detect_documents_by_pages()` on the real
+file's cached OCR text now returns exactly 8 segments matching page
+ranges [1-4][5-6][7-8][9-10][11-12][13-14][15-16][17-20] — the exact
+boundaries the user confirmed by hand. Full regression suite re-run after
+both fixes (see `tools/regression_test.py` output from 15.07.2026 in
+CLAUDE.md) — see that log for pass/fail status on all previously-known
+files.

@@ -63,3 +63,34 @@ to the principal → correctly NOT duplicated) + real file `pozew_o_zapłate_pko
 previously documented figures for this same case, `Lublin_pozew_pko.pdf`) +
 `tools/regression_test.py` full suite, no regressions. HTML row-rendering logic
 sanity-checked in isolation (caption/second-row markup renders correctly).
+
+## Follow-up fix (15.07.2026): caption missing for komornik (bailiff) documents
+
+User re-tested `wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf` (PISMO_KOMORNIK_SPOLKA,
+805,05 zł) and the "Kwota roszczenia" caption was simply absent — `amount_type` came
+back null. Root cause: `ai_extractor.py`'s `kwota_zl_rodzaj` prompt rule was phrased
+entirely in the vocabulary of court documents that split a claim into "należność
+główna" vs. "odsetki/koszty" (the pozew/nakaz mental model this feature was originally
+built for) — it never mentioned bailiff documents, which typically use different
+vocabulary (kwota zadłużenia / kwota do zapłaty / suma egzekwowana, or a table breaking
+the sum into należność główna / odsetki / koszty egzekucyjne / koszty zastępstwa
+procesowego). The model most likely fell through to the rule's own last clause ("null
+gdy `kwota_zl` jest null") rather than confidently picking glowna/laczna for unfamiliar
+document vocabulary.
+
+Confirmed **not** a code-path gating issue — `doc_processor.py`/`app.py` are fully
+type-agnostic on `amount_type` (no `doc_type_code` branching anywhere in that path).
+Pure prompt fix: added a new paragraph to the `kwota_zl_rodzaj` prompt rule extending
+the same glowna/laczna logic explicitly to komornik documents, with bailiff-specific
+example vocabulary, and an explicit instruction not to leave the field null just
+because the document is a komornik letter rather than a pozew/nakaz.
+
+**Lesson for future fields extracted per-document-type**: a prompt rule phrased around
+the vocabulary of the type it was *first* built for silently under-serves every other
+document family unless each new family is explicitly taught to the prompt — the same
+"good mechanism, narrow initial vocabulary" gap already seen with `czy_pismo_prawne`
+(taught company-vs-individual submitter distinction incrementally) and `termin_dni`
+(taught the art. 767 skarga-deadline exclusion incrementally, see
+[[project_komornik_boilerplate_deadlines]]). When adding a new AI-extracted field,
+consider up front whether its rule wording generalizes across all document families the
+calculator already classifies, not just the one that motivated the field.

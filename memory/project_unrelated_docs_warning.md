@@ -76,3 +76,72 @@ construction with real extracted data (MIPROMET vs. KILOUTOU) — renders the in
 message. `tools/regression_test.py` does not exercise this (it calls `process_files()`
 directly, never renders the Streamlit banner layer) — no regression risk from that
 angle since nothing in `doc_processor.py`/`doc_selector.py` changed.
+
+## Follow-up fix (15.07.2026): swapped name-token order false positive
+
+User re-tested `wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf` and got a false "different
+case" warning: `main.powod = "Faliszewska Barbara"`, one aux doc's `powod =
+"Barbara Faliszewska"` — the same real person, just first-name/last-name written in
+reversed order between two documents of the same bailiff case (the wszczęcie egzekucji
+letter vs. a later zajęcie letter apparently transcribed the name differently). The
+original `_parties_differ()` only does a substring check after normalization — a
+reversed 2-token name fails both directions of that check, so it was flagged as a
+different creditor.
+
+Fix: added `_same_person_reordered(na, nb)` — when **both** normalized names have 2-3
+tokens (typical imię+nazwisko, optionally with a second given name), compare them as
+token **sets** regardless of order; if equal, treat as the same party. This is an
+*additional* check alongside the existing substring check, not a replacement for it —
+substring matching still handles company-name variants (PKO Bank Polski S.A. vs. full
+form) exactly as before.
+
+Manual trace-throughs (re-verifying the original 7 cases still hold, plus the new bug
+case and one new adversarial case):
+- `"Faliszewska Barbara"` vs `"Barbara Faliszewska"` → token sets equal → **not
+  flagged** (bug fixed).
+- `"Jan Kowalski"` vs `"Piotr Kowalski"` (same surname, different actual person) → token
+  sets `{JAN,KOWALSKI}` vs `{PIOTR,KOWALSKI}` differ → **still flagged** as different
+  (the fix doesn't get fooled by a shared surname alone).
+- `"MIPROMET Sp. z o.o."` vs `"KILOUTOU Polska sp. z o.o."` (original verified case) →
+  MIPROMET normalizes to 1 token, below the 2-3 token gate → reordering check never
+  fires → substring check alone still flags it as different. No regression.
+- `"PKO Bank Polski S.A."` vs full "spółka akcyjna" form → identical after
+  normalization, substring check already resolves this before the reordering check is
+  reached. No regression.
+
+**Documented residual risk, accepted deliberately**: two genuinely *different* short
+entities (companies, after suffix-stripping) whose names happen to be an exact 2-3
+token permutation of each other (e.g. hypothetical "Auto Serwis" vs "Serwis Auto")
+would now be wrongly treated as the same party. No test file in the current suite
+exhibits this pattern; assessed as low real-world risk because AI-extracted company
+names preserve canonical word order in practice, unlike personal names, which
+legitimately vary Imię-Nazwisko vs Nazwisko-Imię between different documents/forms of
+the same case. Revisit if a future bundle surfaces this collision.
+
+No automated regression coverage exists for this path today (`tools/regression_test.py`
+never renders the Streamlit banner) — verification was a standalone script importing
+`_parties_differ()`/`_same_person_reordered()` from `app.py` directly, same approach as
+the original 7 cases.
+
+## Related, discovered-but-deferred issue (15.07.2026): OCR letter-substitution typos
+
+Running the real fix end-to-end on `wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf` surfaced
+a *different* false positive on the same file: one aux document's `powod` came back as
+`"Barbara Baliszewska"` (OCR misread F→B) against the main document's `"Faliszewska
+Barbara"` — still flagged as a different creditor. This is NOT the word-order bug fixed
+above; it's a single-character OCR substitution within a token.
+
+Investigated a token-level fuzzy match (per-token `difflib.SequenceMatcher` ratio,
+requiring all-but-one token to match exactly and the remaining token to score above a
+threshold) and it does discriminate the real typo correctly (`"FALISZEWSKA"` vs
+`"BALISZEWSKA"` → 0.909 ratio). **Deliberately not implemented**: the same technique
+scores a genuinely *different*-person case dangerously close — Polish gendered surname
+variants like `"WISNIEWSKA"` vs `"WISNIEWSKI"` (a very plausible spouse/family-member
+pairing sharing a surname, i.e. two different real people) score 0.900, higher than the
+real typo. A single similarity threshold cannot safely separate "OCR typo, same person"
+from "gendered surname variant, different person" — and the failure mode of getting it
+wrong (silently suppressing a genuine cross-case warning) is worse than the failure mode
+of leaving it alone (an occasional unnecessary but non-blocking `st.warning()`, since
+this feature never blocks the calculation, only informs). Left as a known, documented
+residual false-positive rate for OCR-degraded names — revisit only if a future report
+shows this recurring with a clearer discriminating signal than plain edit-distance.

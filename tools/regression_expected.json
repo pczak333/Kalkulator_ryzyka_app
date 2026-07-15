@@ -166,7 +166,10 @@
   },
   "wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf": {
     "main_type": ["PISMO_KOMORNIK_SPOLKA"],
-    "main_pages": [1, 6],
+    "main_pages": [1, 4],
+    "amount": 805.05,
+    "deadline_days": null,
+    "aux_types_include": [["WYROK_ZAOCZNY_SPOLKA"]],
     "gate": false
   },
   "ZUS_str.1+2.jpeg": {
