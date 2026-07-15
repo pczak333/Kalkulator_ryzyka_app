@@ -101,6 +101,46 @@ reasonable time. Worth knowing for future large-bundle test runs: if CPU
 time stalls almost completely while wall-clock keeps advancing, that's a
 hang signal worth checking, not just "big file, be patient."
 
+## Follow-up: added regression_expected.json entries for the 11 new files
+
+User asked to turn the 11 diagnostic-only files into proper tracked entries.
+Before writing values in as "ground truth," re-verified stability (2+ runs)
+for any value that looked suspicious rather than trusting a single read —
+this codebase has documented history of single-run OCR/AI artifacts leaking
+into "confirmed" values. Two things that looked like bugs on first glance
+turned out fine on re-check: `art.299_nak_zap.pdf`'s 2000,00 zł (resembles
+the known "grzywna 2000 zł" komornik-boilerplate false positive, but this is
+a plain nakaz with no such boilerplate — stable 2/2, accepted) and
+`nak.zap.3.pdf`/`pozew.pdf` (same case V GNc 2034/22) reporting different
+principal amounts (1567,33 vs 1380,00) — makes sense as "amount claimed in
+the pozew" vs "amount awarded in the nakaz, with interest accrued since
+filing," not an extraction error. `Lublin_nakaz_zapłaty_pko.jpeg` reads 1 zł
+higher (81 923,78) than the already-confirmed `.pdf` of the same case
+(81 922,78) — stable 2/2 for the jpeg specifically, most likely a JPEG-
+compression OCR digit misread; recorded what the jpeg actually and
+repeatably produces rather than forcing agreement with the pdf variant.
+
+Added 9 single-file entries + 1 multi-file entry
+(`ZUS_str.1+2.jpeg`, files: `ZUS_st.1.jpeg`+`ZUs_str.2.jpeg`) to
+`tools/regression_expected.json`. `DOKUMENT_NIEPRAWNY` entries
+(`upo.pdf`, `zaswiadczenie_2021_darowizny2021.pdf`) deliberately have no
+amount/deadline checks, matching the established pattern for that type (see
+`pit_2025.pdf`). `wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf` (the ~20-page
+komornik bundle from the earlier hang) was only verified once — costly/slow
+file, worth a stability re-check next time it's convenient, flagged in
+CLAUDE.md.
+
+**Test-harness limitation found and fixed:** `tools/regression_test.py`
+only supported one file per entry — no way to test a genuine 2-file bundle
+(page 1 + page 2 of the same scanned letter in separate image files, the ZUS
+case). Extended it with an optional `"files": [...]` key per JSON entry
+(list of filenames uploaded together as one package); when absent, defaults
+to `[dict_key]` — fully backward compatible, verified via a full re-run of
+all pre-existing entries (still 20/20 PASS). This was a deliberate, user-
+approved scope decision (asked via AskUserQuestion: extend the script vs.
+skip the ZUS files for now) rather than a silent unrequested change to
+shared test infrastructure.
+
 ## Process note for future sessions
 
 Splitting regression-suite work across parallel subagents (batches of 5,

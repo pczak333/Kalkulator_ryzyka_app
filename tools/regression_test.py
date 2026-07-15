@@ -24,6 +24,11 @@ Format regression_expected.json (na plik; klucz nieobecny = nie sprawdzaj):
     "amount":            kwota dokumentu głównego (tolerancja 0,01 zł)
     "aux_types_include": typy, które MUSZĄ wystąpić wśród dok. pomocniczych
     "gate":              czy bramka art. 299 powinna się pokazać
+    "files":             (15.07.2026, opcjonalne) lista nazw plików wgrywanych
+                          RAZEM jako jedna paczka (np. dwie zeskanowane strony
+                          jednego pisma w osobnych plikach obrazów) — gdy
+                          nieobecne, domyślnie [klucz słownika] (jeden plik,
+                          zachowanie sprzed tej zmiany bez regresji)
 """
 from __future__ import annotations
 import argparse
@@ -79,11 +84,12 @@ def _gate_should_fire(main) -> bool:
             and main.doc_type_code not in _NO_GATE_TYPES)
 
 
-def _check_file(pdf_path: Path, expected: dict, secrets: dict) -> list[str]:
-    """Zwraca listę rozbieżności (pusta = PASS)."""
-    data = pdf_path.read_bytes()
-    upload = _FakeUpload(data, pdf_path.name)
-    main, aux = process_files([upload], secrets)
+def _check_file(pdf_paths: list[Path], expected: dict, secrets: dict) -> list[str]:
+    """Zwraca listę rozbieżności (pusta = PASS). pdf_paths: jeden lub więcej
+    plików wgrywanych RAZEM jako jedna paczka (patrz pole "files" w opisie
+    formatu JSON u góry pliku)."""
+    uploads = [_FakeUpload(p.read_bytes(), p.name) for p in pdf_paths]
+    main, aux = process_files(uploads, secrets)
     problems: list[str] = []
 
     if "main_type" in expected:
@@ -158,14 +164,16 @@ def main() -> int:
     for fname, expected in expected_all.items():
         if args.only and fname != args.only:
             continue
-        pdf_path = test_dir / fname
-        if not pdf_path.exists():
-            print(f"[SKIP] {fname} — brak pliku w {test_dir}")
+        file_list = expected.get("files", [fname])
+        pdf_paths = [test_dir / f for f in file_list]
+        missing = [p.name for p in pdf_paths if not p.exists()]
+        if missing:
+            print(f"[SKIP] {fname} — brak pliku(ów) w {test_dir}: {missing}")
             skipped += 1
             continue
         print(f"[....] {fname} — przetwarzam...", flush=True)
         try:
-            problems = _check_file(pdf_path, expected, secrets)
+            problems = _check_file(pdf_paths, expected, secrets)
         except Exception as e:  # noqa: BLE001 — raportuj i idź dalej
             problems = [f"WYJĄTEK: {type(e).__name__}: {e}"]
         if problems:

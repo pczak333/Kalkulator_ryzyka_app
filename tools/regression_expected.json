@@ -121,5 +121,60 @@
     "main_type": ["EPU_POZEW_CZLONEK_ZARZADU", "POZEW_CZLONEK_ZARZADU"],
     "amount": 81922.78,
     "gate": true
+  },
+  "art.299_nak_zap.pdf": {
+    "main_type": ["NAKAZ_CZLONEK_ZARZADU"],
+    "deadline_days": 14,
+    "amount": 2000.0,
+    "gate": true
+  },
+  "art.299_nakaz_zap2.pdf": {
+    "main_type": ["NAKAZ_CZLONEK_ZARZADU"],
+    "deadline_days": 14,
+    "amount": 19142.36,
+    "gate": true
+  },
+  "Lublin_nakaz_zapłaty_pko.jpeg": {
+    "main_type": ["EPU_NAKAZ_CZLONEK_ZARZADU"],
+    "deadline_days": 14,
+    "amount": 81923.78,
+    "gate": true
+  },
+  "Lublin_pozew_pko.png": {
+    "main_type": ["EPU_POZEW_CZLONEK_ZARZADU"],
+    "amount": 81922.78,
+    "gate": true
+  },
+  "nak.zap.3.pdf": {
+    "main_type": ["NAKAZ_SPOLKA"],
+    "deadline_days": 14,
+    "amount": 1567.33,
+    "gate": false
+  },
+  "pozew.pdf": {
+    "main_type": ["POZEW_SPOLKA"],
+    "amount": 1380.0,
+    "gate": false
+  },
+  "upo.pdf": {
+    "main_type": ["DOKUMENT_NIEPRAWNY"],
+    "gate": false
+  },
+  "zaswiadczenie_2021_darowizny2021.pdf": {
+    "main_type": ["DOKUMENT_NIEPRAWNY"],
+    "gate": false
+  },
+  "wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf": {
+    "main_type": ["PISMO_KOMORNIK_SPOLKA"],
+    "main_pages": [1, 6],
+    "gate": false
+  },
+  "ZUS_str.1+2.jpeg": {
+    "files": ["ZUS_st.1.jpeg", "ZUs_str.2.jpeg"],
+    "main_type": ["DECYZJA_ZUS_CZLONEK_ZARZADU"],
+    "deadline_days": 7,
+    "amount": null,
+    "aux_types_include": [["ORGAN_PUBLICZNY_CZLONEK_ZARZADU"]],
+    "gate": true
   }
 }
