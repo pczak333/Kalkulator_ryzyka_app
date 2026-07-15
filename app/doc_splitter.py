@@ -464,13 +464,25 @@ def detect_documents_by_pages(full_text: str) -> list[dict]:
     # kroku str.2-4 (pouczenia zawiadomienia o wszczęciu egzekucji) odcinały
     # się jako "Pismo komornicze (tytuł wykonawczy)", a segment wszczęcia
     # (sama str.1) tracił kwotę i pouczenia — i przegrywał wybór dokumentu
-    # głównego. wniosek_egzekucyjny/postanowienie_umorzenie celowo POZA
-    # zbiorem celów scalania (jak w Kroku -1) — nie ruszać bundli art. 299.
+    # głównego. wniosek_egzekucyjny celowo POZA zbiorem celów scalania (jak
+    # w Kroku -1) — nie ruszać bundli art. 299.
+    # (15.07.2026) postanowienie_umorzenie_egzekucji DOŁĄCZONE do celów
+    # scalania — prawdziwe postanowienia komornika o umorzeniu bywają
+    # dwustronicowe (sentencja + rozliczenie kosztów egzekucji na str. 2, bez
+    # własnego nagłówka kancelarii/POSTANOWIENIE). Bez tego wpisu strona
+    # kosztów spadała do generycznego fallbacku "komornik" i — nie mogąc się
+    # skleić z poprzedzającym postanowieniem — szła do klasyfikatora jako
+    # OSOBNY dokument, gdzie słowa kluczowe kosztów egzekucyjnych dawały jej
+    # PISMO_KOMORNIK_SPOLKA zamiast UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC
+    # (zgłoszenie: art299_pozew_nakaz_umorz._egzek..pdf, str.12-13 rozjechane
+    # na dwa aux zamiast jednego). Bezpieczne dla ochrony bundli art. 299 z
+    # Kroku -1 opisanej wyżej — ten krok tylko DOKLEJA generyczną kontynuację
+    # BEZPOŚREDNIO PO postanowieniu, nie przesuwa granic segmentów wstecz.
     _KOMORNIK_MERGE_TARGETS = {
         "komornik_wszczecie_egzekucji", "komornik_zajecie_rachunku",
         "komornik_wezwanie_wykaz", "komornik_wykaz_majatku",
         "komornik_zajecie_wierzytelnosci", "komornik_skarga",
-        "pismo_komornicze", "komornik",
+        "pismo_komornicze", "komornik", "postanowienie_umorzenie_egzekucji",
     }
     _merged_kom: list[dict] = []
     for _d in documents:

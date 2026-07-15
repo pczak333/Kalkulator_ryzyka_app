@@ -295,6 +295,22 @@ def classify_document(text: str, fields: dict) -> tuple[str, float]:
     if _splitter_kind == "pismo_procesowe":
         scores["PISMO_PROCESOWE_SADOWE"] = scores.get("PISMO_PROCESOWE_SADOWE", 0) + 25
 
+    # (15.07.2026) Segment rozpoznany przez splitter jako postanowienie
+    # komornika o umorzeniu egzekucji (Reguła 1c) → deterministyczny bonus
+    # dla UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC, tym samym wzorcem co komornik/
+    # pismo procesowe wyżej. Nagłówek takiego postanowienia to zawsze
+    # nagłówek kancelarii komorniczej (bo komornik WYDAJE postanowienie), a
+    # dwustronicowe postanowienia mają na str. 2 rozliczenie kosztów
+    # egzekucji ("koszty komornicze"/"opłata egzekucyjna") — bez tego bonusu
+    # czysty scoring słów kluczowych regularnie przegrywał z
+    # PISMO_KOMORNIK_SPOLKA/_CZLONEK_ZARZADU, mimo że splitter (Reguła 1c)
+    # już poprawnie rozpoznał segment jako WŁASNE postanowienie o umorzeniu,
+    # nie generyczne pismo komornicze (zgłoszenie użytkownika:
+    # art299_pozew_nakaz_umorz._egzek..pdf, str.12-13).
+    if _splitter_kind == "postanowienie_umorzenie_egzekucji":
+        scores["UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC"] = (
+            scores.get("UMORZENIE_EGZEKUCJI_BEZSKUTECZNOSC", 0) + 25)
+
     # (05.07.2026) Kategoria pisma wg AI (rodzaj_pisma z ai_extractor.py):
     # +15 dla kodów zgodnej rodziny, ale TYLKO tam, gdzie tekst dał
     # jakiekolwiek trafienie (raw_score >= 1) — koniunkcja chroni przed
