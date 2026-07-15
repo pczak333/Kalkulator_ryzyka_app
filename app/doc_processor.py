@@ -3,6 +3,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+from typing import Callable
 
 from doc_ingestion import extract_pages, PageDict
 from doc_ocr import ocr_with_fallback
@@ -265,6 +266,7 @@ def _process_single_doc(
     ext: str,
     secrets: dict,
     file_ext: str = "",
+    on_progress: Callable[[str], None] | None = None,
 ) -> list[dict]:
     """
     Przetwarza jeden plik → lista kandydatów.
@@ -277,7 +279,7 @@ def _process_single_doc(
     ocr_notes = ""
     if has_scans:
         full_text, ocr_confidence, ocr_engine, ocr_notes = ocr_with_fallback(
-            pages, raw_bytes, ext, secrets
+            pages, raw_bytes, ext, secrets, on_progress=on_progress
         )
     else:
         # Natywny PDF — dodaj separatory stron (wymagane przez segmentację)
@@ -300,7 +302,9 @@ def _process_single_doc(
     if segments:
         # Wiele logicznych dokumentów — process each segment (text already OCR'd)
         candidates = []
-        for seg in segments:
+        for idx, seg in enumerate(segments, start=1):
+            if on_progress:
+                on_progress(f"Analizuję dokument {idx}/{len(segments)} w paczce...")
             seg_text = seg["text"]
             pages_in_seg = seg.get("pages", [])
             p_start = pages_in_seg[0] if pages_in_seg else pages[0]["page_num"]
@@ -345,6 +349,8 @@ def _process_single_doc(
     # banera zamiast domyślnego "wymaga szybkiej reakcji". Ta sama
     # klasyfikacja co przy segmentacji wielostronicowej (linie wyżej), tylko
     # na całym pliku zamiast per-segment.
+    if on_progress:
+        on_progress("Analizuję dokument...")
     _single_classification = _classify_page_segment(full_text)
     _single_kind = _single_classification[0] if _single_classification else ""
     _single_label = _single_classification[1] if _single_classification else "?"
@@ -361,23 +367,32 @@ def _process_single_doc(
 def process_files(
     uploaded_files,
     secrets: dict | None = None,
+    on_progress: Callable[[str], None] | None = None,
 ) -> tuple[ProcessedDocument, list[ProcessedDocument]]:
     """
     Główna funkcja etapu 2. Przyjmuje listę UploadedFile ze Streamlit.
     Zwraca (dokument_główny, [dokumenty_pomocnicze]) jako ProcessedDocument.
     secrets: słownik z kluczami AZURE_DI_KEY, AZURE_DI_ENDPOINT, ANTHROPIC_API_KEY.
+    on_progress: opcjonalny callback(str) — komunikaty postępu dla UI (patrz
+    app.py, st.status). Domyślnie None — brak zmiany zachowania dla
+    dotychczasowych wywołań (np. tools/regression_test.py).
     """
     if secrets is None:
         secrets = {}
     all_candidates: list[dict] = []
+    _multi_file = len(uploaded_files) > 1
 
-    for uf in uploaded_files:
+    for idx, uf in enumerate(uploaded_files, start=1):
+        if on_progress and _multi_file:
+            on_progress(f"Wczytuję plik {idx}/{len(uploaded_files)}: {uf.name}...")
         raw_bytes = uf.read()
         uf.seek(0)
         ext = uf.name.rsplit(".", 1)[-1].lower()
         pages = extract_pages(uf)
         if pages:
-            candidates = _process_single_doc(pages, raw_bytes, ext, secrets, file_ext=ext)
+            candidates = _process_single_doc(
+                pages, raw_bytes, ext, secrets, file_ext=ext, on_progress=on_progress
+            )
             all_candidates.extend(candidates)
 
     if not all_candidates:

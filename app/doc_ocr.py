@@ -4,6 +4,8 @@ jakości) → Tesseract (fallback wyłącznie bez klucza Anthropic)."""
 from __future__ import annotations
 import base64
 import io
+import time
+from typing import Callable
 from doc_ingestion import PageDict
 
 _CLAUDE_PROMPT = (
@@ -19,6 +21,7 @@ def ocr_with_fallback(
     raw_bytes: bytes,
     ext: str,
     secrets: dict,
+    on_progress: Callable[[str], None] | None = None,
 ) -> tuple[str, float, str, str]:
     """
     Kaskada OCR: Azure DI → Claude Haiku (eskalacja gdy Azure poniżej progu
@@ -27,6 +30,9 @@ def ocr_with_fallback(
     Zwraca (full_text, confidence, engine_used, notes).
     engine_used: 'azure' | 'tesseract' | 'claude' | 'none'
     notes: log dlaczego silniki były pomijane
+    on_progress: opcjonalny callback(str) — komunikat postępu dla UI (patrz
+    app.py, st.status). Domyślnie None — brak zmiany zachowania dla
+    dotychczasowych wywołań (np. tools/regression_test.py).
     """
     notes: list[str] = []
     claude_key = secrets.get("ANTHROPIC_API_KEY", "")
@@ -36,7 +42,11 @@ def ocr_with_fallback(
     azure_endpoint = secrets.get("AZURE_DI_ENDPOINT", "")
     azure_candidate: tuple[str, float] | None = None
     if azure_key and azure_endpoint:
-        azure_result, azure_error = _ocr_azure(raw_bytes, azure_key, azure_endpoint, pages)
+        if on_progress:
+            on_progress("OCR: analizuję dokument (Azure Document Intelligence)...")
+        azure_result, azure_error = _ocr_azure(
+            raw_bytes, azure_key, azure_endpoint, pages, on_progress=on_progress
+        )
         if azure_result is not None:
             text, conf = azure_result
             # Próg 0.75 = ten sam próg, którego doc_processor.py używa do etykiety
@@ -56,12 +66,14 @@ def ocr_with_fallback(
     # stronę z obrazu niezależnie, więc jest odporniejszy na zaburzony układ
     # dwukolumnowy/wielotabelowy niż Tesseract.
     if claude_key:
-        text, conf = _ocr_claude(pages, claude_key)
+        if on_progress and azure_candidate is not None:
+            on_progress("OCR: jakość Azure poniżej progu — eskaluję do Claude Haiku...")
+        text, conf = _ocr_claude(pages, claude_key, on_progress=on_progress)
         return text, conf, "claude", " | ".join(notes)
 
     # Silnik 3: Tesseract — prawdziwa ostatnia deska ratunku, tylko gdy brak
     # klucza Anthropic (bez niego nie ma czym eskalować).
-    tess_result = _ocr_tesseract(pages)
+    tess_result = _ocr_tesseract(pages, on_progress=on_progress)
     if tess_result is not None and tess_result[0].strip():
         text, conf = tess_result
         return text, conf, "tesseract", " | ".join(notes)
@@ -86,7 +98,10 @@ def _preprocess_for_tesseract(img):
     return img
 
 
-def _ocr_tesseract_pages(scan_pages: list[PageDict]) -> str:
+def _ocr_tesseract_pages(
+    scan_pages: list[PageDict],
+    on_progress: Callable[[str], None] | None = None,
+) -> str:
     """Tesseract na podanej liście stron. Zwraca połączony tekst lub ''."""
     try:
         import pytesseract
@@ -97,6 +112,8 @@ def _ocr_tesseract_pages(scan_pages: list[PageDict]) -> str:
             img_bytes = page.get("image_bytes")
             if not img_bytes:
                 continue
+            if on_progress:
+                on_progress(f"OCR: strona {i}/{len(scan_pages)} (Tesseract)...")
             img = Image.open(io.BytesIO(img_bytes))
             img = _preprocess_for_tesseract(img)
             text = pytesseract.image_to_string(img, lang="pol+eng")
@@ -113,6 +130,7 @@ def _ocr_azure(
     key: str,
     endpoint: str,
     pages: list[PageDict],
+    on_progress: Callable[[str], None] | None = None,
 ) -> tuple[tuple[str, float] | None, str]:
     """
     Azure Document Intelligence — przyjmuje surowe bajty pliku.
@@ -130,6 +148,20 @@ def _ocr_azure(
             body=raw_bytes,
             content_type="application/octet-stream",
         )
+        # (15.07.2026) Ręczne odpytywanie zamiast `poller.result()` wprost —
+        # to jedno wywołanie bywa NAJDŁUŻSZYM pojedynczym blokiem w całym
+        # pipeline (skany wielostronicowe), bez żadnej informacji zwrotnej
+        # dla użytkownika (zgłoszenie: statyczny spinner wygląda jak
+        # zawieszenie się aplikacji). `poller.done()` pozwala odpytywać co
+        # kilka sekund i zgłaszać narastający czas — `poller.result()` na
+        # końcu nadal zwraca/rzuca dokładnie to samo, co przy wywołaniu
+        # bezpośrednim (błędy Azure nadal łapane przez `except` niżej).
+        elapsed = 0
+        while not poller.done():
+            time.sleep(2)
+            elapsed += 2
+            if on_progress:
+                on_progress(f"OCR: przetwarzam dokument (Azure)... {elapsed}s")
         result = poller.result()
 
         lines: list[str] = []
@@ -152,7 +184,7 @@ def _ocr_azure(
         total_pages = len(pages)
         if azure_page_count < total_pages:
             remaining = pages[azure_page_count:]
-            extra_text = _ocr_tesseract_pages(remaining)
+            extra_text = _ocr_tesseract_pages(remaining, on_progress=on_progress)
             if extra_text.strip():
                 full_text = full_text + "\n--- [strony OCR Tesseract] ---\n" + extra_text
 
@@ -161,13 +193,20 @@ def _ocr_azure(
         return None, str(exc)
 
 
-def _ocr_tesseract(pages: list[PageDict]) -> tuple[str, float] | None:
+def _ocr_tesseract(
+    pages: list[PageDict],
+    on_progress: Callable[[str], None] | None = None,
+) -> tuple[str, float] | None:
     """Tesseract per strona. Wymaga: binarki Tesseract + pakietu językowego pol."""
-    combined = _ocr_tesseract_pages(pages)
+    combined = _ocr_tesseract_pages(pages, on_progress=on_progress)
     return (combined, 0.75) if combined.strip() else None
 
 
-def _ocr_claude(pages: list[PageDict], api_key: str) -> tuple[str, float]:
+def _ocr_claude(
+    pages: list[PageDict],
+    api_key: str,
+    on_progress: Callable[[str], None] | None = None,
+) -> tuple[str, float]:
     """Claude Haiku per strona — eskalacja jakościowa, nie tylko fallback na pusty tekst."""
     import anthropic
 
@@ -177,6 +216,8 @@ def _ocr_claude(pages: list[PageDict], api_key: str) -> tuple[str, float]:
 
     for i, page in enumerate(pages, start=1):
         page_num = page.get("page_num", i)
+        if on_progress:
+            on_progress(f"OCR: strona {i}/{len(pages)} (Claude)...")
         img_bytes = page.get("image_bytes")
         if not img_bytes:
             if page.get("text"):

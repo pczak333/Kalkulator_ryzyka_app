@@ -738,65 +738,92 @@ with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
     elif _cur_names != _prev_names:
         st.session_state["_last_uploaded_names"] = _cur_names
 
+    _do_analyze = False
     if uploaded_files:
         _do_analyze = st.button(
             "Analizuj dokumenty", type="primary", use_container_width=True
         )
 
-        if _do_analyze:
-            secrets = {
-                "AZURE_DI_KEY": st.secrets.get("AZURE_DI_KEY", ""),
-                "AZURE_DI_ENDPOINT": st.secrets.get("AZURE_DI_ENDPOINT", ""),
-                "ANTHROPIC_API_KEY": st.secrets.get("ANTHROPIC_API_KEY", ""),
-            }
-            # Klucze z prefill — usuń, prefill zastąpi przez index=
-            for _k in ("k1", "k7", "k2", "epu", "delivery_date", "deadline_days",
-                       "use_dates", "corr_kwota", "corr_powod", "corr_pozwany",
-                       "_art299_gate"):
-                st.session_state.pop(_k, None)
-            # Klucze bez prefill — ustaw None (nie pop), żeby Streamlit nie użył cache
-            st.session_state["k3"] = None
-            st.session_state["k4"] = None
-            st.session_state["k5"] = None
-            st.session_state["k6"] = None
+# (15.07.2026) Blok analizy renderuje się POZA st.expander powyżej — st.status
+# jest wewnętrznie kontenerem typu expander, a Streamlit odrzuca zagnieżdżanie
+# expanderów w expanderach ("Expanders may not be nested inside other
+# expanders."), co ujawnił żywy test w przeglądarce zaraz po zamianie
+# st.spinner→st.status. Uploader i przycisk zostają wewnątrz expandera —
+# tylko samo przetwarzanie (i widget statusu) przeniesione niżej.
+if uploaded_files and _do_analyze:
+    secrets = {
+        "AZURE_DI_KEY": st.secrets.get("AZURE_DI_KEY", ""),
+        "AZURE_DI_ENDPOINT": st.secrets.get("AZURE_DI_ENDPOINT", ""),
+        "ANTHROPIC_API_KEY": st.secrets.get("ANTHROPIC_API_KEY", ""),
+    }
+    # Klucze z prefill — usuń, prefill zastąpi przez index=
+    for _k in ("k1", "k7", "k2", "epu", "delivery_date", "deadline_days",
+               "use_dates", "corr_kwota", "corr_powod", "corr_pozwany",
+               "_art299_gate"):
+        st.session_state.pop(_k, None)
+    # Klucze bez prefill — ustaw None (nie pop), żeby Streamlit nie użył cache
+    st.session_state["k3"] = None
+    st.session_state["k4"] = None
+    st.session_state["k5"] = None
+    st.session_state["k6"] = None
+    try:
+        # process_files robi OCR + ekstrakcję danych (Claude Haiku jako
+        # główna ścieżka, regex jako fallback) dla każdego dokumentu w
+        # paczce — nie tylko głównego, patrz doc_processor.py/ai_extractor.py.
+        # (15.07.2026) st.status zamiast st.spinner — statyczne kółko
+        # nie dawało żadnego sygnału postępu dla długich skanów
+        # (zgłoszenie użytkownika: wygląda jak zawieszenie się
+        # aplikacji). on_progress przekazuje komunikaty na żywo z
+        # wnętrza kaskady OCR (Azure poll co ~2s, Claude/Tesseract
+        # per strona) i z pętli po dokumentach w paczce — patrz
+        # doc_ocr.py/doc_processor.py.
+        with st.status(
+            "Analizuję dokumenty (OCR + ekstrakcja danych)...",
+            expanded=True,
+        ) as status:
             try:
-                # process_files robi OCR + ekstrakcję danych (Claude Haiku jako
-                # główna ścieżka, regex jako fallback) dla każdego dokumentu w
-                # paczce — nie tylko głównego, patrz doc_processor.py/ai_extractor.py.
-                with st.spinner("Analizuję dokumenty (OCR + ekstrakcja danych)..."):
-                    main_doc, aux_docs = process_files(uploaded_files, secrets)
-
-                # Dokument niezwiązany ze sprawą jako główny: wyzeruj pola,
-                # które zasilałyby formularz (kwota z przelewu/faktury to NIE
-                # kwota roszczenia, a "termin" z takiego dokumentu nie jest
-                # terminem procesowym). K1 spada na K1_INNE_NIE_WIEM
-                # (ścieżka arkusza 6S — dokument nieustalony). To samo dla
-                # wezwania przedsądowego do samej spółki (Typ 1, 06.07.2026) —
-                # tu dane SĄ realne (prawdziwa faktura), ale świadomie nie
-                # budujemy dla tego typu ścieżki K1/scenariusza, więc nie mają
-                # cicho zasilać formularza jako gdyby to była ocena ryzyka
-                # osobistego członka zarządu.
-                if main_doc.doc_type_code in (
-                    _NON_LEGAL_MAIN_TYPES
-                    | _SPOLKA_OUT_OF_SCOPE_TYPES
-                    | _KRS_REJESTROWE_OUT_OF_SCOPE_TYPES
-                ):
-                    main_doc.amount = None
-                    main_doc.k7_code = ""
-                    main_doc.deadline_days = None
-                    main_doc.days_left = None
-                    main_doc.delivery_date = None
-                    main_doc.deadline_date = None
-                    main_doc.epu = False
-
-                st.session_state["doc_prefill"] = main_doc
-                st.session_state["doc_aux"] = aux_docs
-                st.session_state["_last_uploaded_names"] = frozenset(
-                    f.name for f in uploaded_files
+                main_doc, aux_docs = process_files(
+                    uploaded_files, secrets,
+                    on_progress=lambda msg: status.write(msg),
                 )
-                st.rerun()
-            except Exception as e:
-                st.error(f"Błąd analizy dokumentu: {e}")
+            except Exception:
+                status.update(label="Analiza nie powiodła się", state="error")
+                raise
+            status.update(
+                label="Analiza zakończona ✓", state="complete", expanded=False
+            )
+
+        # Dokument niezwiązany ze sprawą jako główny: wyzeruj pola,
+        # które zasilałyby formularz (kwota z przelewu/faktury to NIE
+        # kwota roszczenia, a "termin" z takiego dokumentu nie jest
+        # terminem procesowym). K1 spada na K1_INNE_NIE_WIEM
+        # (ścieżka arkusza 6S — dokument nieustalony). To samo dla
+        # wezwania przedsądowego do samej spółki (Typ 1, 06.07.2026) —
+        # tu dane SĄ realne (prawdziwa faktura), ale świadomie nie
+        # budujemy dla tego typu ścieżki K1/scenariusza, więc nie mają
+        # cicho zasilać formularza jako gdyby to była ocena ryzyka
+        # osobistego członka zarządu.
+        if main_doc.doc_type_code in (
+            _NON_LEGAL_MAIN_TYPES
+            | _SPOLKA_OUT_OF_SCOPE_TYPES
+            | _KRS_REJESTROWE_OUT_OF_SCOPE_TYPES
+        ):
+            main_doc.amount = None
+            main_doc.k7_code = ""
+            main_doc.deadline_days = None
+            main_doc.days_left = None
+            main_doc.delivery_date = None
+            main_doc.deadline_date = None
+            main_doc.epu = False
+
+        st.session_state["doc_prefill"] = main_doc
+        st.session_state["doc_aux"] = aux_docs
+        st.session_state["_last_uploaded_names"] = frozenset(
+            f.name for f in uploaded_files
+        )
+        st.rerun()
+    except Exception as e:
+        st.error(f"Błąd analizy dokumentu: {e}")
 
 if "doc_prefill" in st.session_state:
     prefill: ProcessedDocument = st.session_state["doc_prefill"]
