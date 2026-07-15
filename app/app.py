@@ -2,6 +2,7 @@
 import sys
 import os
 import re
+from collections import Counter
 sys.path.insert(0, os.path.dirname(__file__))
 
 import streamlit as st
@@ -237,6 +238,28 @@ def get_label_for_code(step_id: str, code: str) -> str:
         if c == code:
             return lbl
     return ""
+
+
+def get_why_we_ask(step_id: str) -> str:
+    """Zwraca tekst 'Dlaczego pytamy?' dla danego kroku (najczęstsza
+    wartość why_we_ask wśród wierszy tego step_id — odporne na ewentualne
+    niespójności per-odpowiedź w CSV, bo wyjaśnienie dotyczy całego kroku,
+    nie pojedynczej odpowiedzi)."""
+    df = get_form_data()
+    values = [
+        str(v).strip() for v in df[df["step_id"] == step_id]["why_we_ask"]
+        if str(v).strip() not in ("", "nan")
+    ]
+    if not values:
+        return ""
+    return Counter(values).most_common(1)[0][0]
+
+
+def render_why_expander(step_id: str) -> None:
+    why = get_why_we_ask(step_id)
+    if why:
+        with st.expander("ℹ️ Dlaczego pytamy?", expanded=False):
+            st.markdown(why)
 
 
 def labeled_radio(
@@ -868,6 +891,7 @@ k1 = labeled_radio(
     "K1", "k1",
     prefill_code=prefill.k1_code if prefill else None,
 )
+render_why_expander("K1")
 
 # EPU – checkbox zależny od K1
 st.subheader("Krok 2 — E-Sąd / EPU")
@@ -974,14 +998,17 @@ else:
         "Ile czasu zostało na reakcję?",
         "K2", "k2"
     )
+render_why_expander("K2")
 
 # K3 – Zakres wsparcia
 st.subheader("Krok 4 — Zakres wsparcia")
 k3 = labeled_radio("Czego teraz potrzebujesz?", "K3", "k3")
+render_why_expander("K3")
 
 # K4 – Status w zarządzie
 st.subheader("Krok 5 — Status w zarządzie")
 k4 = labeled_radio("Jaki jest Twój status w zarządzie?", "K4", "k4")
+render_why_expander("K4")
 
 # K5 – KRS (tylko gdy rezygnacja/odwołanie)
 # Spec: gdy K4_BOARD_UNKNOWN — ustaw K5_KRS_UNKNOWN bez pytania
@@ -991,6 +1018,7 @@ if k4 == "K4_BOARD_RESIGNED":
     k5 = labeled_radio(
         "Czy zmiana w zarządzie została ujawniona w KRS?", "K5", "k5"
     )
+    render_why_expander("K5")
 elif k4 == "K4_BOARD_UNKNOWN":
     k5 = "K5_KRS_UNKNOWN"
 elif k4 == "K4_BOARD_ACTIVE":
@@ -999,6 +1027,7 @@ elif k4 == "K4_BOARD_ACTIVE":
 # K6 – Cel klienta
 st.subheader("Krok 6 — Twój cel")
 k6 = labeled_radio("Czego przede wszystkim potrzebujesz?", "K6", "k6")
+render_why_expander("K6")
 
 # K7 – Kwota roszczenia (uwzględnij korektę kwoty jeśli użytkownik ją zmienił)
 st.subheader("Krok 7 — Kwota roszczenia")
@@ -1012,6 +1041,7 @@ k7 = labeled_radio(
     "Jaka kwota roszczenia jest wskazana w dokumencie?", "K7", "k7",
     prefill_code=_k7_prefill,
 )
+render_why_expander("K7")
 
 st.divider()
 if st.button("Oblicz ryzyko →", use_container_width=True, type="primary"):
