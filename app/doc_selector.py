@@ -3,6 +3,7 @@
 from __future__ import annotations
 import re
 from datetime import date
+from itertools import permutations
 
 _ART299_PAT = re.compile(r"art\.?\s*299\s*[Kk]\.?[Ss]\.?[Hh]", re.IGNORECASE)
 
@@ -106,12 +107,67 @@ def _same_person_reordered(na: str, nb: str) -> bool:
     return set(ta) == set(tb)
 
 
+# (16.07.2026) OCR-literówka w jednym tokenie nazwiska (np. "FALISZEWSKA" vs
+# "BALISZEWSKA", F→B) fałszywie uruchamiała ostrzeżenie o różnych sprawach —
+# zgłoszony i świadomie NIE naprawiony 15.07.2026, bo pierwsza próba (globalny
+# próg podobieństwa `difflib.SequenceMatcher` na całym tokenie) myliła się z
+# polskimi końcówkami rodzajowymi nazwisk: "WISNIEWSKA" vs "WISNIEWSKI" (różne
+# osoby, np. małżonkowie/rodzeństwo o tym samym nazwisku) wychodziło 0.900 —
+# WYŻEJ niż prawdziwa literówka "FALISZEWSKA"/"BALISZEWSKA" (0.909); jeden próg
+# nie potrafił bezpiecznie rozdzielić tych dwóch przypadków.
+# Węższa, bezpieczniejsza reguła: literówka to WYŁĄCZNIE pojedyncza podmiana
+# JEDNEJ litery w słowie tej samej długości, i to podmiana NIE w ostatnich
+# dwóch znakach — polskie końcówki rodzajowe (-ski/-ska, -cki/-cka,
+# -dzki/-dzka...) różnią się właśnie w tym miejscu, więc różnica tam to sygnał
+# "inna osoba", nie literówka. Różnica GDZIEKOLWIEK WCZEŚNIEJ w słowie (jak
+# F→B na początku) nie ma takiej legalnej interpretacji i jest dużo bardziej
+# wiarygodnym sygnałem błędu OCR.
+_SUFFIX_TOLERANCE_CHARS = 2
+
+
+def _single_char_diff_index(a: str, b: str) -> int | None:
+    """Zwraca indeks jedynej różniącej się litery, gdy `a`/`b` mają tę samą
+    długość i różnią się DOKŁADNIE w jednym miejscu; inaczej None (różna
+    długość, brak różnic, więcej niż jedna różnica)."""
+    if len(a) != len(b):
+        return None
+    diffs = [i for i, (ca, cb) in enumerate(zip(a, b)) if ca != cb]
+    return diffs[0] if len(diffs) == 1 else None
+
+
+def _is_ocr_typo_pair(a: str, b: str) -> bool:
+    idx = _single_char_diff_index(a, b)
+    if idx is None:
+        return False
+    return idx < len(a) - _SUFFIX_TOLERANCE_CHARS
+
+
+def _same_person_ocr_typo(na: str, nb: str) -> bool:
+    """True, gdy obie znormalizowane nazwy mają tę samą liczbę tokenów (2-3,
+    jak `_same_person_reordered`) i są identyczne poza DOKŁADNIE jedną parą
+    tokenów różniącą się jedną literą wg `_is_ocr_typo_pair` — łapie literówki
+    OCR w imieniu/nazwisku między dokumentami tej samej paczki, TOLERUJE też
+    jednoczesną zamianę kolejności (próbuje wszystkich permutacji `tb`, jak
+    "Faliszewska Barbara" vs "Barbara Baliszewska" — jednocześnie inna
+    kolejność i literówka F→B). Nie zastępuje `_same_person_reordered` (ten
+    zostaje jako prostszy, samodzielnie udokumentowany przypadek bez
+    literówki) — to DODATKOWY, węższy warunek."""
+    ta, tb = na.split(), nb.split()
+    if not (2 <= len(ta) <= _PERSON_NAME_MAX_TOKENS and len(ta) == len(tb)):
+        return False
+    for perm in permutations(tb):
+        mismatches = [(x, y) for x, y in zip(ta, perm) if x != y]
+        if len(mismatches) == 1 and _is_ocr_typo_pair(*mismatches[0]):
+            return True
+    return False
+
+
 def parties_differ(a: str | None, b: str | None) -> bool:
     """True gdy dwie nazwy stron (np. wierzycieli) wyglądają na WYRAŹNIE różne
-    podmioty — nie tylko inny zapis tej samej firmy albo tej samej osoby z
-    imieniem/nazwiskiem zapisanym w innej kolejności. Puste/brakujące
-    wartości nigdy nie liczą się jako "różne" (brak fałszywego alarmu przy
-    braku danych)."""
+    podmioty — nie tylko inny zapis tej samej firmy, tej samej osoby z
+    imieniem/nazwiskiem zapisanym w innej kolejności, albo OCR-literówka w
+    jednym tokenie. Puste/brakujące wartości nigdy nie liczą się jako "różne"
+    (brak fałszywego alarmu przy braku danych)."""
     if not a or not b:
         return False
     na, nb = normalize_party_name(a), normalize_party_name(b)
@@ -120,6 +176,8 @@ def parties_differ(a: str | None, b: str | None) -> bool:
     if na in nb or nb in na:
         return False
     if _same_person_reordered(na, nb):
+        return False
+    if _same_person_ocr_typo(na, nb):
         return False
     return True
 

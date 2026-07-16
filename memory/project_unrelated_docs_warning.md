@@ -1,6 +1,6 @@
 ---
 name: project-unrelated-docs-warning
-description: "When a user uploads multiple documents that turn out to be unrelated cases (different creditor/powód), the calculator picked a main document correctly but gave no indication the aux document(s) belong to a different matter. Fixed 14.07.2026 by comparing powód across main/aux with fuzzy company-name normalization. 16.07.2026: the related doc_selector.py Fix B risk flagged below was implemented — see that section for the fix."
+description: "When a user uploads multiple documents that turn out to be unrelated cases (different creditor/powód), the calculator picked a main document correctly but gave no indication the aux document(s) belong to a different matter. Fixed 14.07.2026 by comparing powód across main/aux with fuzzy company-name normalization. 16.07.2026: the related doc_selector.py Fix B risk was implemented, AND the previously-deferred OCR letter-substitution typo false positive was fixed with a narrower, suffix-aware rule."
 metadata:
   node_type: memory
   type: project
@@ -143,7 +143,7 @@ never renders the Streamlit banner) — verification was a standalone script imp
 `_parties_differ()`/`_same_person_reordered()` from `app.py` directly, same approach as
 the original 7 cases.
 
-## Related, discovered-but-deferred issue (15.07.2026): OCR letter-substitution typos
+## OCR letter-substitution typos — IMPLEMENTED 16.07.2026 (was: "discovered-but-deferred, 15.07.2026")
 
 Running the real fix end-to-end on `wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf` surfaced
 a *different* false positive on the same file: one aux document's `powod` came back as
@@ -154,14 +154,39 @@ above; it's a single-character OCR substitution within a token.
 Investigated a token-level fuzzy match (per-token `difflib.SequenceMatcher` ratio,
 requiring all-but-one token to match exactly and the remaining token to score above a
 threshold) and it does discriminate the real typo correctly (`"FALISZEWSKA"` vs
-`"BALISZEWSKA"` → 0.909 ratio). **Deliberately not implemented**: the same technique
-scores a genuinely *different*-person case dangerously close — Polish gendered surname
-variants like `"WISNIEWSKA"` vs `"WISNIEWSKI"` (a very plausible spouse/family-member
-pairing sharing a surname, i.e. two different real people) score 0.900, higher than the
-real typo. A single similarity threshold cannot safely separate "OCR typo, same person"
-from "gendered surname variant, different person" — and the failure mode of getting it
-wrong (silently suppressing a genuine cross-case warning) is worse than the failure mode
-of leaving it alone (an occasional unnecessary but non-blocking `st.warning()`, since
-this feature never blocks the calculation, only informs). Left as a known, documented
-residual false-positive rate for OCR-degraded names — revisit only if a future report
-shows this recurring with a clearer discriminating signal than plain edit-distance.
+`"BALISZEWSKA"` → 0.909 ratio). **Deliberately not implemented on 15.07.2026**: the same
+technique scores a genuinely *different*-person case dangerously close — Polish gendered
+surname variants like `"WISNIEWSKA"` vs `"WISNIEWSKI"` (a very plausible spouse/family-
+member pairing sharing a surname, i.e. two different real people) score 0.900, higher
+than the real typo. A single similarity threshold cannot safely separate "OCR typo, same
+person" from "gendered surname variant, different person."
+
+**Fixed 16.07.2026** without a fresh bug report, using a narrower rule than the rejected
+global-ratio approach — one that specifically sidesteps the gendered-suffix confusion
+instead of trying to out-tune a single threshold against it. New `_same_person_ocr_typo()`
+in `doc_selector.py` (called from `parties_differ()` alongside `_same_person_reordered()`):
+a typo is recognized ONLY when exactly one token pair (after trying every permutation, so
+reordering + typo together — the real bug case — is also caught) differs by exactly one
+character substitution in a same-length word, AND that substitution is NOT within the
+last two characters. Polish gendered endings (-ski/-ska, -cki/-cka, -dzki/-dzka) differ
+exactly in that trailing position — a difference there is treated as a real signal of a
+different person, never forgiven as a typo. A substitution earlier in the word (like the
+F→B at position 0 in "FALISZEWSKA"/"BALISZEWSKA") has no such legitimate reading and is a
+far more reliable typo signal on its own, no similarity score needed.
+
+**Verified**: the real bug case (`"Faliszewska Barbara"` vs `"Barbara Baliszewska"` —
+reorder *and* typo simultaneously) now correctly resolves to *not different*; the
+dangerous case this whole investigation was blocked on (`"WISNIEWSKA"` vs `"WISNIEWSKI"`)
+still correctly resolves to *different*; all 7 originally-documented `parties_differ()`
+cases re-verified with no regression. Same verification method as before (standalone
+script calling the functions directly — `tools/regression_test.py` still doesn't render
+the Streamlit banner layer, so this path has no automated coverage) + a full
+`tools/regression_test.py` run for the surrounding `doc_selector.py`/`doc_splitter.py`
+changes made in the same session (see the sibling label fix below).
+
+**Residual risk, same shape as the reordering fix's accepted risk**: a genuinely
+different short entity pair whose names happen to differ by exactly one non-suffix
+character (e.g. two hypothetically similarly-named companies) would now be merged. No
+test file exhibits this; judged acceptable for the same reason as the reordering
+residual risk (this feature only ever produces a non-blocking `st.warning()`, never
+blocks the calculation).

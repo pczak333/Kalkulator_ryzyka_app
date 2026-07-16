@@ -35,12 +35,19 @@ _PAGE_DOC_PATTERNS = [
 #   słowo prawne nie kończy się na "ytelności"), więc nie grozi to fałszywymi
 #   dopasowaniami mimo luźniejszego okna;
 # - mianownik i celownik tytułu ("ZAJĘCIE"/"ZAJĘCIU" rachunku bankowego).
+# - (16.07.2026) "WEZWANIE DŁUŻNIKA do złożenia wykazu majątku" (ten sam plik
+#   testowy, segment [7-8]) NIE pasowało do wzorca wezwania o wykaz — regex
+#   wymagał "WEZWANIE" wprost przed "DO", a prawdziwy tytuł wstawia "DŁUŻNIKA"
+#   między nimi; segment dostawał wtedy generyczną etykietę "Pismo komornicze"
+#   zamiast konkretnej ("Wezwanie do złożenia wykazu majątku") — sama granica
+#   strony/segmentu była poprawna, to była tylko luka jakości etykiety w UI.
+#   Naprawione opcjonalnym `(?:D[LŁ]U[ŻZ]NIKA\s+)?` między "WEZWANIE" i "DO".
 _KOMORNIK_TITLES = [
     (r"ZAWIADOMIENIE\s+O\s+WSZCZ[EĘ]CIU\s+POST[EĘ]POWANIA\s+EGZEKUCYJ",
      "komornik_wszczecie_egzekucji", "Zawiadomienie o wszczęciu egzekucji"),
     (r"ZAJ[EĘ]CI[EU]\s+RACHUNKU\s+BANKOW",
      "komornik_zajecie_rachunku", "Zajęcie rachunku bankowego"),
-    (r"WEZWANIE\s+DO\s+Z[LŁ]O[ŻZ]ENIA\s+WYKAZU",
+    (r"WEZWANIE\s+(?:D[LŁ]U[ŻZ]NIKA\s+)?DO\s+Z[LŁ]O[ŻZ]ENIA\s+WYKAZU",
      "komornik_wezwanie_wykaz", "Wezwanie do złożenia wykazu majątku"),
     (r"(?m)^\s*WYKAZ\s+MAJ[AĄ]TKU",
      "komornik_wykaz_majatku", "Wykaz majątku"),
