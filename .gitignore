@@ -24,6 +24,10 @@ app/.streamlit/secrets.toml
 *.gif
 result_text.txt
 *.tmp
+# ...ale prawdziwe assety aplikacji (znak/favicon wygenerowany przez
+# tools/generate_favicon.py) mają być wersjonowane, nie traktowane jak
+# zrzuty ekranu ze scratchpada.
+!app/assets/*.png
 
 # Pliki tymczasowe Office (blokady Excel)
 ~$*

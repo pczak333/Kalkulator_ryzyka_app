@@ -15,11 +15,14 @@ from context_modules import collect as collect_context
 from text_builder import build as build_text, sanitize_check
 from doc_processor import process_files, ProcessedDocument
 from doc_selector import is_company_name, parties_differ as _parties_differ
+from branding import TOKENS, logo_svg_light_on_dark, css_variables
 
 # ── Konfiguracja strony ────────────────────────────────────────────────────────
+_FAVICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "favicon.png")
+
 st.set_page_config(
     page_title="KRS Guard — Kalkulator Ryzyka",
-    page_icon="⚖️",
+    page_icon=_FAVICON_PATH,
     layout="centered",
     initial_sidebar_state="collapsed",
 )
@@ -42,18 +45,24 @@ EPU_COMPATIBLE = {
     "K1_INNE_NIE_WIEM": "NIE",
 }
 
+# (16.07.2026, REDESIGN) Skala nasilenia zamiast wcześniejszych niepowiązanych
+# kolorów (zielony/pomarańczowy/czerwony/fioletowy — fiolet nie czyta się
+# intuicyjnie jako "poważniejszy niż czerwony"). Wartości z branding.py —
+# to samo źródło co pigułki statusu w raporcie PDF/HTML (Faza B), więc
+# aplikacja i dokument wyglądają spójnie. RISK_BG to jasne tło pigułki,
+# RISK_COLORS to kolor tekstu/ikony na tym tle.
 RISK_COLORS = {
-    "RISK_LOW":    "#2e7d32",
-    "RISK_MEDIUM": "#f57c00",
-    "RISK_HIGH":   "#c62828",
-    "RISK_URGENT": "#6a1b9a",
+    "RISK_LOW":    TOKENS["risk_low"],
+    "RISK_MEDIUM": TOKENS["risk_medium"],
+    "RISK_HIGH":   TOKENS["risk_high"],
+    "RISK_URGENT": TOKENS["risk_urgent"],
 }
 
-RISK_ICONS = {
-    "RISK_LOW":    "🟢",
-    "RISK_MEDIUM": "🟡",
-    "RISK_HIGH":   "🔴",
-    "RISK_URGENT": "🚨",
+RISK_BG = {
+    "RISK_LOW":    TOKENS["risk_low_bg"],
+    "RISK_MEDIUM": TOKENS["risk_medium_bg"],
+    "RISK_HIGH":   TOKENS["risk_high_bg"],
+    "RISK_URGENT": TOKENS["risk_urgent_bg"],
 }
 
 _DOC_TYPE_LABELS: dict[str, str] = {
@@ -627,27 +636,119 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             )
 
 
-def colored_risk_box(risk_code: str, risk_label: str):
-    color = RISK_COLORS.get(risk_code, "#1a3a5c")
-    icon = RISK_ICONS.get(risk_code, "⚖️")
+def colored_risk_box(risk_code: str, risk_label: str, compact: bool = False):
+    """Pigułka statusu ryzyka — jasne tło w kolorze nasilenia + pogrubiony
+    tekst etykiety, bez emoji (dawniej `RISK_ICONS` — sam kolor i tekst
+    wystarczą, spójne z pigułkami w raporcie PDF/HTML w `report_builder.py`).
+    `compact=True` — mniejsza wersja do zajawki wyniku (patrz Faza B planu
+    redesignu)."""
+    color = RISK_COLORS.get(risk_code, TOKENS["navy"])
+    bg = RISK_BG.get(risk_code, TOKENS["mist"])
+    size = "0.95rem" if compact else "1.15rem"
+    padding = "8px 16px" if compact else "14px 22px"
     st.markdown(
-        f"""<div style="background:{color};color:#fff;padding:16px 20px;
-        border-radius:8px;font-size:1.3rem;font-weight:bold;margin-bottom:12px;">
-        {icon} {risk_label}</div>""",
+        f"""<div style="background:{bg};color:{color};padding:{padding};
+        border-radius:999px;font-size:{size};font-weight:700;
+        display:inline-block;border:1.5px solid {color}33;
+        letter-spacing:.01em;">{risk_label}</div>""",
         unsafe_allow_html=True,
     )
 
 
-# ── Nagłówek ──────────────────────────────────────────────────────────────────
-st.title("⚖️ KRS Guard — Kalkulator Ryzyka Prawnego")
+# ── Redesign wizualny (16.07.2026) ──────────────────────────────────────────
+# Jeden scentralizowany blok CSS wykorzystujący system tokenów z branding.py
+# (współdzielony z report_builder.py, żeby aplikacja i raport PDF/HTML
+# wyglądały spójnie) — zamiast rozproszonych, osobno dobieranych kolorów hex
+# w każdym miejscu. Patrz plany/redesign-graficzny-i-raport-pdf-*.md.
 st.markdown(
-    "_Bezpłatna, orientacyjna ocena ryzyka w sprawach odpowiedzialności "
-    "członków zarządu spółek._"
+    f"""<style>
+{css_variables()}
+
+.stApp {{ background: var(--mist); }}
+.stApp h1, .stApp h2, .stApp h3 {{
+    font-family: var(--font-display);
+    color: var(--ink);
+    letter-spacing: -0.01em;
+}}
+
+.kg-header {{
+    background: var(--navy);
+    border-radius: var(--radius);
+    padding: 26px 30px;
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    box-shadow: var(--shadow);
+}}
+.kg-header h1 {{
+    color: #fff !important;
+    font-size: 1.55rem;
+    margin: 0 0 4px 0;
+    font-family: var(--font-display);
+}}
+.kg-header p {{
+    color: var(--mist) !important;
+    margin: 0;
+    font-size: 0.92rem;
+    opacity: .85;
+}}
+
+.kg-step {{ margin-top: 34px; margin-bottom: 6px; }}
+.kg-step-eyebrow {{
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--navy);
+    background: var(--paper);
+    border: 1px solid var(--mist-border);
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+}}
+.kg-step-title {{
+    font-family: var(--font-display) !important;
+    color: var(--ink) !important;
+    font-size: 1.28rem !important;
+    margin: 0 0 4px 0 !important;
+    border-left: 4px solid var(--navy);
+    padding-left: 12px;
+}}
+
+.stButton > button, .stDownloadButton > button {{
+    border-radius: var(--radius-sm) !important;
+    font-weight: 600 !important;
+}}
+</style>
+<div class="kg-header">
+  {logo_svg_light_on_dark(50)}
+  <div>
+    <h1>KRS Guard — Kalkulator Ryzyka Prawnego</h1>
+    <p>Bezpłatna, orientacyjna ocena ryzyka w sprawach odpowiedzialności członków zarządu spółek.</p>
+  </div>
+</div>""",
+    unsafe_allow_html=True,
 )
-st.divider()
+
+
+def section_header(number: str, title: str):
+    """Nagłówek bloku formularza — zamiennik `st.subheader` z wyraźną
+    separacją wizualną (pigułka "KROK N" + akcent koloru na tytule), bez
+    przepakowywania istniejącej logiki formularza w `st.container(border=True)`
+    — świadoma decyzja, żeby nie ryzykować błędu przy re-indentowaniu
+    złożonych, wielopoziomowych bloków (bramka art. 299, gałęzie K1-K7)."""
+    st.markdown(
+        f"""<div class="kg-step">
+          <span class="kg-step-eyebrow">KROK {number}</span>
+          <h3 class="kg-step-title">{title}</h3>
+        </div>""",
+        unsafe_allow_html=True,
+    )
 
 # ── Krok 0: Wgraj dokumenty (opcjonalnie) ────────────────────────────────────
-st.subheader("Krok 0 — Wgraj dokumenty (opcjonalnie)")
+section_header("0", "Wgraj dokumenty (opcjonalnie)")
 st.caption(
     "Wgraj pismo, nakaz lub inny dokument — kalkulator spróbuje wypełnić "
     "formularz automatycznie. Możesz też pominąć ten krok i wypełnić ręcznie."
@@ -869,7 +970,7 @@ st.divider()
 # ── Formularz ─────────────────────────────────────────────────────────────────
 
 # K1 – Rodzaj pisma
-st.subheader("Krok 1 — Rodzaj pisma")
+section_header("1", "Rodzaj pisma")
 k1 = labeled_radio(
     "Jakie pismo lub dokument dotyczy Twojej sprawy?",
     "K1", "k1",
@@ -878,7 +979,7 @@ k1 = labeled_radio(
 render_why_expander("K1")
 
 # EPU – checkbox zależny od K1
-st.subheader("Krok 2 — E-Sąd / EPU")
+section_header("2", "E-Sąd / EPU")
 epu_compat = EPU_COMPATIBLE.get(k1, "NIE")
 epu_disabled = (epu_compat == "NIE")
 
@@ -925,7 +1026,7 @@ else:
         )
 
 # K2 – Czas na reakcję
-st.subheader("Krok 3 — Czas na reakcję")
+section_header("3", "Czas na reakcję")
 # Jeśli prefill znalazł datę i termin — automatycznie zaznacz checkbox
 _prefill_has_dates = prefill and prefill.delivery_date and prefill.deadline_days
 use_dates = st.checkbox(
@@ -985,12 +1086,12 @@ else:
 render_why_expander("K2")
 
 # K3 – Zakres wsparcia
-st.subheader("Krok 4 — Zakres wsparcia")
+section_header("4", "Zakres wsparcia")
 k3 = labeled_radio("Czego teraz potrzebujesz?", "K3", "k3")
 render_why_expander("K3")
 
 # K4 – Status w zarządzie
-st.subheader("Krok 5 — Status w zarządzie")
+section_header("5", "Status w zarządzie")
 k4 = labeled_radio("Jaki jest Twój status w zarządzie?", "K4", "k4")
 render_why_expander("K4")
 
@@ -998,7 +1099,7 @@ render_why_expander("K4")
 # Spec: gdy K4_BOARD_UNKNOWN — ustaw K5_KRS_UNKNOWN bez pytania
 k5: str = "K5_NOT_APPLICABLE"
 if k4 == "K4_BOARD_RESIGNED":
-    st.subheader("Krok 5b — Wpis w KRS")
+    section_header("5b", "Wpis w KRS")
     k5 = labeled_radio(
         "Czy zmiana w zarządzie została ujawniona w KRS?", "K5", "k5"
     )
@@ -1009,12 +1110,12 @@ elif k4 == "K4_BOARD_ACTIVE":
     k5 = "K5_NOT_APPLICABLE"
 
 # K6 – Cel klienta
-st.subheader("Krok 6 — Twój cel")
+section_header("6", "Twój cel")
 k6 = labeled_radio("Czego przede wszystkim potrzebujesz?", "K6", "k6")
 render_why_expander("K6")
 
 # K7 – Kwota roszczenia (uwzględnij korektę kwoty jeśli użytkownik ją zmienił)
-st.subheader("Krok 7 — Kwota roszczenia")
+section_header("7", "Kwota roszczenia")
 _corr_kwota_val = st.session_state.get("corr_kwota")
 _k7_prefill = None
 if _corr_kwota_val and float(_corr_kwota_val) > 0:
