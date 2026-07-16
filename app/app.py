@@ -726,14 +726,22 @@ if uploaded_files and _do_analyze:
         # wnętrza kaskady OCR (Azure poll co ~2s, Claude/Tesseract
         # per strona) i z pętli po dokumentach w paczce — patrz
         # doc_ocr.py/doc_processor.py.
+        # (16.07.2026) `status.write(msg)` dopisywał NOWY wiersz przy każdym
+        # wywołaniu on_progress — przy długim skanie (poll Azure co 2s) albo
+        # wielostronicowym dokumencie to setki rosnących wierszy, wygląda
+        # nieprofesjonalnie (zgłoszenie użytkownika ze zrzutem ekranu).
+        # Zamiana na `status.update(label=msg)`: label kontenera to jeden,
+        # aktualizowany w miejscu wiersz — nie akumuluje się. `expanded=False`
+        # (zamiast True), bo wewnątrz nic już nie jest zapisywane do ciała
+        # kontenera — rozwinięty pokazywałby pustą przestrzeń pod nagłówkiem.
         with st.status(
             "Analizuję dokumenty (OCR + ekstrakcja danych)...",
-            expanded=True,
+            expanded=False,
         ) as status:
             try:
                 main_doc, aux_docs = process_files(
                     uploaded_files, secrets,
-                    on_progress=lambda msg: status.write(msg),
+                    on_progress=lambda msg: status.update(label=msg),
                 )
             except Exception:
                 status.update(label="Analiza nie powiodła się", state="error")

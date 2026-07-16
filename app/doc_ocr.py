@@ -43,7 +43,7 @@ def ocr_with_fallback(
     azure_candidate: tuple[str, float] | None = None
     if azure_key and azure_endpoint:
         if on_progress:
-            on_progress("OCR: analizuję dokument (Azure Document Intelligence)...")
+            on_progress("OCR: analizuję dokument...")
         azure_result, azure_error = _ocr_azure(
             raw_bytes, azure_key, azure_endpoint, pages, on_progress=on_progress
         )
@@ -67,7 +67,7 @@ def ocr_with_fallback(
     # dwukolumnowy/wielotabelowy niż Tesseract.
     if claude_key:
         if on_progress and azure_candidate is not None:
-            on_progress("OCR: jakość Azure poniżej progu — eskaluję do Claude Haiku...")
+            on_progress("OCR: doprecyzowuję odczyt dokumentu...")
         text, conf = _ocr_claude(pages, claude_key, on_progress=on_progress)
         return text, conf, "claude", " | ".join(notes)
 
@@ -113,7 +113,7 @@ def _ocr_tesseract_pages(
             if not img_bytes:
                 continue
             if on_progress:
-                on_progress(f"OCR: strona {i}/{len(scan_pages)} (Tesseract)...")
+                on_progress(f"OCR: strona {i}/{len(scan_pages)}...")
             img = Image.open(io.BytesIO(img_bytes))
             img = _preprocess_for_tesseract(img)
             text = pytesseract.image_to_string(img, lang="pol+eng")
@@ -161,7 +161,7 @@ def _ocr_azure(
             time.sleep(2)
             elapsed += 2
             if on_progress:
-                on_progress(f"OCR: przetwarzam dokument (Azure)... {elapsed}s")
+                on_progress(f"OCR: przetwarzam dokument... {elapsed}s")
         result = poller.result()
 
         lines: list[str] = []
@@ -217,7 +217,7 @@ def _ocr_claude(
     for i, page in enumerate(pages, start=1):
         page_num = page.get("page_num", i)
         if on_progress:
-            on_progress(f"OCR: strona {i}/{len(pages)} (Claude)...")
+            on_progress(f"OCR: strona {i}/{len(pages)}...")
         img_bytes = page.get("image_bytes")
         if not img_bytes:
             if page.get("text"):

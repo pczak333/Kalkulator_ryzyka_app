@@ -1,6 +1,6 @@
 ---
 name: project-progress-indicator
-description: "15.07.2026 — replaced the static st.spinner during document analysis with a live-ticking st.status widget (on_progress callback threaded through OCR cascade + doc loop); hit and fixed a real 'expanders may not be nested' bug caught by a live browser test."
+description: "15.07.2026 — replaced the static st.spinner during document analysis with a live-ticking st.status widget (on_progress callback threaded through OCR cascade + doc loop); hit and fixed a real 'expanders may not be nested' bug caught by a live browser test. 16.07.2026 follow-up: switched status.write() (append-only, grew into a long scrolling list) to status.update(label=...) for a single in-place line, and stripped OCR engine names (Azure/Claude/Tesseract) out of user-facing messages."
 metadata: 
   node_type: memory
   type: project
@@ -100,3 +100,48 @@ issue documented elsewhere in memory/CLAUDE.md) — both PASS, 0 regressions.
 CLAUDE.md updated (doc_ocr.py/doc_processor.py/app.py sections). Not yet
 committed at the time of writing this memory — see git status before
 assuming this is on `origin/etap2`.
+
+## Follow-up (16.07.2026): one line instead of a growing list, no engine names
+
+User's screenshot from actual use: the widget worked, but `status.write(msg)`
+— the call this session's implementation used — **appends a new element on
+every call**; it's not an in-place update. On a long scan (Azure poll every
+2s) or a multi-page document (Tesseract/Claude per page) that's dozens to
+hundreds of stacked lines — unprofessional-looking, not what "progress
+indicator" was meant to produce. Second, independent ask in the same
+message: several of the progress strings named the OCR engine outright
+("(Azure Document Intelligence)", "(Claude)", "(Tesseract)") — an
+implementation detail with no reason to be client-facing.
+
+**Fix**: swapped `status.write(msg)` for `status.update(label=msg)` in the
+`on_progress` lambda (`app.py`) — `st.status`'s `label` is a single value
+that overwrites in place, which is exactly the "one line, updates, doesn't
+grow" behavior asked for. Also flipped the container's `expanded=True` to
+`expanded=False`, since nothing writes to the body anymore — an expanded
+container with an empty body would look broken. The two existing
+`status.update(state="error"/"complete", ...)` calls at the start/end were
+untouched (already label-based). Separately, edited the 5 message strings in
+`doc_ocr.py` to drop engine names (e.g. "OCR: analizuję dokument (Azure
+Document Intelligence)..." → "OCR: analizuję dokument...") — pure text
+changes, the underlying cascade logic (which engine actually runs, when
+escalation happens) is untouched.
+
+**Verified live** (agent-browser, `nakaz_zapłaty+pozew.pdf`, 12 pages):
+watched the same single box change label over several screenshots —
+"Analizuję dokumenty..." → "OCR: analizuję dokument..." → "OCR: strona
+3/10..." → "...10/10..." → results — never more than one line, never an
+engine name, no console errors. Final extracted data (sygnatura V GNc
+1235/22/S, kwota 34 230,43 zł, termin 14 dni, powód/pozwany) matched the
+values already documented for this test file in CLAUDE.md — confirms no
+functional regression from the label-vs-write swap.
+
+**Gotcha hit along the way, unrelated to the fix itself**: starting
+`streamlit run app/app.py` from the repo root (as CLAUDE.md's own "to run
+locally" instructions say) makes Streamlit resolve `secrets.toml` relative
+to the *invocation* cwd, not the script's directory — it looked for
+`<repo-root>/.streamlit/secrets.toml`, not the real
+`app/.streamlit/secrets.toml`, and failed with `StreamlitSecretNotFoundError`
+on first upload attempt. Had to restart with cwd = `app/`
+(`cd app && streamlit run app.py`). Worth fixing the documented run command
+at some point, or noting the cwd requirement explicitly — not done in this
+session, flagged here so it isn't rediscovered from scratch.
