@@ -10,12 +10,21 @@ The application is built and running. The stack is **Python + Streamlit**. Sourc
 
 ## Branch strategy
 
-| Branch | Purpose |
-|---|---|
-| `main` | Production — Etap 1 (manual form). Deployed on share.streamlit.io for testers. Do NOT push Stage 2 code here until Stage 2 is fully tested. |
-| `etap2` | Development — Stage 2 (document upload + OCR). Active development branch. |
+**Jedna gałąź: `main`.** (16.07.2026) Etap 2 (upload dokumentów + OCR + AI +
+redesign wizualny) uznany za wystarczająco przetestowany i scalony do `main`
+przez fast-forward merge (`main` był bezpośrednim przodkiem `etap2`, zero
+konfliktów) — na wyraźną decyzję użytkownika: jedna wersja, jedna gałąź,
+zamiast dotychczasowego podziału main (produkcja)/etap2 (rozwój). Gałąź
+`etap2` oraz dwie zbędne gałęzie robocze (`worktree-jest-problem-z-w-a-ciw-
+stateless-teapot`, `worktree-lucky-singing-parasol` — obie w 100% zawarte w
+historii `etap2`, zero unikalnej treści, potwierdzone przed usunięciem)
+usunięte lokalnie i na `origin`. Deployment na share.streamlit.io teraz
+śledzi `main` bezpośrednio.
 
-Tag `v1.0-etap1` marks the stable Stage 1 checkpoint.
+Wszystkie przyszłe zmiany: commit + push bezpośrednio na `main` (patrz
+"Git workflow" niżej) — bez osobnej gałęzi deweloperskiej. Tag `v1.0-etap1`
+zostaje jako historyczny checkpoint stabilnej wersji Etapu 1 (nie wpływa na
+bieżącą pracę).
 
 ## Application structure
 
@@ -213,12 +222,12 @@ After every meaningful change — new file, updated spec, working feature, confi
 ```bash
 git add <specific files>
 git commit -m "short description of what changed and why"
-git push origin etap2   # use etap2 during Stage 2 development; main is for production only
+git push origin main
 ```
 
 Use clear, descriptive commit messages in English or Polish (match the language of the changed content). Never bundle unrelated changes into one commit.
 
-**Important:** All Stage 2 development goes to `etap2` branch. Merge to `main` only when Stage 2 is fully tested.
+**(16.07.2026)** Jedna gałąź (`main`) — patrz "Branch strategy" wyżej. Nie ma już osobnej gałęzi `etap2`.
 
 ## Test documents
 
@@ -271,7 +280,7 @@ poprawce — wszystkie poprawne, brak regresji.
 ## Zasady pracy Claude Code w tym projekcie
 
 ### Synchronizacja dokumentacji (obowiązkowe)
-- **Po każdej zmianie kodu lub danych**: zaktualizuj CLAUDE.md (sekcja doc_*.py, test documents) oraz plik memory projektu (`project-etap2-state.md`) — jeszcze w tej samej sesji, przed commitem.
+- **Po każdej zmianie kodu lub danych**: zaktualizuj CLAUDE.md (sekcja doc_*.py, test documents) oraz odpowiedni plik w `memory/` (patrz indeks `memory/MEMORY.md` — osobny plik per temat, nie jeden monolityczny plik stanu) — jeszcze w tej samej sesji, przed commitem.
 - **Nie czekaj do końca rozmowy** z aktualizacją dokumentacji — rób to na bieżąco po każdym zakończonym kroku.
 
 ### Ostrzeżenie o limicie tokenów
