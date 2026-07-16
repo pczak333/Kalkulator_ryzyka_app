@@ -115,8 +115,15 @@ projekt jest Python+Streamlit); plugin `frontend-design@claude-plugins-official`
 
 **To run locally:**
 ```bash
-streamlit run app/app.py
+cd app
+streamlit run app.py
 ```
+IMPORTANT: run from inside `app/`, not the repo root. Streamlit resolves
+`secrets.toml` relative to the **invocation cwd**, not the script's directory —
+`streamlit run app/app.py` from the repo root fails with
+`StreamlitSecretNotFoundError` because it looks for `<repo-root>/.streamlit/secrets.toml`
+instead of the real `app/.streamlit/secrets.toml` (discovered 16.07.2026 during a live
+browser test, see `memory/project_progress_indicator.md`).
 
 **Secrets required** (`app/.streamlit/secrets.toml`, never commit this file):
 ```toml
