@@ -1,6 +1,6 @@
 ---
 name: project-unrelated-docs-warning
-description: "When a user uploads multiple documents that turn out to be unrelated cases (different creditor/powód), the calculator picked a main document correctly but gave no indication the aux document(s) belong to a different matter. Fixed 14.07.2026 by comparing powód across main/aux with fuzzy company-name normalization. Also flags a related, unaddressed risk in doc_selector.py's Fix B."
+description: "When a user uploads multiple documents that turn out to be unrelated cases (different creditor/powód), the calculator picked a main document correctly but gave no indication the aux document(s) belong to a different matter. Fixed 14.07.2026 by comparing powód across main/aux with fuzzy company-name normalization. 16.07.2026: the related doc_selector.py Fix B risk flagged below was implemented — see that section for the fix."
 metadata:
   node_type: memory
   type: project
@@ -53,19 +53,39 @@ creditor name is a reliable, general signal of "different case," full stop.
 the pool (`doc_processor.py`'s `_build_candidate_dict()` runs AI extraction per
 candidate, not just the eventual main), so this is pure app.py-side comparison logic.
 
-## Related, unaddressed risk (flagged for future investigation, not fixed here)
+## Related risk — IMPLEMENTED 16.07.2026 (was: "unaddressed, flagged for future investigation")
 
 `doc_selector.py`'s "Fix B" bundle upgrade (SPOLKA→CZLONEK_ZARZADU) scans the *entire
 pooled text* of all candidates for "art. 299"/"członek zarządu" mentions to decide
 whether to upgrade a SPOLKA-typed main document. If a user uploads two genuinely
 unrelated documents where one mentions art. 299 and the other doesn't, this could in
 principle cross-contaminate classification of a document that has nothing to do with
-board-member liability. Not exercised by this session's test case (the main document
-here was already correctly `_CZLONEK_ZARZADU` from its own content, so Fix B never
-needed to fire) — but worth checking if a future bug report shows a SPOLKA document
-getting upgraded due to an unrelated aux document's content. If it recurs, the same
-`_parties_differ()` helper could gate Fix B too (only trust art.299 mentions from
-documents sharing the main document's creditor).
+board-member liability. Not exercised by this session's (14.07) test case (the main
+document here was already correctly `_CZLONEK_ZARZADU` from its own content, so Fix B
+never needed to fire) — flagged for future investigation, not fixed at the time.
+
+User asked for it to be implemented on 16.07.2026 without a fresh bug report — same
+approach as anticipated here: `_bundle_has_czlonek` in `doc_selector.py` now only
+counts an art.299/członek-zarządu mention from a candidate document whose `powod`
+doesn't differ (`parties_differ()`) from the main document's `powod`. Missing `powod`
+on either side does not block the upgrade (no data = no evidence of a difference, same
+rule the original creditor-mismatch warning uses).
+
+This required moving `_normalize_party_name`/`_same_person_reordered`/`_parties_differ`
+out of `app.py` and into `doc_selector.py` (as public `normalize_party_name`/
+`parties_differ`) — Fix B lives in `doc_selector.py`, which cannot import from `app.py`
+(would be a circular import, since `app.py` already imports from `doc_selector.py`).
+`app.py` now imports `parties_differ as _parties_differ` instead of keeping its own
+copy of the comparison logic.
+
+**Verified**: 4 synthetic scenarios via direct `doc_selector.select_main_document()`
+calls (different creditor blocks the upgrade even when the main document's `pozwany`
+extraction is missing/inconclusive — the actual precondition under which Fix B fires;
+same creditor still upgrades as before; missing `powod` on the aux side doesn't block a
+legitimate upgrade) + a full `tools/regression_test.py` run (30 PASS / 0 FAIL / 1 SKIP —
+the one known-missing test file), with particular attention to every art. 299 bundle
+file (`art299_pozew_nakaz_umorz._egzek..pdf`, `wyrok_egzekucja+zaj._rach.+wyk._majatku.pdf`,
+`nakaz_zapłaty+pozew.pdf`, and others) — every existing, legitimate upgrade still fires.
 
 ## Verified
 

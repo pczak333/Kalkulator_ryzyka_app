@@ -1,7 +1,6 @@
 """KRS Guard — Kalkulator Ryzyka Prawnego (Streamlit MVP)."""
 import sys
 import os
-import re
 from collections import Counter
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -15,7 +14,7 @@ from scenario_selector import find_scenario, resolve_doc_type
 from context_modules import collect as collect_context
 from text_builder import build as build_text, sanitize_check
 from doc_processor import process_files, ProcessedDocument
-from doc_selector import is_company_name
+from doc_selector import is_company_name, parties_differ as _parties_differ
 
 # ── Konfiguracja strony ────────────────────────────────────────────────────────
 st.set_page_config(
@@ -133,62 +132,12 @@ _KOMORNIK_GENERIC_LABELS = {
 }
 
 
-# (14.07.2026) Formy spółkowe do usunięcia przy porównywaniu nazw wierzycieli —
-# "MIPROMET Sp. z o.o." i "MIPROMET Spółka z ograniczoną odpowiedzialnością"
-# to ta sama firma zapisana inaczej, nie powinny wypadać jako "różny wierzyciel".
-_PARTY_SUFFIX_RE = re.compile(
-    r"\b(sp[oó]łk[a-ząćęłńóśźż]*\s+z\s+ograniczon[aą]\s+odpowiedzialno[sś]ci[aą]"
-    r"|sp\.?\s*z\s*o\.?\s*o\.?"
-    r"|s\.?\s*a\.?"
-    r"|sp[oó]łk[a-ząćęłńóśźż]*\s+akcyjn[aą]"
-    r"|sp\.?\s*k\.?"
-    r"|sp[oó]łk[a-ząćęłńóśźż]*\s+komandytow[a-ząćęłńóśźż]*)\b",
-    re.IGNORECASE,
-)
-
-
-def _normalize_party_name(name: str) -> str:
-    n = _PARTY_SUFFIX_RE.sub(" ", name.upper())
-    n = re.sub(r"[^\wĄĆĘŁŃÓŚŹŻ]+", " ", n)
-    return " ".join(n.split()).strip()
-
-
-_PERSON_NAME_MAX_TOKENS = 3
-
-
-def _same_person_reordered(na: str, nb: str) -> bool:
-    """True, gdy obie znormalizowane nazwy to ten sam zestaw 2-3 tokenów w
-    innej kolejności (np. "FALISZEWSKA BARBARA" vs "BARBARA FALISZEWSKA" —
-    ta sama osoba, imię i nazwisko zamienione miejscami między dokumentami
-    tej samej paczki — zgłoszenie użytkownika 15.07.2026). Limit 2-3 tokenów
-    celowo: tyle ma zwykłe imię+nazwisko (ew. z drugim imieniem). Krótkie
-    nazwy firm po usunięciu formy spółkowej (np. "KILOUTOU POLSKA") mogłyby
-    teoretycznie też trafić w ten zakres, ale to DODATKOWY warunek obok
-    substring-checku w `_parties_differ()` (który już poprawnie łapie
-    warianty zapisu firm) — nie jego zamiennik."""
-    ta, tb = na.split(), nb.split()
-    if not (2 <= len(ta) <= _PERSON_NAME_MAX_TOKENS
-            and 2 <= len(tb) <= _PERSON_NAME_MAX_TOKENS):
-        return False
-    return set(ta) == set(tb)
-
-
-def _parties_differ(a: str | None, b: str | None) -> bool:
-    """True gdy dwie nazwy stron (np. wierzycieli) wyglądają na WYRAŹNIE różne
-    podmioty — nie tylko inny zapis tej samej firmy albo tej samej osoby z
-    imieniem/nazwiskiem zapisanym w innej kolejności. Puste/brakujące
-    wartości nigdy nie liczą się jako "różne" (brak fałszywego alarmu przy
-    braku danych)."""
-    if not a or not b:
-        return False
-    na, nb = _normalize_party_name(a), _normalize_party_name(b)
-    if not na or not nb:
-        return False
-    if na in nb or nb in na:
-        return False
-    if _same_person_reordered(na, nb):
-        return False
-    return True
+# (16.07.2026) `_normalize_party_name`/`_same_person_reordered`/`_parties_differ`
+# przeniesione do doc_selector.py (jako `normalize_party_name`/`parties_differ`,
+# importowane wyżej pod starą nazwą) — Fix B (bundle-level upgrade
+# SPOLKA→CZLONEK_ZARZADU) w doc_selector.py potrzebuje tej samej logiki, a
+# doc_selector.py nie może importować z app.py (circular import). Patrz
+# memory/project_unrelated_docs_warning.md.
 
 
 def _komornik_display_label(doc) -> str:

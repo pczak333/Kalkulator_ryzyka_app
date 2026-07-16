@@ -62,6 +62,68 @@ def is_company_name(name: str | None) -> bool:
     n = (name or "").lower()
     return any(f in n for f in _COMPANY_FORMS)
 
+
+# (16.07.2026) Porównywanie nazw stron (wierzycieli) — przeniesione z app.py, gdzie
+# powstało 14-15.07.2026 dla ostrzeżenia "różne sprawy w paczce" (patrz
+# memory/project_unrelated_docs_warning.md). Mieszka tu, nie w app.py, bo Fix B
+# (bundle-level upgrade SPOLKA→CZLONEK_ZARZADU, niżej) też tego potrzebuje, a
+# doc_selector.py nie importuje app.py (uniknięcie circular importu w drugą stronę —
+# app.py już importuje z doc_selector.py, więc ten kierunek jest bezpieczny).
+_PARTY_SUFFIX_RE = re.compile(
+    r"\b(sp[oó]łk[a-ząćęłńóśźż]*\s+z\s+ograniczon[aą]\s+odpowiedzialno[sś]ci[aą]"
+    r"|sp\.?\s*z\s*o\.?\s*o\.?"
+    r"|s\.?\s*a\.?"
+    r"|sp[oó]łk[a-ząćęłńóśźż]*\s+akcyjn[aą]"
+    r"|sp\.?\s*k\.?"
+    r"|sp[oó]łk[a-ząćęłńóśźż]*\s+komandytow[a-ząćęłńóśźż]*)\b",
+    re.IGNORECASE,
+)
+
+
+def normalize_party_name(name: str) -> str:
+    n = _PARTY_SUFFIX_RE.sub(" ", name.upper())
+    n = re.sub(r"[^\wĄĆĘŁŃÓŚŹŻ]+", " ", n)
+    return " ".join(n.split()).strip()
+
+
+_PERSON_NAME_MAX_TOKENS = 3
+
+
+def _same_person_reordered(na: str, nb: str) -> bool:
+    """True, gdy obie znormalizowane nazwy to ten sam zestaw 2-3 tokenów w
+    innej kolejności (np. "FALISZEWSKA BARBARA" vs "BARBARA FALISZEWSKA" —
+    ta sama osoba, imię i nazwisko zamienione miejscami między dokumentami
+    tej samej paczki — zgłoszenie użytkownika 15.07.2026). Limit 2-3 tokenów
+    celowo: tyle ma zwykłe imię+nazwisko (ew. z drugim imieniem). Krótkie
+    nazwy firm po usunięciu formy spółkowej (np. "KILOUTOU POLSKA") mogłyby
+    teoretycznie też trafić w ten zakres, ale to DODATKOWY warunek obok
+    substring-checku w `parties_differ()` (który już poprawnie łapie
+    warianty zapisu firm) — nie jego zamiennik."""
+    ta, tb = na.split(), nb.split()
+    if not (2 <= len(ta) <= _PERSON_NAME_MAX_TOKENS
+            and 2 <= len(tb) <= _PERSON_NAME_MAX_TOKENS):
+        return False
+    return set(ta) == set(tb)
+
+
+def parties_differ(a: str | None, b: str | None) -> bool:
+    """True gdy dwie nazwy stron (np. wierzycieli) wyglądają na WYRAŹNIE różne
+    podmioty — nie tylko inny zapis tej samej firmy albo tej samej osoby z
+    imieniem/nazwiskiem zapisanym w innej kolejności. Puste/brakujące
+    wartości nigdy nie liczą się jako "różne" (brak fałszywego alarmu przy
+    braku danych)."""
+    if not a or not b:
+        return False
+    na, nb = normalize_party_name(a), normalize_party_name(b)
+    if not na or not nb:
+        return False
+    if na in nb or nb in na:
+        return False
+    if _same_person_reordered(na, nb):
+        return False
+    return True
+
+
 # Źródło dokumentu — używane przez R23–R26 w score_candidate()
 _COURT_TYPES = {
     "POZEW_CZLONEK_ZARZADU", "NAKAZ_CZLONEK_ZARZADU",
@@ -380,8 +442,19 @@ def select_main_document(candidates: list[dict]) -> tuple[dict, list[dict]]:
     # (np. pozwu art. 299 towarzyszącego staremu nakazowi przeciwko spółce).
     # Bez guardu powstawał stan niespójny: typ *_CZLONEK_ZARZADU + wyświetlany
     # pozwany-spółka → bramka art. 299 pytała o osobę fizyczną wbrew danym.
+    # GUARD (16.07.2026): wzmianka o art. 299/członku zarządu liczy się TYLKO,
+    # gdy pochodzi z dokumentu tego SAMEGO wierzyciela (powód) co dokument
+    # główny — inaczej dwa niepowiązane dokumenty w jednej paczce (różni
+    # wierzyciele, różne sprawy) mogłyby skrośnie zanieczyścić klasyfikację
+    # (zgłoszony, ale dotąd niezaobserwowany w praktyce błąd, patrz
+    # memory/project_unrelated_docs_warning.md — "Related, unaddressed risk").
+    # Ten sam `parties_differ()` co ostrzeżenie "różne sprawy w paczce" w
+    # app.py: brak powoda po którejkolwiek stronie NIE blokuje upgrade (zero
+    # danych = brak dowodu na różnicę, nie fałszywy alarm).
+    _main_powod = main.get("powod")
     _bundle_has_czlonek = any(
         _CZLONEK_UPGRADE_PAT.search(d.get("raw_text", ""))
+        and not parties_differ(_main_powod, d.get("powod"))
         for d in candidates
     )
     _upgraded_type = _SPOLKA_TO_CZLONEK.get(main.get("doc_type_code", ""))
