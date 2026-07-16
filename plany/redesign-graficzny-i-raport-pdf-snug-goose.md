@@ -1,5 +1,43 @@
 # Redesign wizualny kalkulatora + wynik jako raport PDF/HTML
 
+## STATUS KOŃCOWY (16.07.2026): obie fazy ukończone i zweryfikowane żywym testem
+
+**Faza A** wykonana zgodnie z planem, z jedną świadomą zmianą: krok 3 Fazy A
+(separacja kroków formularza) użył nowego helpera `section_header()` zamiast
+`st.container(border=True)`, żeby nie ryzykować re-indentacji złożonej,
+wielopoziomowej logiki formularza (bramka art. 299, gałęzie K1-K7) dla
+czysto kosmetycznej zmiany. Ten sam efekt wizualny (wyraźna separacja bloków)
+osiągnięty w pełni addytywnie.
+
+**Faza B** wykonana z ISTOTNĄ zmianą architektury względem tego, co zapisano
+niżej: WeasyPrint (opisany niżej jako wybrany silnik) okazał się
+NIEUŻYWALNY lokalnie na Windows (natywne biblioteki Pango/Cairo
+niedostępne bez dodatkowej instalacji) — potwierdzone realną próbą importu,
+nie tylko przewidywaniem. Rozważona alternatywa `xhtml2pdf` (czysty Python)
+INSTALOWAŁA się i działała, ale jej obsługa `@font-face` okazała się
+niewiarygodna — polskie znaki diakrytyczne renderowały się jako puste
+kwadraty w każdej wypróbowanej konfiguracji (zweryfikowane wizualnie, render
+strony PDF jako obraz). Finalne rozwiązanie: surowy `reportlab` z
+bezpośrednio zarejestrowanym fontem DejaVu Sans/Serif (dołączonym do repo w
+`app/assets/fonts/`, skopiowanym z pakietu `matplotlib`, nie nową zależnością
+runtime) — jedyna kombinacja, która poprawnie wyrenderowała polskie znaki.
+Architektura: DWA niezależne renderery (`report_builder.py::build_report_html()`
+i `build_report_pdf()`) zamiast jednego wspólnego szablonu HTML→PDF — oba
+czerpią z tych samych danych (`text_builder.build()`) i tokenów
+(`branding.py`), więc wyglądają spójnie mimo osobnego kodu renderującego.
+Efekt uboczny (korzystny): `reportlab` jest czystym Pythonem bez zależności
+systemowych, więc — w odróżnieniu od pierwotnego planu z WeasyPrint —
+**żaden `packages.txt` nie jest potrzebny** dla Streamlit Cloud.
+
+Pełny opis obu faz, w tym złapane żywym testem błędy (literówka **bold** w
+zajawce, gotchas narzędzia testowego) — patrz `memory/project_visual_redesign.md`
+i sekcje `app.py`/`branding.py`/`report_builder.py` w `CLAUDE.md`.
+
+Treść planu poniżej to ORYGINALNA wersja sprzed implementacji — zachowana dla
+kontekstu decyzyjnego (materiały źródłowe, uzasadnienie systemu tokenów),
+mimo że część szczegółów technicznych (silnik PDF) została nadpisana
+powyższym statusem końcowym.
+
 ## Kontekst
 
 Kalkulator działa poprawnie, ale wygląda jak standardowy, nieforemny formularz

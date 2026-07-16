@@ -5,6 +5,7 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(__file__))
 
 import streamlit as st
+import streamlit.components.v1 as components
 from datetime import date, timedelta
 
 from data_loader import load_form_questions, load_spolka_indirect_risk_text
@@ -15,7 +16,8 @@ from context_modules import collect as collect_context
 from text_builder import build as build_text, sanitize_check
 from doc_processor import process_files, ProcessedDocument
 from doc_selector import is_company_name, parties_differ as _parties_differ
-from branding import TOKENS, logo_svg_light_on_dark, css_variables
+from branding import TOKENS, RISK_COLORS, RISK_BG, logo_svg_light_on_dark, css_variables
+from report_builder import build_report_html, build_report_pdf, markup_bold
 
 # ── Konfiguracja strony ────────────────────────────────────────────────────────
 _FAVICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "favicon.png")
@@ -45,25 +47,11 @@ EPU_COMPATIBLE = {
     "K1_INNE_NIE_WIEM": "NIE",
 }
 
-# (16.07.2026, REDESIGN) Skala nasilenia zamiast wcześniejszych niepowiązanych
-# kolorów (zielony/pomarańczowy/czerwony/fioletowy — fiolet nie czyta się
-# intuicyjnie jako "poważniejszy niż czerwony"). Wartości z branding.py —
-# to samo źródło co pigułki statusu w raporcie PDF/HTML (Faza B), więc
-# aplikacja i dokument wyglądają spójnie. RISK_BG to jasne tło pigułki,
-# RISK_COLORS to kolor tekstu/ikony na tym tle.
-RISK_COLORS = {
-    "RISK_LOW":    TOKENS["risk_low"],
-    "RISK_MEDIUM": TOKENS["risk_medium"],
-    "RISK_HIGH":   TOKENS["risk_high"],
-    "RISK_URGENT": TOKENS["risk_urgent"],
-}
-
-RISK_BG = {
-    "RISK_LOW":    TOKENS["risk_low_bg"],
-    "RISK_MEDIUM": TOKENS["risk_medium_bg"],
-    "RISK_HIGH":   TOKENS["risk_high_bg"],
-    "RISK_URGENT": TOKENS["risk_urgent_bg"],
-}
+# (16.07.2026, REDESIGN) RISK_COLORS/RISK_BG przeniesione do branding.py —
+# jedno źródło współdzielone z report_builder.py (Faza B), żeby aplikacja i
+# raport PDF/HTML używały identycznych kolorów. Skala nasilenia (zielony→
+# bursztyn→czerwony→ciemna czerwień) zamiast wcześniejszych niepowiązanych
+# kolorów (fiolet dla URGENT nie czytał się jako "poważniejszy niż czerwony").
 
 _DOC_TYPE_LABELS: dict[str, str] = {
     "NAKAZ_CZLONEK_ZARZADU":              "Nakaz zapłaty",
@@ -653,6 +641,21 @@ def colored_risk_box(risk_code: str, risk_label: str, compact: bool = False):
         letter-spacing:.01em;">{risk_label}</div>""",
         unsafe_allow_html=True,
     )
+
+
+def _first_sentence(text: str) -> str:
+    """Pierwsze zdanie tekstu (do jednozdaniowej zajawki wyniku pod
+    formularzem, Faza B redesignu) — proste dzielenie po separatorze zdania,
+    bez `re` (moduł nieużywany gdzie indziej w tym pliku od czasu
+    przeniesienia porównania nazw stron do doc_selector.py)."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    for sep in (". ", "! ", "? "):
+        idx = text.find(sep)
+        if idx != -1:
+            return text[: idx + 1]
+    return text if text.endswith((".", "!", "?")) else text + "."
 
 
 # ── Redesign wizualny (16.07.2026) ──────────────────────────────────────────
@@ -1330,16 +1333,39 @@ if "krs_answers" in st.session_state:
             "plan działania zanim termin minie."
         )
 
-    colored_risk_box(final_risk_code, output["risk_label"])
-    st.markdown(output["full_text"])
+    # (16.07.2026, REDESIGN FAZA B) Pełny tekst wyniku NIE wyświetla się już
+    # bezpośrednio pod formularzem jako blok markdown — zamiast tego krótka
+    # zajawka (pigułka + pierwsze zdanie) + wyraźne przyciski prowadzące do
+    # ładnie sformatowanego raportu (podgląd na stronie i/lub PDF do
+    # pobrania). Blok EPU (dawniej osobny expander) jest teraz częścią
+    # samego raportu — patrz report_builder.py. Oba renderery (HTML i PDF)
+    # czerpią z TEGO SAMEGO słownika `output`, więc treść jest identyczna
+    # niezależnie od formy — zmienia się tylko prezentacja.
+    colored_risk_box(final_risk_code, output["risk_label"], compact=True)
+    _teaser = _first_sentence(output.get("lead", ""))
+    if _teaser:
+        st.markdown(
+            f"<p style='color:{TOKENS['ink_muted']};margin:6px 0 18px;"
+            f"font-size:0.98rem;'>{markup_bold(_teaser)}</p>",
+            unsafe_allow_html=True,
+        )
 
-    # ── Blok EPU (uzupełnienie, gdy EPU=TAK) ──────────────────────────────
-    if output.get("epu_block_text"):
-        heading = output.get("epu_block_heading") or "Dodatkowa informacja: EPU / e-Sąd"
-        with st.expander(f"ℹ️ {heading}", expanded=True):
-            st.markdown(output["epu_block_text"])
-            if output.get("epu_block_disclaimer"):
-                st.caption(output["epu_block_disclaimer"])
+    _report_html = build_report_html(output, final_risk_code)
+    _report_pdf = build_report_pdf(output, final_risk_code)
+
+    _col_a, _col_b = st.columns(2)
+    with _col_a:
+        _show_report = st.toggle("📄 Zobacz pełny raport", key="_show_full_report")
+    with _col_b:
+        st.download_button(
+            "⬇ Pobierz jako PDF",
+            data=_report_pdf,
+            file_name="raport-kalkulator-ryzyka.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+    if _show_report:
+        components.html(_report_html, height=1500, scrolling=True)
 
     # ── Reset ─────────────────────────────────────────────────────────────
     st.divider()

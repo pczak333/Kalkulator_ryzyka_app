@@ -1,6 +1,6 @@
 ---
 name: project-visual-redesign
-description: "16.07.2026 — visual redesign of the Streamlit calculator (design token system, original SVG mark for the calculator — explicitly NOT the law firm's logo, section headers replacing plain st.subheader) plus (planned) a PDF/HTML report replacing the inline result block. Faza A (visual redesign) complete and live-verified; Faza B (report) not yet started."
+description: "16.07.2026 — visual redesign of the Streamlit calculator (design token system, original SVG mark for the calculator — explicitly NOT the law firm's logo, section headers replacing plain st.subheader) plus a PDF/HTML report replacing the inline result block. BOTH Faza A and Faza B complete and live-verified end-to-end with a real submitted form. Faza B pivoted away from the planned WeasyPrint architecture after real local test failures — see the Faza B section below, this is the important part to read before touching report_builder.py."
 metadata:
   node_type: memory
   type: project
@@ -121,12 +121,97 @@ still the old inline markdown at this point — untouched, confirms Faza A's
 CSS/header/RISK_COLORS changes didn't regress the existing calculation
 pipeline.
 
-## Status / what's left
+## Faza B: PDF/HTML report — architecture pivot after real local test failures
 
-Faza A (visual redesign of the form) is complete, live-verified, not yet
-committed at the time of writing this memory — check git status before
-assuming this landed. Faza B (PDF/HTML report replacing the inline result
-block, new `report_builder.py`, WeasyPrint dependency) has **not started
-yet** — see the plan file for its scope. Update this memory (or add a
-follow-up section) once Faza B lands; don't let this description go stale
-claiming Faza B is done when it isn't.
+The plan called for ONE shared HTML+CSS template rendered two ways: a live
+in-page preview and a WeasyPrint HTML→PDF conversion. That did not survive
+contact with reality — three real technical blockers, found by actually
+running each candidate locally and inspecting output, not by reasoning about
+library capabilities in the abstract:
+
+1. **WeasyPrint**: `pip install weasyprint` succeeds cleanly, but
+   `import weasyprint` raises `OSError` trying to `dlopen` `libgobject-2.0`
+   — it needs native Pango/Cairo/GDK-Pixbuf libraries Windows doesn't ship.
+   Would work on Streamlit Cloud via `packages.txt` (Linux, apt-installable)
+   but is **untestable on this dev machine** without a large GTK3 runtime
+   install.
+2. **xhtml2pdf** (pure-Python alternative considered next): installs and
+   *runs* without error, but its `@font-face`/font-registration handling is
+   unreliable for this use case — tried three approaches (`@font-face` with
+   a bare Windows path, `@font-face` with a `file:///` URI, direct
+   `reportlab.pdfmetrics.registerFont` before calling `pisa.CreatePDF`) and
+   **all three** produced PDFs where Polish diacritics (ą/ć/ę/ł/ń/ó/ś/ź/ż)
+   rendered as black `.notdef` boxes. Caught by actually **rendering the PDF
+   page to a PNG and looking at it** — the first two attempts were checked
+   only via `pdfplumber` text extraction (`ąćęłńóśźż` → `nnnnn?nnn`), which
+   is a *different* failure mode (ToUnicode CMap issue) and could have been
+   misdiagnosed as "just an extraction bug" if I'd stopped there. Rendering
+   to an image and looking is the only way to know if glyphs are *actually*
+   missing versus just mis-extracted — worth remembering as a general
+   verification technique for any future PDF work in this repo.
+3. **Raw `reportlab`** with a directly-registered TTF, bypassing xhtml2pdf's
+   CSS layer entirely: renders correctly *if and only if* the font has full
+   Latin Extended-A coverage. Confirmed this two ways: Windows' system
+   Arial worked (not redistributable, Windows-only, unusable for a real
+   fix); the `Vera.ttf` bundled inside `reportlab`'s own package did **not**
+   work (same black-box failure — Bitstream Vera predates DejaVu's Extended
+   Latin coverage). Solution: bundle **DejaVu Sans/Serif** (regular + bold)
+   directly in the repo at `app/assets/fonts/*.ttf`, sourced by copying them
+   out of the already-installed `matplotlib` package (which ships DejaVu as
+   its default font) — not a new runtime dependency, just a one-time asset
+   copy, license file included (`LICENSE.txt`, Bitstream-derived, explicitly
+   permits redistribution/embedding).
+
+**Resulting architecture** (`app/report_builder.py`): two independent
+renderers, not one shared template — `build_report_html()` (plain HTML+CSS
+string, used for the in-page preview via `st.components.v1.html`) and
+`build_report_pdf()` (reportlab Platypus flowables — Table-based header with
+a natively-drawn logo `Drawing`, `Paragraph`s with registered DejaVu fonts).
+Both consume the *same* `text_builder.build()` output dict and the *same*
+`branding.TOKENS`/`RISK_COLORS`/`RISK_BG`, so they look like one visual
+identity despite separate rendering code. `_body_paragraphs()` extracts
+paragraphs from the *already-composed* `output["full_text"]` (strips the
+`### heading`, the CTA paragraph, and the disclaimer paragraph — those are
+rendered separately, highlighted) instead of re-deriving section-assembly
+logic from `text_builder.py` — avoids duplicating that logic, and means this
+module needed **zero changes to `text_builder.py`** to ship. `markup_bold()`
+(public, not `_markup`) converts `**bold**` markdown to `<b>` tags — reused
+in `app.py` for the on-page teaser, which needed it after a live-test catch
+(see below).
+
+**Real bug caught by live testing** (not the architecture pivot — this one
+was in my own `app.py` wiring): the teaser paragraph is injected via
+`st.markdown(f"<p>...</p>", unsafe_allow_html=True)`. `output["lead"]`
+contains markdown `**bold**` spans, but raw-HTML injection doesn't run
+Streamlit's markdown parser — the literal asterisks showed up on screen
+(`Dokument: **Nakaz zapłaty (członek zarządu)**.`). Fixed by piping the
+teaser through `report_builder.markup_bold()` before injection. Only found
+by looking at an actual screenshot after a real form submission — this is
+exactly the kind of thing that "the code compiles and the function returns
+without error" would never catch.
+
+**Verified end-to-end**, twice — once with synthetic data (standalone script
+calling `report_builder` functions directly, checked by rendering the PDF to
+a PNG and eyeballing it), and once through the **actual live app** with a
+real submitted form (agent-browser, JS-dispatch workaround for `st.radio`,
+see above): risk pill/teaser render correctly with bold applied, the
+"Zobacz pełny raport" toggle embeds the HTML report inline with matching
+styling, and the "Pobierz jako PDF" button correctly serves bytes through
+Streamlit's own `/media/*.pdf` endpoint (confirmed by fetching that URL
+directly and rendering the result — correct real scenario text, correct
+Polish characters, correct CTA box). One tooling-only hiccup: `agent-browser
+download` returned "Download was canceled" — Streamlit's download button
+uses a fetch/blob mechanism to its media endpoint rather than a plain
+`<a href download>`, which that specific CDP command doesn't handle;
+fetching the URL directly (visible in
+`performance.getEntriesByType('resource')` after the click) sidesteps it.
+Not an application bug.
+
+## Status: both phases complete
+
+Faza A and Faza B are both implemented and live-verified. `reportlab` added
+to `app/requirements.txt` — pure-Python, no system dependencies, so (unlike
+the originally-planned WeasyPrint) **no `packages.txt` is needed** for
+Streamlit Cloud deployment; this is a simplification versus the original
+plan, not a follow-up task. Check git status/CLAUDE.md before assuming
+this is pushed to `origin/etap2` — write this memory before the commit step.

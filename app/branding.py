@@ -44,6 +44,23 @@ TOKENS = {
     "risk_urgent_bg": "#f6e4e7",
 }
 
+# Mapowania kod ryzyka → kolor/tło pigułki — jedno źródło współdzielone przez
+# app.py (Faza A, colored_risk_box) i report_builder.py (Faza B, raport
+# PDF/HTML), żeby aplikacja i dokument wynikowy używały identycznych kolorów.
+RISK_COLORS = {
+    "RISK_LOW":    TOKENS["risk_low"],
+    "RISK_MEDIUM": TOKENS["risk_medium"],
+    "RISK_HIGH":   TOKENS["risk_high"],
+    "RISK_URGENT": TOKENS["risk_urgent"],
+}
+
+RISK_BG = {
+    "RISK_LOW":    TOKENS["risk_low_bg"],
+    "RISK_MEDIUM": TOKENS["risk_medium_bg"],
+    "RISK_HIGH":   TOKENS["risk_high_bg"],
+    "RISK_URGENT": TOKENS["risk_urgent_bg"],
+}
+
 _LOGO_TEMPLATE = """<svg viewBox="0 0 32 32" width="{size}" height="{size}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Znak kalkulatora ryzyka">
   <path d="M16 2.2 L27 6.4 V15 C27 22.3 22.1 27.9 16 29.8 C9.9 27.9 5 22.3 5 15 V6.4 Z" fill="{shield}"/>
   <rect x="10.4" y="17.4" width="3" height="6.2" rx="1" fill="{bars}"/>
