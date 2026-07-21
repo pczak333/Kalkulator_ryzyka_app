@@ -146,14 +146,28 @@ _PROMPT_TEMPLATE = (
 )
 
 
-def extract_fields_ai(text: str, api_key: str) -> dict:
-    """Wyciąga pola dokumentu przez Claude Haiku → słownik z polami.
+def extract_fields_ai_with_status(text: str, api_key: str) -> tuple[dict, str]:
+    """Jak `extract_fields_ai`, ale zwraca też STATUS ekstrakcji AI.
 
-    Zwraca {} przy braku klucza, błędzie API lub niepoprawnym JSON — wołający
-    ma wtedy użyć wyniku z doc_extractor.extract_fields() (regex) bez zmian.
+    Zwraca krotkę `(pola, status)`, gdzie `status` to jeden z:
+    - `"ok"`     — AI zwróciła poprawny JSON (ścieżka AI zadziałała);
+    - `"no_key"` — brak klucza (pusty/None): ścieżka AI świadomie pominięta,
+                   aplikacja działa awaryjnie na OCR+regex — to OCZEKIWANY tryb,
+                   nie awaria;
+    - `"failed"` — klucz PODANY, ale wywołanie się nie powiodło (błąd
+                   uwierzytelnienia/placeholder, chwilowa niedostępność API,
+                   niepoprawny JSON) → cichy fallback na regex.
+
+    Rozróżnienie `no_key` vs `failed` istnieje po to, by warstwa UI mogła
+    UWIDOCZNIĆ, że odczyt jest zdegradowany (patrz `ProcessedDocument.
+    ai_extraction_status` i baner w app.py). Wcześniej wszystkie trzy przypadki
+    zwracały identyczne, ciche `{}`, przez co placeholder klucza / awaria API
+    wyglądały dokładnie jak regresja kodu.
     """
-    if not api_key or not text:
-        return {}
+    if not api_key:
+        return {}, "no_key"
+    if not text:
+        return {}, "ok"
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
@@ -167,6 +181,20 @@ def extract_fields_ai(text: str, api_key: str) -> dict:
         raw = re.sub(r"^```\w*\n?", "", raw)
         raw = re.sub(r"\n?```$", "", raw)
         result = json.loads(raw)
-        return result if isinstance(result, dict) else {}
+        if isinstance(result, dict):
+            return result, "ok"
+        return {}, "failed"
     except Exception:
-        return {}
+        return {}, "failed"
+
+
+def extract_fields_ai(text: str, api_key: str) -> dict:
+    """Wyciąga pola dokumentu przez Claude Haiku → słownik z polami.
+
+    Zwraca {} przy braku klucza, błędzie API lub niepoprawnym JSON — wołający
+    ma wtedy użyć wyniku z doc_extractor.extract_fields() (regex) bez zmian.
+    Cienka nakładka na `extract_fields_ai_with_status()` (zachowana dla
+    zgodności wstecznej — patrz tam po status ekstrakcji).
+    """
+    fields, _status = extract_fields_ai_with_status(text, api_key)
+    return fields

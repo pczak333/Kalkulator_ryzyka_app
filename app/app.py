@@ -889,6 +889,38 @@ if uploaded_files and _do_analyze:
 if "doc_prefill" in st.session_state:
     prefill: ProcessedDocument = st.session_state["doc_prefill"]
     aux_docs: list[ProcessedDocument] = st.session_state.get("doc_aux", [])
+
+    # (21.07.2026) Uwidocznienie cichego fallbacku AI→regex. Gdy ekstrakcja AI
+    # nie zadziałała (brak/placeholder/wygasły klucz ANTHROPIC_API_KEY albo
+    # chwilowa awaria API), odczyt opiera się wyłącznie na OCR i regułach
+    # tekstowych — pola (powód/pozwany/termin/kwota) bywają niepełne lub błędnie
+    # przypisane, a baner "poza zakresem" traci spersonalizowany opis. Wcześniej
+    # ten stan był NIEWIDOCZNY, więc problem konfiguracyjny/awaria wyglądały
+    # dokładnie jak regresja kodu i pochłaniały całą sesję diagnozy. Status
+    # pochodzi z realnego przebiegu ekstrakcji dokumentu głównego
+    # (`ProcessedDocument.ai_extraction_status`), więc łapie też klucz o
+    # poprawnym formacie, który jednak nie działa (wygasły/odwołany) — czego
+    # samo sprawdzenie formatu "sk-..." by nie wykryło. Świadomie OSTRZEŻENIE,
+    # nie twarda blokada — aplikacja ma działać awaryjnie na OCR+regex.
+    _ai_status = getattr(prefill, "ai_extraction_status", "ok")
+    if _ai_status == "no_key":
+        st.warning(
+            "⚠️ **Automatyczny odczyt danych (AI) jest wyłączony** — brak klucza "
+            "dostępowego. Dane dokumentu odczytano wyłącznie mechanizmem "
+            "zapasowym, więc rubryki takie jak powód, pozwany, termin czy kwota "
+            "mogą być niepełne lub błędnie przypisane. Uzupełnij `ANTHROPIC_API_KEY` "
+            "w `app/.streamlit/secrets.toml`, aby przywrócić pełny odczyt."
+        )
+    elif _ai_status == "failed":
+        st.warning(
+            "⚠️ **Automatyczny odczyt danych (AI) nie odpowiedział** — klucz "
+            "dostępowy jest nieprawidłowy/wygasł albo usługa jest chwilowo "
+            "niedostępna. Dane dokumentu odczytano wyłącznie mechanizmem "
+            "zapasowym, więc rubryki takie jak powód, pozwany, termin czy kwota "
+            "mogą być niepełne lub błędnie przypisane. Sprawdź `ANTHROPIC_API_KEY` "
+            "w `app/.streamlit/secrets.toml` i spróbuj wgrać dokument ponownie."
+        )
+
     _show_doc_summary(prefill, aux_docs)
 
     # Bramka art. 299 KSH — tylko gdy pozwany jest osobą fizyczną (nie spółką).
@@ -1396,6 +1428,16 @@ if "krs_answers" in st.session_state:
                 c2.write(f"**Kod K1:** `{prefill.k1_code}`")
                 c1.write(f"**Zakres stron:** {prefill.page_range}")
                 c2.write(f"**Status:** `{prefill.status}`")
+                # (21.07.2026) Status ekstrakcji AI — żeby diagnoza "czemu pola
+                # są puste/błędne" zajmowała sekundy zamiast całej sesji: od razu
+                # widać, czy zadziałała ścieżka AI, czy cichy fallback na regex.
+                _ai_stat = getattr(prefill, "ai_extraction_status", "ok")
+                _ai_stat_label = {
+                    "ok": "✅ AI OK",
+                    "no_key": "⚠️ fallback regex (brak klucza)",
+                    "failed": "⚠️ fallback regex (błąd/awaria API)",
+                }.get(_ai_stat, _ai_stat)
+                c1.write(f"**Ekstrakcja AI:** {_ai_stat_label}")
                 st.json({
                     "epu": prefill.epu,
                     "delivery_date": str(prefill.delivery_date),

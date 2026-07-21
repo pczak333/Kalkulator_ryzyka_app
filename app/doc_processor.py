@@ -8,7 +8,7 @@ from typing import Callable
 from doc_ingestion import extract_pages, PageDict
 from doc_ocr import ocr_with_fallback
 from doc_extractor import extract_fields, _amount_to_k7
-from ai_extractor import extract_fields_ai
+from ai_extractor import extract_fields_ai_with_status
 from doc_classifier import classify_document
 from doc_selector import select_main_document
 from ocr_cleanup import clean_ocr_text
@@ -127,6 +127,15 @@ class ProcessedDocument:
     # głównej). Czysto informacyjna — NIE zasila K7/scoringu, tylko
     # dodatkowy wiersz w tabeli dokumentu głównego w app.py.
     wps_amount: float | None = None
+    # (21.07.2026) Status ekstrakcji AI dla TEGO dokumentu — "ok" / "no_key"
+    # (brak klucza, tryb awaryjny OCR+regex) / "failed" (klucz podany, ale
+    # wywołanie padło: placeholder/wygasły klucz, chwilowa awaria API,
+    # niepoprawny JSON). Domyślnie "ok", żeby ręczne/testowe konstruowanie
+    # ProcessedDocument bez tego pola działało bez zmian. Konsumowane przez
+    # app.py (baner ostrzegawczy nad odczytem + wiersz w panelu technicznym) —
+    # uwidacznia cichy fallback AI→regex, który wcześniej wyglądał jak regresja
+    # kodu (placeholder klucza odtwarzał wszystkie "stare" błędy regexu).
+    ai_extraction_status: str = "ok"
 
 
 def _build_candidate_dict(
@@ -150,7 +159,7 @@ def _build_candidate_dict(
     dla KAŻDEGO segmentu w paczce, nie tylko głównego dokumentu.
     """
     fields = extract_fields(text)
-    ai_fields = extract_fields_ai(text, api_key)
+    ai_fields, ai_status = extract_fields_ai_with_status(text, api_key)
     if ai_fields:
         if ai_fields.get("sygnatura"):
             fields["sygnatura"] = ai_fields["sygnatura"]
@@ -254,6 +263,7 @@ def _build_candidate_dict(
         "doc_description": fields.get("doc_description"),
         "amount_type": fields.get("amount_type"),
         "wps_amount": fields.get("wps_amount"),
+        "ai_extraction_status": ai_status,
         "ocr_notes": ocr_notes,
         "file_ext": file_ext,
         "deadline_date": deadline_date_val,
@@ -457,6 +467,7 @@ def process_files(
             doc_description=d.get("doc_description"),
             amount_type=d.get("amount_type"),
             wps_amount=d.get("wps_amount"),
+            ai_extraction_status=d.get("ai_extraction_status", "ok"),
         )
 
     return to_pd(main_dict), [to_pd(d) for d in aux_dicts]
