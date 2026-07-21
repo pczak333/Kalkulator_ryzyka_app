@@ -64,36 +64,47 @@ _UZYTKOWNIK_SUBS = [
     (re.compile(r"\b[Uu]żytkownik\b"), "W formularzu wskazano"),
 ]
 
-_LEGAL_DISCLAIMER = "Ocena orientacyjna — nie stanowi porady prawnej."
+_LEGAL_DISCLAIMER = (
+    "**Zastrzeżenie:** Powyższa ocena ma charakter orientacyjny i nie stanowi "
+    "porady prawnej. Wiążącą opinię w Twojej sprawie może wydać wyłącznie radca "
+    "prawny lub adwokat po zapoznaniu się z pełną dokumentacją."
+)
 
 # CTA dobierane dynamicznie — nie używać tego bezpośrednio; używać _cta_for_doc_type()
 _CTA_PERSONAL = (
-    "Dokument jest skierowany **bezpośrednio do Ciebie** — decyzja procesowa musi być trafna. "
-    "**Audyt 48h** to pisemna opinia prawna sporządzona przez radcę prawnego w ciągu 48 godzin. "
-    "Nie automatyczna ocena — dokument, na którym możesz oprzeć konkretny krok procesowy."
+    "Dokument jest skierowany **bezpośrednio do Ciebie** — a od trafności reakcji "
+    "zależy Twoja osobista odpowiedzialność. "
+    "**Aby podjąć ją świadomie, warto skorzystać z Audytu 48h:** to pisemna opinia "
+    "prawna sporządzona przez radcę prawnego w ciągu 48 godzin — nie automatyczna "
+    "ocena, ale dokument, na którym możesz oprzeć konkretny krok procesowy."
 )
 _CTA_COMPANY = (
     "Brak reakcji w terminie może otworzyć wierzycielowi drogę do pozwu "
-    "**bezpośrednio przeciwko Tobie** jako byłemu członkowi zarządu (art. 299 KSH). "
-    "**Audyt 48h** to pisemna opinia prawna sporządzona przez radcę prawnego — "
-    "nie automatyczna ocena, ale dokument, na którym możesz oprzeć swoją decyzję."
+    "**bezpośrednio przeciwko Tobie** jako członkowi zarządu (art. 299 KSH). "
+    "**Zanim to nastąpi, warto sprawdzić, czy i jak można się obronić — i temu "
+    "właśnie służy Audyt 48h:** to pisemna opinia prawna sporządzona przez radcę "
+    "prawnego (nie automatyczna ocena), na której możesz oprzeć swoją decyzję."
 )
 _CTA_UNKNOWN = (
-    "**Audyt 48h** w tym wariancie służy przede wszystkim ustaleniu, z jakim pismem "
-    "masz do czynienia, sprawdzeniu terminów i ocenie, jaką formę reakcji należy rozważyć. "
-    "To pisemna opinia prawna sporządzona przez radcę prawnego — "
-    "nie automatyczna ocena, ale dokument, na którym możesz oprzeć swoją decyzję."
+    "Charakter tego pisma nie jest jednoznaczny, a od jego poprawnego ustalenia "
+    "zależy właściwa reakcja. "
+    "**W takiej sytuacji pomaga Audyt 48h:** ustala, z jakim pismem masz do "
+    "czynienia, sprawdza terminy i wskazuje, jaką formę reakcji rozważyć — to "
+    "pisemna opinia prawna sporządzona przez radcę prawnego, na której możesz "
+    "oprzeć swoją decyzję."
 )
 _CTA_PISMO_PROCESOWE = (
-    "Sprawa jest w toku — do rzetelnej oceny potrzebna jest pełna dokumentacja. "
-    "**Audyt 48h** to pisemna opinia prawna sporządzona przez radcę prawnego, "
-    "który przeanalizuje całe akta i wskaże dostępne kroki procesowe."
+    "Sprawa jest w toku, a do rzetelnej oceny potrzebna jest pełna dokumentacja. "
+    "**Dlatego warto skorzystać z Audytu 48h:** to pisemna opinia prawna "
+    "sporządzona przez radcę prawnego, który przeanalizuje całe akta i wskaże "
+    "dostępne kroki procesowe."
 )
 _CTA_ZUS = (
-    "Pismo z ZUS lub urzędu skarbowego wymaga **wyjaśnień i dokumentów** — "
-    "nie sprzeciwu ani odpowiedzi na pozew. "
-    "**Audyt 48h** to pisemna opinia prawna sporządzona przez radcę prawnego, "
-    "która wskaże termin, zakres żądania organu i właściwy tryb odpowiedzi."
+    "Pismo z ZUS lub urzędu skarbowego wymaga **wyjaśnień i dokumentów** — nie "
+    "sprzeciwu ani odpowiedzi na pozew, a o niewłaściwy tryb tu nietrudno. "
+    "**Audyt 48h pomaga zareagować prawidłowo:** to pisemna opinia prawna "
+    "sporządzona przez radcę prawnego, która wskaże termin, zakres żądania organu "
+    "i właściwy sposób odpowiedzi."
 )
 _ZUS_LEAD_DOC_TYPES = {
     "ORGAN_PUBLICZNY_CZLONEK_ZARZADU",

@@ -16,7 +16,7 @@ from context_modules import collect as collect_context
 from text_builder import build as build_text, sanitize_check
 from doc_processor import process_files, ProcessedDocument
 from doc_selector import is_company_name, parties_differ as _parties_differ
-from branding import TOKENS, RISK_COLORS, RISK_BG, logo_svg_light_on_dark, css_variables
+from branding import TOKENS, RISK_COLORS, RISK_BG, logo_svg_light_on_dark, css_variables, icon_svg
 from report_builder import build_report_html, build_report_pdf, markup_bold
 
 # ── Konfiguracja strony ────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ def get_why_we_ask(step_id: str) -> str:
 def render_why_expander(step_id: str) -> None:
     why = get_why_we_ask(step_id)
     if why:
-        with st.expander("ℹ️ Dlaczego pytamy?", expanded=False):
+        with st.expander("Dlaczego pytamy?", expanded=False, icon=":material/help:"):
             st.markdown(why)
 
 
@@ -264,40 +264,46 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
 
     if _needs_ocr:
         if _ext in _IMAGE_EXTS:
-            _src_label = "📷 Dokument to zdjęcie lub obraz (JPG/PNG)"
+            _src_icon = icon_svg("photo", size=18)
+            _src_label = "Dokument to zdjęcie lub obraz (JPG/PNG)"
             _ocr_note = (
                 "Tekst był odczytywany przez OCR ze zdjęcia. Jakość zależy od "
                 "ostrości, oświetlenia i kąta fotografii — mogą wystąpić błędy "
                 "w nazwach, sygnaturach i kwotach."
             )
         elif _ext == "pdf":
-            _src_label = "🖨️ Dokument to skan PDF"
+            _src_icon = icon_svg("scan", size=18)
+            _src_label = "Dokument to skan PDF"
             _ocr_note = (
                 "Tekst był odczytywany przez OCR ze zeskanowanego PDF. "
                 "Mogą wystąpić drobne błędy w nazwach, sygnaturach i kwotach."
             )
         else:
-            _src_label = "🖨️ Dokument wymagał OCR"
+            _src_icon = icon_svg("scan", size=18)
+            _src_label = "Dokument wymagał OCR"
             _ocr_note = (
                 "Tekst był odczytywany automatycznie. "
                 "Mogą wystąpić drobne błędy w nazwach, sygnaturach i kwotach."
             )
         st.markdown(
-            "<div style='background:#fff8e1;border:1px solid #f9a825;border-radius:6px;"
+            "<div style='background:var(--notice-bg);border:1px solid var(--notice-border);"
+            "border-left:4px solid var(--navy);border-radius:8px;"
             "padding:12px 16px;margin-bottom:12px;'>"
-            f"<strong>{_src_label}</strong> — {_ocr_note}<br>"
-            "<span style='color:#b45309;'>⚠️ <strong>Pola wymagające ręcznej weryfikacji:</strong> "
+            f"<strong>{_src_icon} {_src_label}</strong> — {_ocr_note}<br>"
+            f"<span>{icon_svg('warning', size=16)} <strong>Pola wymagające ręcznej weryfikacji:</strong> "
             "Powód, Pozwany, Sygnatura akt, Kwota roszczenia</span> "
             "— sprawdź je bezpośrednio w dokumencie przed wypełnieniem formularza.<br>"
-            "<span style='font-size:0.9em;'>Możesz poprawić błędne wartości klikając "
-            "✏️ <strong>Popraw dane odczytu</strong> poniżej.</span></div>",
+            f"<span style='font-size:0.9em;'>Możesz poprawić błędne wartości klikając "
+            f"{icon_svg('edit', size=14)} <strong>Popraw dane odczytu</strong> poniżej.</span></div>",
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
-            "<div style='background:#e8f5e9;border:1px solid #43a047;border-radius:6px;"
+            "<div style='background:#e8f5e9;border:1px solid #43a047;"
+            "border-left:4px solid #2e7d32;border-radius:8px;"
             "padding:12px 16px;margin-bottom:12px;'>"
-            "📄 <strong>Oryginalny dokument cyfrowy</strong> — tekst odczytany natywnie "
+            f"{icon_svg('verified', color='#2e7d32', size=18)} "
+            "<strong>Oryginalny dokument cyfrowy</strong> — tekst odczytany natywnie "
             "(PDF/DOCX z warstwą tekstową). Dane są w pełni wiarygodne.</div>",
             unsafe_allow_html=True,
         )
@@ -528,18 +534,20 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
             f"<div style='border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;"
             f"margin-bottom:12px;'>"
             f"<div style='background:#f8fafc;padding:10px 16px;"
-            f"border-bottom:1px solid #e5e7eb;font-weight:600;'>📄 {doc_label}</div>"
+            f"border-bottom:1px solid #e5e7eb;font-weight:600;'>"
+            f"{icon_svg('document', size=18)} {doc_label}</div>"
             f"<table style='width:100%;border-collapse:collapse;'>{rows}</table>"
             f"</div>",
             unsafe_allow_html=True,
         )
     elif not _is_non_legal_main:
-        st.info(f"📄 {doc_label} — nie udało się wyciągnąć szczegółów automatycznie.")
+        st.info(f"{doc_label} — nie udało się wyciągnąć szczegółów automatycznie.",
+                icon=":material/description:")
 
     # Popraw dane odczytu (nie dotyczy dokumentu niezwiązanego ze sprawą —
     # tam nie ma czego poprawiać, dane trafiłyby błędnie do formularza)
     if not _is_non_legal_main:
-        with st.expander("✏️ Popraw dane odczytu", expanded=False):
+        with st.expander("Popraw dane odczytu", expanded=False, icon=":material/edit:"):
             st.caption("Uzupełnij lub popraw pola, które kalkulator odczytał błędnie.")
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -588,9 +596,10 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
 
     # Ochrona danych
     st.markdown(
-        "<div style='background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;"
+        "<div style='background:var(--notice-bg);border:1px solid var(--notice-border);"
+        "border-left:4px solid var(--navy);border-radius:8px;"
         "padding:8px 14px;font-size:0.85rem;margin-top:8px;margin-bottom:4px;'>"
-        "🔒 <strong>Ochrona Twoich danych:</strong> Przesłane dokumenty są przetwarzane "
+        f"{icon_svg('lock', size=16)} <strong>Ochrona Twoich danych:</strong> Przesłane dokumenty są przetwarzane "
         "wyłącznie w celu wstępnej analizy i "
         "<strong>automatycznie usuwane po 48 godzinach</strong>. "
         "Nie są przechowywane ani udostępniane osobom trzecim.</div>",
@@ -600,7 +609,8 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
     # Zestawienie wszystkich dokumentów
     all_docs = [main] + aux
     total = len(all_docs)
-    with st.expander(f"📋 Zestawienie dokumentów w pliku ({total})", expanded=False):
+    with st.expander(f"Zestawienie dokumentów w pliku ({total})", expanded=False,
+                     icon=":material/list_alt:"):
         for i, doc in enumerate(all_docs, 1):
             lbl = _komornik_display_label(doc)
             p_start, p_end = doc.page_range
@@ -612,7 +622,7 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
                 kwota_info = f"Kwota: **{_kf} zł**"
             else:
                 kwota_info = ""
-            badge = " ⚠️ **WYMAGA REAKCJI**" if (doc is main and doc.deadline_days) else ""
+            badge = " :material/priority_high: **WYMAGA REAKCJI**" if (doc is main and doc.deadline_days) else ""
             meta_parts = [x for x in [date_info, syg_info, kwota_info] if x]
             meta = " · ".join(meta_parts)
             st.markdown(
@@ -697,28 +707,33 @@ st.markdown(
     opacity: .85;
 }}
 
-.kg-step {{ margin-top: 34px; margin-bottom: 6px; }}
+.kg-step {{ margin-top: 38px; margin-bottom: 8px; }}
 .kg-step-eyebrow {{
     display: inline-block;
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.09em;
     color: var(--navy);
     background: var(--paper);
     border: 1px solid var(--mist-border);
-    padding: 3px 10px;
+    padding: 4px 12px;
     border-radius: 999px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }}
 .kg-step-title {{
     font-family: var(--font-display) !important;
     color: var(--ink) !important;
-    font-size: 1.28rem !important;
-    margin: 0 0 4px 0 !important;
+    font-size: 1.65rem !important;
+    line-height: 1.25 !important;
+    margin: 0 0 6px 0 !important;
     border-left: 4px solid var(--navy);
-    padding-left: 12px;
+    padding-left: 14px;
 }}
+/* Ukryj automatyczny link-kotwicę (🔗) dodawany przez Streamlit do nagłówków —
+   wyglądał jak przypadkowy element przy tytule kroku (zgłoszenie, obraz3). */
+[data-testid="stHeaderActionElements"] {{ display: none !important; }}
+.kg-step-title a {{ display: none !important; }}
 
 .stButton > button, .stDownloadButton > button {{
     border-radius: var(--radius-sm) !important;
@@ -758,9 +773,10 @@ st.caption(
 )
 
 st.markdown(
-    "<div style='background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;"
+    "<div style='background:var(--notice-bg);border:1px solid var(--notice-border);"
+    "border-left:4px solid var(--navy);border-radius:8px;"
     "padding:8px 14px;font-size:0.85rem;margin-bottom:10px;'>"
-    "📌 <strong>Zanim wgrasz dokumenty:</strong>"
+    f"{icon_svg('checklist', size=16)} <strong>Zanim wgrasz dokumenty:</strong>"
     "<ul style='margin:4px 0 0 0;padding-left:18px;'>"
     "<li>Wgrywaj dokumenty dotyczące <strong>tej samej sprawy</strong> "
     "(ten sam pozwany, ta sama sygnatura akt).</li>"
@@ -773,7 +789,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-with st.expander("📎 Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False):
+with st.expander("Wgraj dokumenty (PDF, DOCX, JPG, PNG)", expanded=False,
+                 icon=":material/upload_file:"):
     uploaded_files = st.file_uploader(
         "Wybierz plik lub pliki",
         type=["pdf", "docx", "jpg", "jpeg", "png"],
@@ -905,20 +922,22 @@ if "doc_prefill" in st.session_state:
     _ai_status = getattr(prefill, "ai_extraction_status", "ok")
     if _ai_status == "no_key":
         st.warning(
-            "⚠️ **Automatyczny odczyt danych (AI) jest wyłączony** — brak klucza "
+            "**Automatyczny odczyt danych (AI) jest wyłączony** — brak klucza "
             "dostępowego. Dane dokumentu odczytano wyłącznie mechanizmem "
             "zapasowym, więc rubryki takie jak powód, pozwany, termin czy kwota "
             "mogą być niepełne lub błędnie przypisane. Uzupełnij `ANTHROPIC_API_KEY` "
-            "w `app/.streamlit/secrets.toml`, aby przywrócić pełny odczyt."
+            "w `app/.streamlit/secrets.toml`, aby przywrócić pełny odczyt.",
+            icon=":material/warning:",
         )
     elif _ai_status == "failed":
         st.warning(
-            "⚠️ **Automatyczny odczyt danych (AI) nie odpowiedział** — klucz "
+            "**Automatyczny odczyt danych (AI) nie odpowiedział** — klucz "
             "dostępowy jest nieprawidłowy/wygasł albo usługa jest chwilowo "
             "niedostępna. Dane dokumentu odczytano wyłącznie mechanizmem "
             "zapasowym, więc rubryki takie jak powód, pozwany, termin czy kwota "
             "mogą być niepełne lub błędnie przypisane. Sprawdź `ANTHROPIC_API_KEY` "
-            "w `app/.streamlit/secrets.toml` i spróbuj wgrać dokument ponownie."
+            "w `app/.streamlit/secrets.toml` i spróbuj wgrać dokument ponownie.",
+            icon=":material/warning:",
         )
 
     _show_doc_summary(prefill, aux_docs)
@@ -1387,27 +1406,30 @@ if "krs_answers" in st.session_state:
 
     _col_a, _col_b = st.columns(2)
     with _col_a:
-        _show_report = st.toggle("📄 Zobacz pełny raport", key="_show_full_report")
+        _show_report = st.toggle(":material/description: Zobacz pełny raport", key="_show_full_report")
     with _col_b:
         st.download_button(
-            "⬇ Pobierz jako PDF",
+            "Pobierz jako PDF",
             data=_report_pdf,
             file_name="raport-kalkulator-ryzyka.pdf",
             mime="application/pdf",
             use_container_width=True,
+            icon=":material/download:",
         )
     if _show_report:
         components.html(_report_html, height=1500, scrolling=True)
 
     # ── Reset ─────────────────────────────────────────────────────────────
     st.divider()
-    if st.button("🔄 Wyczyść kalkulator i wprowadź nowe dane", use_container_width=True):
+    if st.button("Wyczyść kalkulator i wprowadź nowe dane", use_container_width=True,
+                 icon=":material/refresh:"):
         reset_calculator()
         st.rerun()
 
     # ── Panel testowy (ukryty za hasłem) ──────────────────────────────────
     st.divider()
-    with st.expander("🔧 Panel techniczny (dla testera / administratora)"):
+    with st.expander("Panel techniczny (dla testera / administratora)",
+                     icon=":material/build:"):
         pwd = st.text_input("Hasło dostępu", type="password", key="test_pwd")
         try:
             panel_pwd = st.secrets.get("TEST_PANEL_PASSWORD", "krs-test-2024")
@@ -1451,7 +1473,7 @@ if "krs_answers" in st.session_state:
                     "addressee": prefill.addressee,
                 })
                 if prefill.ocr_notes:
-                    st.info(f"ℹ️ Notatki OCR: {prefill.ocr_notes}")
+                    st.info(f"Notatki OCR: {prefill.ocr_notes}", icon=":material/info:")
                 st.markdown("**Surowy tekst OCR (pierwsze 3000 znaków):**")
                 st.code(prefill.raw_text[:3000] if prefill.raw_text else "(brak)", language=None)
                 if prefill.splitter_segments:
@@ -1467,7 +1489,7 @@ if "krs_answers" in st.session_state:
                     st.markdown(f"**Dokument pomocniczy {_i}: `{_aux.doc_type_code}`**")
                     st.write(f"Silnik: `{_aux.ocr_engine}` | Jakość: `{_aux.ocr_quality}` | Strony: {_aux.page_range}")
                     if _aux.ocr_notes:
-                        st.info(f"ℹ️ {_aux.ocr_notes}")
+                        st.info(f"{_aux.ocr_notes}", icon=":material/info:")
                     st.code(_aux.raw_text[:3000] if _aux.raw_text else "(brak)", language=None)
                 st.divider()
 

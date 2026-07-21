@@ -42,6 +42,13 @@ TOKENS = {
     "risk_high_bg": "#faeaea",
     "risk_urgent": "#6b1220",
     "risk_urgent_bg": "#f6e4e7",
+    # (21.07.2026) Niebieska rodzina "notice/CTA" — spójny odcień dla banerów
+    # informacyjnych (dawniej pomarańczowe) i dla boxa CTA na końcu raportu
+    # (dawniej niemal czarny `ink`, wyglądał jak "żałobna klepsydra" — decyzja
+    # użytkownika: jasny niebieski panel z granatowym tekstem i akcentem).
+    # Współdzielone przez app.py (banery) i report_builder.py (box CTA).
+    "notice_bg": "#eaf1f8",
+    "notice_border": "#cbdcef",
 }
 
 # Mapowania kod ryzyka → kolor/tło pigułki — jedno źródło współdzielone przez
@@ -95,3 +102,51 @@ def css_variables() -> str:
     CSS wstrzykiwanego w `app.py` i osadzanego w szablonie raportu."""
     lines = [f"  --{k.replace('_', '-')}: {v};" for k, v in TOKENS.items()]
     return ":root {\n" + "\n".join(lines) + "\n}"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# (21.07.2026) Monochromatyczne ikony SVG — zastępują emoji w banerach HTML
+# (st.markdown), które nie przyjmują ikon Material Symbols (te są tylko w
+# widgetach natywnych Streamlit: expander/przycisk/info — patrz app.py).
+# Ta sama technika co logo: inline SVG budowany przez str.format, wstrzykiwany
+# przez unsafe_allow_html. Ścieżki to standardowe ikony Material Symbols (24dp),
+# jednokolorowe (fill), domyślnie w granacie — profesjonalny, "prawny"
+# charakter zamiast kolorowych emoji. `d` bez własnego fill → dziedziczy z <svg>.
+# ─────────────────────────────────────────────────────────────────────────
+_ICON_PATHS = {
+    # dokument z liniami tekstu (description)
+    "document": "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z",
+    # skaner dokumentów (document_scanner — dla pism ze skanu/OCR)
+    "scan": "M4 5h2V3H4c-1.1 0-2 .9-2 2v2h2V5zm16-2h-2v2h2v2h2V5c0-1.1-.9-2-2-2zM4 19v-2H2v2c0 1.1.9 2 2 2h2v-2H4zm16 0h-2v2h2c1.1 0 2-.9 2-2v-2h-2v2zM7 7h1.5v10H7zm3 0h1v10h-1zm3 0h2v10h-2zm4 0h1v10h-1z",
+    # aparat / obraz (photo_camera — dla dokumentu-zdjęcia)
+    "photo": "M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4zM9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z",
+    # tarcza z ptaszkiem (gpp_good — dokument wiarygodny/cyfrowy)
+    "verified": "M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z",
+    # kłódka (lock — ochrona danych)
+    "lock": "M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm3 11c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z",
+    # informacja (info)
+    "info": "M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z",
+    # ostrzeżenie (warning triangle)
+    "warning": "M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z",
+    # lista kontrolna (fact_check — "zanim wgrasz")
+    "checklist": "M20 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14-4-4 1.41-1.41L11 14.17l5.59-5.59L18 10l-7 7z",
+    # edycja (edit)
+    "edit": "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
+}
+
+_ICON_TEMPLATE = (
+    '<svg viewBox="0 0 24 24" width="{size}" height="{size}" fill="{color}" '
+    'xmlns="http://www.w3.org/2000/svg" aria-hidden="true" '
+    'style="vertical-align:-0.18em;flex:none;display:inline-block">'
+    '<path d="{path}"/></svg>'
+)
+
+
+def icon_svg(name: str, color: str | None = None, size: int = 18) -> str:
+    """Inline SVG ikony monochromatycznej (Material Symbols 24dp) w podanym
+    kolorze/rozmiarze — do banerów HTML w app.py. Domyślnie granat (`navy`).
+    Nieznana nazwa → ikona `info` (bezpieczny fallback)."""
+    path = _ICON_PATHS.get(name, _ICON_PATHS["info"])
+    return _ICON_TEMPLATE.format(
+        size=size, color=color or TOKENS["navy"], path=path
+    )

@@ -215,3 +215,38 @@ the originally-planned WeasyPrint) **no `packages.txt` is needed** for
 Streamlit Cloud deployment; this is a simplification versus the original
 plan, not a follow-up task. Check git status/CLAUDE.md before assuming
 this is pushed to `origin/etap2` — write this memory before the commit step.
+
+## Faza C — poprawki graficzne + teksty CTA/disclaimer (21.07.2026)
+
+Cztery zgłoszenia użytkownika (obraz1-4) po redesignie:
+1. **Emoji nieprofesjonalne** → zastąpione monochromatycznymi: Material Symbols
+   `icon=":material/..."` w widgetach natywnych (expander/button/download_button/
+   info/warning), `branding.icon_svg()` (nowy zestaw SVG + `_ICON_PATHS`) w
+   banerach HTML `st.markdown` (te NIE przyjmują Material). `st.toggle` nie ma
+   `icon=` → `:material/description:` inline w labelu.
+2. **Ostrzeżenia pomarańczowe → niebieskie**: banery ręczne (divy `#fff8e1`/
+   `#fffbeb`) na nowe tokeny `notice_bg`/`notice_border` (branding.py) + lewy
+   granatowy akcent. Natywne `st.warning` NIE przemalowywane globalnie —
+   Streamlit 1.45.1 nie ma markera rodzaju alertu w DOM (kind→BaseWeb emotion,
+   brak data-kind), więc czysty selektor „tylko warning" nie istnieje; a
+   pomarańczowe ze zrzutów to i tak divy ręczne (pełna kontrola).
+3. **Nagłówki kroków większe**: `.kg-step-title` 1.28→1.65rem, eyebrow
+   0.72→0.8rem; ukryta auto-kotwica 🔗 Streamlita (`[data-testid=
+   stHeaderActionElements]{display:none}`).
+4. **Box CTA „żałobna klepsydra" (czarny) → jasnoniebieski panel** (decyzja
+   użytkownika: AskUserQuestion, opcja „jasny niebieski"): `report_builder.py`
+   HTML+PDF, tło `var(--ink)`→`notice_bg`, tekst biały→granat, lewy akcent.
+   **Disclaimer** większy (0.76→0.9rem / 7.6→9pt), ciemniejszy, pogrubiony lead
+   „**Zastrzeżenie:**", mocniejsza treść (`text_builder._LEGAL_DISCLAIMER`).
+   **5 wariantów CTA** dostało zdanie-most ryzyko→Audyt 48h (dawniej brak
+   przejścia). Teksty CTA/disclaimer HARDKODOWANE w text_builder.py (NIE CSV).
+
+**Weryfikacja**: żywy test agent-browser — wejście (nagłówki większe bez
+kotwicy, banery niebieskie z SVG, Material jako glify, DOM bez dosłownego
+`:material/`) + raport otwarty jako wyrenderowany plik HTML/PDF (box CTA
+niebieski, disclaimer większy, polskie znaki OK). PUŁAPKI NARZĘDZIOWE (nie app):
+`agent-browser upload` na `st.file_uploader` → „AxiosError: Network Error" (CDP
+omija XHR-upload Streamlita, obejście: render raportu do pliku); Chrome dla
+agent-browser wymaga `agent-browser install` per komputer (świeży `open`
+hangował, aż doinstalowano). Regresja pipeline NIE wymagana — zero zmian w
+doc_*.py/ai_extractor/logice ekstrakcji.

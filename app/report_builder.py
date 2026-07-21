@@ -152,10 +152,12 @@ body {{ font-family: var(--font-body); color: var(--ink); background: var(--pape
   padding: 15px 18px; margin: 18px 0; }}
 .kg-report-box h3 {{ font-family: var(--font-display); margin: 0 0 7px; font-size: 1rem; color: var(--ink); }}
 .kg-report-muted {{ color: var(--ink-muted); font-size: 0.82rem; }}
-.kg-report-cta {{ background: var(--ink); border-radius: var(--radius-sm); padding: 16px 20px; margin: 22px 0 14px; }}
-.kg-report-cta p {{ margin: 0; color: #fff; font-weight: 600; }}
-.kg-report-footer {{ border-top: 1px solid var(--mist-border); margin-top: 22px; padding-top: 12px;
-  color: var(--ink-muted); font-size: 0.76rem; }}
+.kg-report-cta {{ background: var(--notice-bg); border: 1px solid var(--notice-border);
+  border-left: 4px solid var(--navy); border-radius: var(--radius-sm); padding: 16px 20px; margin: 22px 0 14px; }}
+.kg-report-cta p {{ margin: 0; color: var(--ink); font-weight: 600; }}
+.kg-report-footer {{ border-top: 2px solid var(--mist-border); margin-top: 24px; padding-top: 14px;
+  color: var(--ink); font-size: 0.9rem; line-height: 1.5; }}
+.kg-report-footer b {{ color: var(--ink); }}
 </style></head>
 <body>
 <div class="kg-report">
@@ -170,7 +172,7 @@ body {{ font-family: var(--font-body); color: var(--ink); background: var(--pape
   {body_html}
   {epu_html}
   {cta_html}
-  <div class="kg-report-footer">{html.escape(output.get("disclaimer", ""))}</div>
+  <div class="kg-report-footer">{markup_bold(output.get("disclaimer", ""))}</div>
 </div>
 </body></html>"""
 
@@ -212,6 +214,8 @@ def build_report_pdf(output: dict, risk_code: str) -> bytes:
     ink_muted = HexColor(TOKENS["ink_muted"])
     mist = HexColor(TOKENS["mist"])
     mist_border = HexColor(TOKENS["mist_border"])
+    notice_bg = HexColor(TOKENS["notice_bg"])
+    notice_border = HexColor(TOKENS["notice_border"])
     risk_color = HexColor(RISK_COLORS.get(risk_code, TOKENS["navy"]))
     risk_bg = HexColor(RISK_BG.get(risk_code, TOKENS["mist"]))
 
@@ -231,9 +235,9 @@ def build_report_pdf(output: dict, risk_code: str) -> bytes:
     st_muted = ParagraphStyle("muted", fontName="DejaVuSans", fontSize=8,
                                leading=11.5, textColor=ink_muted, spaceBefore=4)
     st_cta = ParagraphStyle("cta", fontName="DejaVuSans-Bold", fontSize=10,
-                             leading=14.5, textColor=colors.white)
-    st_footer = ParagraphStyle("footer", fontName="DejaVuSans", fontSize=7.6,
-                                leading=11, textColor=ink_muted)
+                             leading=14.5, textColor=ink)
+    st_footer = ParagraphStyle("footer", fontName="DejaVuSans", fontSize=9,
+                                leading=13, textColor=ink)
 
     story = []
 
@@ -292,19 +296,22 @@ def build_report_pdf(output: dict, risk_code: str) -> bytes:
     if output.get("cta"):
         cta_box = Table([[Paragraph(markup_bold(output["cta"]), st_cta)]])
         cta_box.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), ink),
+            ("BACKGROUND", (0, 0), (-1, -1), notice_bg),
+            ("BOX", (0, 0), (-1, -1), 0.75, notice_border),
+            # lewy granatowy akcent — odpowiednik border-left w wersji HTML
+            ("LINEBEFORE", (0, 0), (0, -1), 3, navy),
             ("LEFTPADDING", (0, 0), (-1, -1), 16),
             ("RIGHTPADDING", (0, 0), (-1, -1), 16),
-            ("TOPPADDING", (0, 0), (-1, -1), 11),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 11),
+            ("TOPPADDING", (0, 0), (-1, -1), 12),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
         ]))
         story.append(Spacer(1, 12))
         story.append(cta_box)
 
-    story.append(Spacer(1, 14))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=mist_border))
-    story.append(Spacer(1, 5))
-    story.append(Paragraph(html.escape(output.get("disclaimer", "")), st_footer))
+    story.append(Spacer(1, 16))
+    story.append(HRFlowable(width="100%", thickness=1, color=mist_border))
+    story.append(Spacer(1, 7))
+    story.append(Paragraph(markup_bold(output.get("disclaimer", "")), st_footer))
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
