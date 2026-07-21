@@ -1,0 +1,53 @@
+# ============================================================
+# .claudeignore — Kalkulator_ryzyka_app
+# Wyklucza TYLKO pliki, które nie wnoszą wartości do pracy Claude.
+# WAŻNE: wykluczenie = nie indeksuje automatycznie.
+#         Claude nadal może otworzyć plik jeśli go o to poprosisz.
+# ============================================================
+
+# --- Python: cache i artefakty kompilacji (nigdy nie potrzebne) ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# --- Środowiska wirtualne (tysiące plików bibliotek) ---
+.venv/
+venv/
+env/
+
+# --- Git (historia commitów nie jest kodem do edycji) ---
+.git/
+
+# --- Sekrety (nigdy nie powinny trafić do kontekstu) ---
+.streamlit/secrets.toml
+app/.streamlit/secrets.toml
+.env
+*.env
+
+# --- IDE i system operacyjny ---
+.idea/
+.vscode/
+*.suo
+*.user
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Artefakty budowania ---
+dist/
+build/
+
+# --- Pliki tymczasowe ---
+*.tmp
+~$*
+
+# ============================================================
+# NIE WYKLUCZAMY:
+#   dane_wejściowe/        → Claude musi edytować xlsx i csv
+#   dane_wejściowe/csv/    → reguły kalkulatora w CSV
+#   *.pdf, *.png, *.jpg    → dokumenty testowe do analizy
+#   *.xlsx, *.docx         → pliki z regułami do synchronizacji
+# ============================================================
