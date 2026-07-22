@@ -1,10 +1,24 @@
 # -*- coding: utf-8 -*-
 """Klasyfikuje typ dokumentu na podstawie tekstu i CSV 07."""
 from __future__ import annotations
+import os
 import re
 import pandas as pd
 
-_CSV_PATH = "../dane_wejściowe/csv/07_3_Typy_dokumentow.csv"
+# (22.07.2026) Ścieżka budowana względem `__file__`, nie względem katalogu
+# roboczego procesu (ten sam wzorzec co `data_loader.py::_BASE`) — bare
+# relative string "../dane_wejściowe/..." zakładał, że proces zawsze startuje
+# z katalogu `app/` (tak jak lokalny `cd app && streamlit run app.py`).
+# Streamlit Community Cloud uruchamia `streamlit run app/app.py` z katalogiem
+# roboczym ustawionym na KORZEŃ repo, nie na `app/` — stara ścieżka rozwiązywała
+# się wtedy do katalogu JEDEN POZIOM NAD repo (nieistniejącego), dając
+# `FileNotFoundError` przy każdej próbie klasyfikacji dokumentu. Zgłoszenie
+# użytkownika po odtworzeniu nowego wdrożenia na Streamlit Cloud — błąd
+# nigdy nie ujawnił się lokalnie, bo lokalny dev zawsze zaczyna od `cd app`.
+_CSV_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "dane_wejściowe", "csv",
+    "07_3_Typy_dokumentow.csv",
+)
 _EXCLUDE_TYPES = {"DOKUMENT_NIECZYTELNY", "DOKUMENT_NIEPRAWNY", "DOKUMENT_NIEUSTALONY_PRAWNY"}
 
 # Tytuł pisma procesowego w toku postępowania (05.07.2026) — ten sam wzorzec
