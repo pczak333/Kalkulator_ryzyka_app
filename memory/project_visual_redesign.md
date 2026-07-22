@@ -313,3 +313,19 @@ w już-zweryfikowanym PNG faviconu; żywy test w przeglądarce
 (`streamlit run app.py`, zrzut ekranu przez `mcp__claude-in-chrome`) —
 nagłówek renderuje białą plakietkę z granatowym K na granatowym tle
 poprawnie, bez błędów.
+
+**Poprawka proporcji (22.07.2026, ta sama sesja co wdrożenie)**: użytkownik
+zgłosił (zrzuty `obraz1.png`/`obraz2.png` z folderu testy), że plakietka w
+nagłówku APPKI wygląda na małą/nieproporcjonalną, podczas gdy w nagłówku
+RAPORTU proporcje są dobre. Diagnoza: to nie błąd samego stosunku rozmiar
+znaku:font tytułu (appka miała nawet nieco WYŻSZY stosunek niż raport,
+50/24.8≈2.0 vs 38/20≈1.9) — przyczyna to długi, dwuliniowy podtytuł appki
+("Bezpłatna, orientacyjna ocena ryzyka w sprawach...") vs krótki, jednoliniowy
+podtytuł raportu ("Raport oceny ryzyka · wygenerowano..."), przez co cały
+blok tekstu w appce jest znacznie wyższy, a znak dobrany do wysokości samego
+tytułu wygląda na mały obok niego. Naprawione podniesieniem rozmiaru znaku w
+`app.py`'s `.kg-header` z 50px na 66px (wyliczone tak, by znak zajmował
+podobny % wysokości całego bloku tytuł+podtytuł co w raporcie, ~88%) +
+drobna korekta paddingu/gap. Lekcja: przy porównywaniu proporcji znak:tekst
+między dwoma layoutami liczy się wysokość CAŁEGO bloku tekstowego (wszystkie
+linie po zawinięciu), nie tylko font-size pojedynczej linii tytułu.

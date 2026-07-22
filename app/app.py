@@ -687,13 +687,14 @@ st.markdown(
 .kg-header {{
     background: var(--navy);
     border-radius: var(--radius);
-    padding: 26px 30px;
+    padding: 26px 32px;
     margin-bottom: 22px;
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 22px;
     box-shadow: var(--shadow);
 }}
+.kg-header svg {{ flex: none; }}
 .kg-header h1 {{
     color: #fff !important;
     font-size: 1.55rem;
@@ -741,7 +742,7 @@ st.markdown(
 }}
 </style>
 <div class="kg-header">
-  {logo_svg_light_on_dark(50)}
+  {logo_svg_light_on_dark(66)}
   <div>
     <h1>KRS Guard — Kalkulator Ryzyka Prawnego</h1>
     <p>Bezpłatna, orientacyjna ocena ryzyka w sprawach odpowiedzialności członków zarządu spółek.</p>
