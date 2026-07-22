@@ -36,24 +36,28 @@ def build_favicon() -> Image.Image:
     shield_color = _hex_to_rgb(TOKENS["navy"])
     bar_color = _hex_to_rgb(TOKENS["paper"])
 
-    # Poligonowe przybliżenie tarczy z branding.py (proste odcinki zamiast
-    # krzywych Beziera — przy rozmiarze favicony różnica jest niewidoczna).
-    shield_points = [
-        _pt(16, 2), _pt(27, 6.4), _pt(27, 15), _pt(25, 20.5),
-        _pt(21, 26), _pt(16, 29.8), _pt(11, 26), _pt(7, 20.5),
-        _pt(5, 15), _pt(5, 6.4),
+    # Sześciokątna plakietka — dokładne wierzchołki z branding.py (kontur to
+    # same proste odcinki, w odróżnieniu od poprzedniej tarczy nie trzeba już
+    # przybliżać krzywej Beziera).
+    hex_points = [
+        _pt(16, 1.5), _pt(28.56, 8.75), _pt(28.56, 23.25),
+        _pt(16, 30.5), _pt(3.44, 23.25), _pt(3.44, 8.75),
     ]
-    draw.polygon(shield_points, fill=shield_color)
+    draw.polygon(hex_points, fill=shield_color)
 
-    bars = [
-        (10.4, 17.4, 13.4, 23.6),
-        (14.5, 13.4, 17.5, 23.6),
-        (18.6, 9.4, 21.6, 23.6),
-    ]
-    for x0, y0, x1, y1 in bars:
-        draw.rounded_rectangle(
-            [_pt(x0, y0), _pt(x1, y1)], radius=1 * _SCALE, fill=bar_color
-        )
+    # Monogram "K": trzon (zaokrąglony prostokąt) + dwa ramiona (poligony) —
+    # te same współrzędne co SVG w branding.py.
+    draw.rounded_rectangle(
+        [_pt(10.6, 6.3), _pt(14.2, 25.7)], radius=0.6 * _SCALE, fill=bar_color
+    )
+    draw.polygon(
+        [_pt(15.37, 17.59), _pt(23.67, 8.69), _pt(21.33, 6.51), _pt(13.03, 15.41)],
+        fill=bar_color,
+    )
+    draw.polygon(
+        [_pt(15.37, 15.41), _pt(23.67, 24.31), _pt(21.33, 26.49), _pt(13.03, 17.59)],
+        fill=bar_color,
+    )
 
     return img
 

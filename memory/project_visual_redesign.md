@@ -1,6 +1,6 @@
 ---
 name: project-visual-redesign
-description: "16.07.2026 — visual redesign of the Streamlit calculator (design token system, original SVG mark for the calculator — explicitly NOT the law firm's logo, section headers replacing plain st.subheader) plus a PDF/HTML report replacing the inline result block. BOTH Faza A and Faza B complete and live-verified end-to-end with a real submitted form. Faza B pivoted away from the planned WeasyPrint architecture after real local test failures — see the Faza B section below, this is the important part to read before touching report_builder.py."
+description: "16.07.2026 — visual redesign of the Streamlit calculator (design token system, original SVG mark for the calculator — explicitly NOT the law firm's logo, section headers replacing plain st.subheader) plus a PDF/HTML report replacing the inline result block. Faza A/B/C complete and live-verified. Faza D (22.07.2026) replaced the shield+3-bars mark entirely with a hexagon badge + K monogram — read that section before assuming the mark is still the shield."
 metadata:
   node_type: memory
   type: project
@@ -250,3 +250,66 @@ omija XHR-upload Streamlita, obejście: render raportu do pliku); Chrome dla
 agent-browser wymaga `agent-browser install` per komputer (świeży `open`
 hangował, aż doinstalowano). Regresja pipeline NIE wymagana — zero zmian w
 doc_*.py/ai_extractor/logice ekstrakcji.
+
+## Faza D — nowy znak: plakietka z monogramem K (22.07.2026)
+
+Użytkownik poprosił o propozycje ZNAKU GRAFICZNEGO na nowo — nie kosmetykę
+istniejącego, tylko przegląd alternatyw. Proces w dwóch turach, obie jako
+galerie Artifact (SVG budowany ręcznie tymi samymi technikami co
+`branding.py` — `<symbol>`/`<use>` + CSS custom properties do przebarwiania —
+żeby wybrany kierunek dało się bez tarcia przenieść do kodu produkcyjnego):
+
+**Tura 1** — 6 koncepcji szeroko: 2 rozwijające tarczę+słupki (tarcza
+geometryczna faceted; tarcza ze wstęgą wznoszącą zamiast osobnych słupków) +
+4 nowe kierunki (wskaźnik/miernik ryzyka — kolorowy pierścień + wskazówka;
+wznoszący chevron — najbardziej minimalistyczny; **plakietka-monogram K**;
+tarcza z dziurką od klucza). Użytkownik wybrał plakietkę-monogram, ale z
+istotnym zastrzeżeniem: pierwsza wersja budowała literę K z 3 kresek
+nawiązujących do 4-stopniowej skali ryzyka (ten sam motyw co tarcza+słupki) —
+**to znaczenie jest niewidoczne dla klienta końcowego**, widzi po prostu
+białą literę. **Lekcja ogólna (zapamiętać na przyszłość dla każdego przyszłego
+projektowania znaku/ikony w tym repo): nie zaszywać w znaku narracji, która
+wymaga wyjaśnienia, żeby ktokolwiek ją odczytał — oceniać kształt wyłącznie
+na tym, co faktycznie widać, nigdy na zamierzonym-ale-niewidocznym sensie.**
+
+**Tura 2** — 6 wariantów samego monogramu, tym razem BEZ próby zaszycia
+skali ryzyka, dwie niezależne osie: krój litery (monoline / blokowe-solidne /
+negatywowe-wycięte / serifowe nawiązujące do Georgia) × kształt plakietki
+(sześciokąt / koło / zaokrąglony kwadrat), z kartami skonstruowanymi tak, by
+każda para kart izolowała jedną zmienną naraz (kontrolowane porównanie, nie
+przypadkowa siatka). Wariant negatywowy w mockupie użył PRAWDZIWEJ maski SVG
+(`<mask>`) — dopiero przy wdrożeniu do produkcji okazało się to zbędne (patrz
+niżej).
+
+**Wybrany finalnie**: wariant negatywowy (K jako wycięcie w w pełni
+wypełnionej sześciokątnej plakietce, czyta się jak pieczęć/stempel).
+
+**Wdrożenie do kodu** (`app/branding.py`, `tools/generate_favicon.py`,
+`app/report_builder.py`): kluczowe uproszczenie odkryte przy przejściu z
+mockupu do produkcji — istniejąca architektura kolorów (`logo_svg(shield,
+bars)`, dwa parametry: kolor konturu i kolor "akcentu") generalizuje się
+idealnie na nowy znak BEZ potrzeby prawdziwej maski. Skoro plakietka jest
+zawsze pokazywana na jednolitym tle (granatowy nagłówek appki / biały raport
+PDF-HTML — jedyne dwa konteksty użycia), pomalowanie litery K kolorem
+identycznym z tłem daje efekt wizualnie nieodróżnialny od prawdziwego
+wycięcia, przy zerowej dodatkowej złożoności w PIL (`generate_favicon.py`)
+i reportlab (`_logo_drawing()`) — obie te technologie NIE mają wygodnego
+odpowiednika SVG `<mask>`, więc unikanie go tu było realną oszczędnością, nie
+tylko uproszczeniem kosmetycznym. Litera K = trzon (`rect` zaokrąglony) +
+2 ramiona (`polygon`), wypełnione parametrem `bars` — dokładnie tym samym
+parametrem, który wcześniej malował 3 słupki. Sześciokątny kontur (proste
+odcinki) zastąpił krzywą Beziera tarczy — DODATKOWA korzyść uboczna: `PIL`/
+`reportlab` nie muszą już APROKSYMOWAĆ konturu wielokątem (jak wcześniej dla
+tarczy), bo sześciokąt już jest wielokątem — te same współrzędne dosłownie w
+SVG, PNG i PDF.
+
+**Zweryfikowane**: `python tools/generate_favicon.py` (favicon.png otwarty i
+obejrzany — czytelne, dobrze wykadrowane K); `build_report_pdf()`/
+`build_report_html()` na syntetycznych danych — bez błędów (PDF ~65KB);
+`renderPM` do PNG NIE zadziałał na tym komputerze (brak `rlPyCairo`, ten sam
+znany brak jak przy WeasyPrint — patrz Faza B) więc PDF nie został
+wyrenderowany do obrazu bezpośrednio, ale współrzędne są dosłownie te same co
+w już-zweryfikowanym PNG faviconu; żywy test w przeglądarce
+(`streamlit run app.py`, zrzut ekranu przez `mcp__claude-in-chrome`) —
+nagłówek renderuje białą plakietkę z granatowym K na granatowym tle
+poprawnie, bez błędów.

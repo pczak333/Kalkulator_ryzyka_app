@@ -4,12 +4,22 @@ graficzny kalkulatora — jedno źródło prawdy współdzielone przez `app.py`
 (interfejs Streamlit) i `report_builder.py` (raport HTML/PDF), żeby oba
 środowiska renderowania wyglądały identycznie.
 
-Znak: stylizowana tarcza z trzema rosnącymi słupkami w środku — nawiązuje
-wprost do 4-stopniowej skali ryzyka tego kalkulatora (niższe → średnie →
-wysokie → pilne). Własny, oryginalny symbol kalkulatora — NIE logo kancelarii
-KRS Guard (świadoma decyzja, patrz plany/redesign-graficzny-i-raport-pdf-*.md).
-Budowany jako inline SVG (kod, nie plik graficzny) — zero emoji, zero
-zależności od plików spoza repo, ostry w każdym rozmiarze.
+Znak: sześciokątna plakietka z monogramem "K" (Kalkulator). Własny, oryginalny
+symbol kalkulatora — NIE logo kancelarii KRS Guard (świadoma decyzja, patrz
+plany/redesign-graficzny-i-raport-pdf-*.md). Budowany jako inline SVG (kod,
+nie plik graficzny) — zero emoji, zero zależności od plików spoza repo, ostry
+w każdym rozmiarze.
+
+(22.07.2026) Poprzednia wersja znaku (tarcza z 3 rosnącymi słupkami)
+zastąpiona tym monogramem po przeglądzie propozycji z użytkownikiem: motyw
+"3 słupki = 4-stopniowa skala ryzyka" był niewidoczny dla klienta końcowego —
+widział po prostu białą literę, bez dostępu do zamierzonego znaczenia. Nowy
+znak to czysty monogram, oceniany wyłącznie na tym, co faktycznie widać.
+Litera K jest rysowana W TYM SAMYM kolorze co reszta znaków dwukolorowych w
+tym pliku ("bars" — patrz `logo_svg()`) — na jednolitym tle (granatowy
+nagłówek / biały raport) efekt jest wizualnie nie do odróżnienia od
+prawdziwego wycięcia w plakietce, bez potrzeby maski SVG (i bez odpowiednika
+maski do budowania w PIL/reportlab).
 """
 
 TOKENS = {
@@ -69,10 +79,10 @@ RISK_BG = {
 }
 
 _LOGO_TEMPLATE = """<svg viewBox="0 0 32 32" width="{size}" height="{size}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Znak kalkulatora ryzyka">
-  <path d="M16 2.2 L27 6.4 V15 C27 22.3 22.1 27.9 16 29.8 C9.9 27.9 5 22.3 5 15 V6.4 Z" fill="{shield}"/>
-  <rect x="10.4" y="17.4" width="3" height="6.2" rx="1" fill="{bars}"/>
-  <rect x="14.5" y="13.4" width="3" height="10.2" rx="1" fill="{bars}"/>
-  <rect x="18.6" y="9.4" width="3" height="14.2" rx="1" fill="{bars}"/>
+  <path d="M16 1.5 L28.56 8.75 L28.56 23.25 L16 30.5 L3.44 23.25 L3.44 8.75 Z" fill="{shield}"/>
+  <rect x="10.6" y="6.3" width="3.6" height="19.4" rx="0.6" fill="{bars}"/>
+  <polygon points="15.37,17.59 23.67,8.69 21.33,6.51 13.03,15.41" fill="{bars}"/>
+  <polygon points="15.37,15.41 23.67,24.31 21.33,26.49 13.03,17.59" fill="{bars}"/>
 </svg>"""
 
 
@@ -86,14 +96,16 @@ def logo_svg(size: int = 40, shield: str | None = None, bars: str | None = None)
 
 
 def logo_svg_light_on_dark(size: int = 40) -> str:
-    """Wariant do użycia na ciemnym (granatowym) tle nagłówka — jasna tarcza,
-    granatowe słupki dla kontrastu."""
+    """Wariant do użycia na ciemnym (granatowym) tle nagłówka — jasna
+    plakietka, granatowa litera K (na granatowym tle nagłówka efekt = litera
+    "wtapia się" w tło, jak prawdziwe wycięcie)."""
     return logo_svg(size, shield=TOKENS["paper"], bars=TOKENS["navy"])
 
 
 def logo_svg_dark_on_light(size: int = 40) -> str:
     """Wariant do użycia na jasnym tle (np. stopka raportu PDF) — granatowa
-    tarcza, białe słupki."""
+    plakietka, biała/papierowa litera K (na białym tle raportu efekt jak
+    wyżej — litera wtapia się w otoczenie)."""
     return logo_svg(size, shield=TOKENS["navy"], bars=TOKENS["paper"])
 
 

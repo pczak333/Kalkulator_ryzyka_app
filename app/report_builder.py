@@ -26,9 +26,9 @@ zmieniona na DWA niezależne renderery:
   dołączonego do samego reportlab, które tego pokrycia NIE ma — sprawdzone
   tym samym testem, litery ą/ę/ł/ń/ś/ź/ż wyszły jako puste kwadraty).
 
-Znak graficzny (tarcza + 3 słupki) narysowany natywnie w reportlab
-(`_logo_drawing`, przybliżenie tymi samymi współrzędnymi co SVG w
-`branding.py`/PNG w `tools/generate_favicon.py`) — reportlab nie renderuje
+Znak graficzny (plakietka + monogram K, od 22.07.2026 — patrz branding.py)
+narysowany natywnie w reportlab (`_logo_drawing`, te same współrzędne co SVG
+w `branding.py`/PNG w `tools/generate_favicon.py`) — reportlab nie renderuje
 SVG bez dodatkowej zależności (svglib), a to tylko kilka prostych kształtów,
 niewartych nowej zależności.
 """
@@ -180,29 +180,37 @@ body {{ font-family: var(--font-body); color: var(--ink); background: var(--pape
 # ── PDF (reportlab) ──────────────────────────────────────────────────────────
 
 def _logo_drawing(size: float, shield_hex: str, bar_hex: str) -> Drawing:
-    """Znak kalkulatora narysowany natywnie w reportlab — te same
-    współrzędne (viewBox 0-32) co SVG w `branding.py`/PNG w
-    `tools/generate_favicon.py`, przybliżone poligonem zamiast krzywych
-    Beziera (niewidoczna różnica przy tym rozmiarze)."""
+    """Znak kalkulatora (plakietka z monogramem K) narysowany natywnie w
+    reportlab — te same współrzędne (viewBox 0-32) co SVG w `branding.py`/PNG
+    w `tools/generate_favicon.py`. Kontur plakietki to sześciokąt (proste
+    odcinki, bez przybliżania krzywych)."""
     scale = size / 32.0
     d = Drawing(size, size)
 
     def flip(x: float, y: float) -> tuple[float, float]:
         return x * scale, size - y * scale  # SVG y rośnie w dół, reportlab w górę
 
-    shield_pts: list[float] = []
-    for x, y in [(16, 2), (27, 6.4), (27, 15), (25, 20.5), (21, 26),
-                 (16, 29.8), (11, 26), (7, 20.5), (5, 15), (5, 6.4)]:
+    hex_pts: list[float] = []
+    for x, y in [(16, 1.5), (28.56, 8.75), (28.56, 23.25),
+                 (16, 30.5), (3.44, 23.25), (3.44, 8.75)]:
         px, py = flip(x, y)
-        shield_pts.extend([px, py])
-    d.add(Polygon(shield_pts, fillColor=HexColor(shield_hex), strokeColor=None))
+        hex_pts.extend([px, py])
+    d.add(Polygon(hex_pts, fillColor=HexColor(shield_hex), strokeColor=None))
 
-    for x0, y0, x1, y1 in [(10.4, 17.4, 13.4, 23.6), (14.5, 13.4, 17.5, 23.6),
-                            (18.6, 9.4, 21.6, 23.6)]:
-        rx, ry = x0 * scale, size - y1 * scale
-        d.add(Rect(rx, ry, (x1 - x0) * scale, (y1 - y0) * scale,
-                    fillColor=HexColor(bar_hex), strokeColor=None,
-                    rx=1 * scale, ry=1 * scale))
+    stem_x0, stem_y0, stem_x1, stem_y1 = 10.6, 6.3, 14.2, 25.7
+    rx, ry = stem_x0 * scale, size - stem_y1 * scale
+    d.add(Rect(rx, ry, (stem_x1 - stem_x0) * scale, (stem_y1 - stem_y0) * scale,
+                fillColor=HexColor(bar_hex), strokeColor=None,
+                rx=0.6 * scale, ry=0.6 * scale))
+
+    for arm in [[(15.37, 17.59), (23.67, 8.69), (21.33, 6.51), (13.03, 15.41)],
+                [(15.37, 15.41), (23.67, 24.31), (21.33, 26.49), (13.03, 17.59)]]:
+        arm_pts: list[float] = []
+        for x, y in arm:
+            px, py = flip(x, y)
+            arm_pts.extend([px, py])
+        d.add(Polygon(arm_pts, fillColor=HexColor(bar_hex), strokeColor=None))
+
     return d
 
 
