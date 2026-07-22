@@ -963,26 +963,39 @@ if "doc_prefill" in st.session_state:
         _gate = st.session_state.get("_art299_gate")
         if _gate is None:
             st.divider()
-            st.markdown("### Potwierdzenie zakresu sprawy")
+            st.markdown("### Zanim przejdziemy dalej — jedno pytanie")
             st.info(
-                "Dokument wskazuje, że pozwanym jest **osoba fizyczna**. "
-                "Kalkulator KRS Guard służy wyłącznie do oceny ryzyka "
-                "w sprawach o **odpowiedzialność członka zarządu spółki (art. 299 KSH)**."
+                "Dokument, który wgrano, jest skierowany do **konkretnej "
+                "osoby**, nie do spółki. Ten kalkulator ocenia jeden, "
+                "konkretny rodzaj ryzyka: sytuację, w której wierzyciel "
+                "spółki próbuje ściągnąć jej dług od Ciebie osobiście, jako "
+                "od członka zarządu — bo spółka nie zapłaciła (prawnicy "
+                "nazywają to odpowiedzialnością z art. 299 Kodeksu spółek "
+                "handlowych)."
             )
             st.markdown(
-                "**Czy sprawa, której dotyczy ten dokument, wynika "
-                "z odpowiedzialności za zobowiązania spółki z tytułu "
-                "pełnienia funkcji członka zarządu?**"
+                "**Czy to Twoja sytuacja: pełnisz lub pełniłeś/pełniłaś "
+                "funkcję w zarządzie spółki, a teraz ktoś próbuje ściągnąć "
+                "od Ciebie osobiście dług tej spółki?**"
             )
             _col1, _col2 = st.columns(2)
             with _col1:
-                if st.button("Tak — sprawa dotyczy art. 299 KSH", type="primary", use_container_width=True):
+                if st.button("Tak, to moja sytuacja", type="primary", use_container_width=True):
                     st.session_state["_art299_gate"] = "yes"
                     st.rerun()
             with _col2:
-                if st.button("Nie — to inna sprawa", use_container_width=True):
+                if st.button("Nie, to inna sprawa", use_container_width=True):
                     st.session_state["_art299_gate"] = "no"
                     st.rerun()
+            with st.expander("Dlaczego pytamy?", icon=":material/help:"):
+                st.markdown(
+                    "Kalkulator obejmuje wyłącznie tę jedną sytuację "
+                    "prawną. Jeśli sprawa dotyczy czegoś innego (np. "
+                    "Twojego prywatnego zobowiązania niezwiązanego ze "
+                    "spółką), ocena ryzyka w tym narzędziu nie byłaby "
+                    "trafna — dlatego pytamy na samym początku, zanim "
+                    "przejdziesz przez cały formularz."
+                )
             st.stop()
         elif _gate == "no":
             st.divider()
@@ -1064,8 +1077,8 @@ else:
             "Sprawdź pouczenie w dokumencie, zanim zaznaczysz tę opcję."
         )
     epu = st.checkbox(
-        "Dokument pochodzi z EPU / e-Sądu "
-        "(sygnatura Nc-e lub Sąd Rejonowy Lublin-Zachód w Lublinie)",
+        "Dokument pochodzi z e-Sądu (Elektronicznego Postępowania "
+        "Upominawczego, EPU)",
         key="epu",
         value=prefill.epu if prefill else False,
     )
@@ -1142,7 +1155,7 @@ render_why_expander("K2")
 
 # K3 – Zakres wsparcia
 section_header("4", "Zakres wsparcia")
-k3 = labeled_radio("Czego teraz potrzebujesz?", "K3", "k3")
+k3 = labeled_radio("Jakiego wsparcia teraz potrzebujesz?", "K3", "k3")
 render_why_expander("K3")
 
 # K4 – Status w zarządzie
@@ -1166,7 +1179,7 @@ elif k4 == "K4_BOARD_ACTIVE":
 
 # K6 – Cel klienta
 section_header("6", "Twój cel")
-k6 = labeled_radio("Czego przede wszystkim potrzebujesz?", "K6", "k6")
+k6 = labeled_radio("Jaki jest Twój główny cel?", "K6", "k6")
 render_why_expander("K6")
 
 # K7 – Kwota roszczenia (uwzględnij korektę kwoty jeśli użytkownik ją zmienił)
