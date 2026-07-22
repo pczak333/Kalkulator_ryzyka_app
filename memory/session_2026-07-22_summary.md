@@ -1,25 +1,44 @@
 ---
 name: session-2026-07-22-summary
-description: "Podsumowanie sesji 22.07.2026 — nowy znak graficzny (plakietka+monogram K), poprawka proporcji w nagłówku, audyt treści formularza K1-K7 + naprawa bramki art.299/EPU/K3/K6, synchronizacja pamięci między komputerami. Wszystko zacommitowane i wypchnięte na origin/main, working tree czysty. Czytać to jako pierwszy punkt startowy przy wznowieniu pracy na innym komputerze."
+description: "Podsumowanie sesji 22.07.2026 — nowy znak graficzny (plakietka+monogram K), poprawka proporcji w nagłówku, audyt treści formularza K1-K7 + naprawa bramki art.299/EPU/K3/K6, synchronizacja pamięci między komputerami, naprawa krytycznego bugu cwd na Streamlit Cloud, kompresja CLAUDE.md do limitu 150k znaków. Wszystko zacommitowane i wypchnięte na origin/main, working tree czysty. Czytać to jako pierwszy punkt startowy przy wznowieniu pracy na innym komputerze."
 metadata:
   node_type: memory
   type: project
   originSessionId: 6c39c185-9261-4919-b8c9-2ce13b654a86
+  modified: 2026-07-22T12:41:26.729Z
 ---
 
 ## Stan na koniec sesji
 
 `git log --oneline -5` na `main`:
 ```
+89a9d0b Skroc CLAUDE.md z 165k do 41k znakow (limit 150k)
+9096f5d Dopisz rozwiazanie: bug na Cloud wymagal recznego reboot app, nie samego pusha
+63a65fe Napraw krytyczny bug: doc_classifier.py padal na Streamlit Cloud (zla sciezka)
+0c9def7 Dodaj podsumowanie sesji 22.07 dla ciaglosci miedzy komputerami
 c35dc19 Popraw tresc bramki art.299 i checkboxa EPU po audycie UX formularza
-2b12103 Popraw proporcje znaku w naglowku kalkulatora (byl za maly wzgledem tekstu)
-fde4365 Synchronizuj pamiec projektu miedzy komputerami: przywroc 2 zagubione notatki
-c822611 Nowy znak graficzny: plakietka z monogramem K zamiast tarczy z 3 slupkami
-b79a699 Poprawki graficzne: profesjonalne ikony, niebieskie banery, box CTA, teksty
 ```
-`origin/main` == lokalny `HEAD` (`c35dc19`), working tree czysty (jedyny
+`origin/main` == lokalny `HEAD` (`89a9d0b`), working tree czysty (jedyny
 nieśledzony plik to lokalny `.claude/settings.local.json`, celowo poza
 repo). **Brak otwartych zadań/decyzji w toku.**
+
+Dwa dodatkowe wątki dopisane do tej sesji PO oryginalnym "końcu dnia" (patrz
+punkty 1-4 niżej, niezmienione) — sesja okazała się dłuższa niż zakładano:
+
+5. **Krytyczny bug wdrożeniowy naprawiony** — `doc_classifier.py` miał gołą
+   względną ścieżkę do CSV 07, działającą tylko lokalnie (zawsze `cd app`
+   najpierw); Streamlit Cloud uruchamia z cwd=korzeń repo →
+   `FileNotFoundError` przy KAŻDEJ klasyfikacji dokumentu na produkcji, nigdy
+   niewykryte lokalnie mimo wielu żywych testów tego dnia. Naprawione +
+   odkryto, że sam push nie wystarczał — Cloud wymagał ręcznego rebootu
+   aplikacji, żeby podjąć nowy kod. Pełny opis: [[project_deployment_cwd_bug]].
+6. **CLAUDE.md skrócony ze 164 847 do 41 141 znaków** (limit narzędzia:
+   150 000) — usunięta wyłącznie chronologiczna narracja per moduł/plik
+   testowy (72% objętości w 20 liniach), zastąpiona zwięzłym opisem
+   bieżącego stanu + odesłaniami do `memory/*.md`, gdzie pełna historia już
+   istniała. Struktura/nagłówki/tabele bez zmian. Pełny opis:
+   [[project_claude_md_compression]]; nowa zasada na przyszłość:
+   [[feedback_claude_md_conciseness]].
 
 ## Co zrobiono w tej sesji (chronologicznie)
 
