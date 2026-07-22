@@ -73,10 +73,21 @@ CLAUDE.md) — stąd weryfikacja syntetycznym tekstem zamiast pełnego
 plikami uruchomić pełną regresję dla pewności, choć logika klasyfikacji
 sama w sobie się nie zmieniła (zmieniło się wyłącznie znajdowanie pliku).
 
-## Do zrobienia po stronie użytkownika
+## Rozwiązane — potwierdzone przez użytkownika
 
-Po wypchnięciu poprawki na `main`, Streamlit Cloud powinien sam
-zredeployować aplikację (auto-deploy przy pushu) w ciągu minuty-dwóch.
-Użytkownik powinien odświeżyć `https://kalkulatorryzyka.streamlit.app/` i
-spróbować wgrać dokument ponownie — błąd powinien zniknąć. Klucze API w
-Secrets NIE wymagają ponownego wklejania — te były już poprawne.
+Auto-deploy po pushu NIE zadziałał od razu (błąd nadal widoczny ~10 minut
+po pushu, identyczny komunikat) — potrzebny był RĘCZNY restart z panelu
+Streamlit Cloud (`⋮` przy aplikacji → "Reboot app"), potem twarde odświeżenie
+strony (Ctrl+F5). Po tym kalkulator zadziałał poprawnie. Warto pamiętać na
+przyszłość: po pushu poprawki na świeżo utworzoną (albo długo nieaktywną)
+aplikację Cloud, jeśli błąd nie znika mimo upływu paru minut — nie czekać
+dalej na auto-deploy, tylko od razu zrobić ręczny "Reboot app".
+
+Przy okazji: zakładka "General" w panelu ustawień aplikacji Streamlit Cloud
+NIE pokazuje gałęzi/repo (tylko App URL/subdomenę i wersję Pythona) — brak
+widocznej nazwy `main` tam nie jest niczym niepokojącym, to po prostu nie ta
+zakładka. Fakt, że aplikacja poprawnie działa po restarcie, jest wystarczającym
+potwierdzeniem poprawnej konfiguracji repo/gałęzi/pliku głównego.
+
+Link `https://kalkulatorryzyka.streamlit.app/` jest teraz w pełni sprawny i
+gotowy do wysłania drugiej osobie do testów.
