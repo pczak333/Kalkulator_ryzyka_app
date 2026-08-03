@@ -599,9 +599,9 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
         "<div style='background:var(--notice-bg);border:1px solid var(--notice-border);"
         "border-left:4px solid var(--navy);border-radius:8px;"
         "padding:8px 14px;font-size:0.85rem;margin-top:8px;margin-bottom:4px;'>"
-        f"{icon_svg('lock', size=16)} <strong>Ochrona Twoich danych:</strong> Przesłane dokumenty są przetwarzane "
-        "wyłącznie w celu wstępnej analizy i "
-        "<strong>automatycznie usuwane po 48 godzinach</strong>. "
+        f"{icon_svg('lock', size=16)} <strong>Ochrona Twoich danych:</strong> Przesłane dokumenty analizuje "
+        "wyłącznie automatyczny algorytm — nikt z zespołu ich nie czyta — i są "
+        "<strong>automatycznie usuwane po 24 godzinach</strong>. "
         "Nie są przechowywane ani udostępniane osobom trzecim.</div>",
         unsafe_allow_html=True,
     )
