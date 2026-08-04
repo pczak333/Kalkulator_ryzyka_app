@@ -21,6 +21,21 @@ class HardRuleResult:
 # ochronę tego przypadku przy krótkim terminie.
 _NAKAZ_LIKE_CZLONEK_CODES = ("K1_NAKAZ_CZLONEK_ZARZADU", "K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU")
 
+# (04.08.2026) Termin, który JUŻ MINĄŁ, jest mapowany na K2_DAYS_LEFT_0_3 (żeby
+# ryzyko pozostało maksymalnie wysokie — to celowe). Skutkiem ubocznym było to,
+# że odpalały się ostrzeżenia napisane pod założeniem, że czas jeszcze zostaje
+# („Na reakcję pozostało bardzo mało czasu"), podczas gdy raport w innym miejscu
+# poprawnie pisał, że termin mógł już upłynąć. Klient dostawał dwa sprzeczne
+# komunikaty i nie wiedział, czy jest przed terminem, czy po nim. Reguły, które
+# mówią o pozostałym czasie, mają teraz alternatywne brzmienie na wypadek, gdy
+# app.py ustawi w stanie DEADLINE_PASSED=True.
+_WARN_PO_TERMINIE = (
+    "Z podanych dat wynika, że termin na reakcję już upłynął. "
+    "To nie zawsze zamyka sprawę — w niektórych sytuacjach można wnioskować "
+    "o przywrócenie terminu albo podjąć inne kroki, ale liczy się każdy dzień. "
+    "Skontaktuj się z nami jak najszybciej, żeby ustalić, co da się jeszcze zrobić."
+)
+
 _RULE_DEFS = [
     {
         "id": "HR01",
@@ -34,6 +49,7 @@ _RULE_DEFS = [
             "Nie warto odkładać sprawy — najważniejsze jest szybkie potwierdzenie "
             "terminu i przygotowanie właściwej reakcji."
         ),
+        "warning_passed": _WARN_PO_TERMINIE,
     },
     {
         "id": "HR02",
@@ -47,6 +63,7 @@ _RULE_DEFS = [
             "Nie warto odkładać sprawy — najważniejsze jest szybkie potwierdzenie "
             "terminu i przygotowanie właściwej reakcji."
         ),
+        "warning_passed": _WARN_PO_TERMINIE,
     },
     {
         "id": "HR03",
@@ -98,6 +115,11 @@ _RULE_DEFS = [
             "Dokument może pochodzić z EPU / e-Sądu, a czas na reakcję jest "
             "bardzo krótki. Przy tak krótkim terminie trzeba przede wszystkim "
             "zachować termin i prawidłowo oznaczyć nakaz albo pismo."
+        ),
+        "warning_passed": (
+            "Dokument może pochodzić z EPU / e-Sądu, a z podanych dat wynika, "
+            "że termin już upłynął. Postępowanie elektroniczne ma własne zasady "
+            "— tym pilniej warto sprawdzić, jakie kroki są jeszcze dostępne."
         ),
     },
     {
@@ -156,6 +178,11 @@ def apply(state: dict, current_risk_code: str) -> tuple[str, HardRuleResult]:
     result = HardRuleResult(minimum_risk_code=current_risk_code)
     final_risk = current_risk_code
 
+    # Czy z podanych dat wynika, że termin już minął? Ustawiane w app.py.
+    # Wpływa WYŁĄCZNIE na brzmienie komunikatów — poziom ryzyka pozostaje
+    # bez zmian (miniony termin nadal traktujemy jak najwyższą pilność).
+    deadline_passed = bool(state.get("DEADLINE_PASSED"))
+
     for rule in _RULE_DEFS:
         try:
             triggered = rule["condition"](state)
@@ -164,7 +191,10 @@ def apply(state: dict, current_risk_code: str) -> tuple[str, HardRuleResult]:
 
         if triggered:
             result.triggered.append(rule["id"])
-            result.warnings.append(rule["warning"])
+            _msg = rule["warning"]
+            if deadline_passed and rule.get("warning_passed"):
+                _msg = rule["warning_passed"]
+            result.warnings.append(_msg)
             if rule["min_risk"]:
                 final_risk = elevate_risk(final_risk, rule["min_risk"])
 

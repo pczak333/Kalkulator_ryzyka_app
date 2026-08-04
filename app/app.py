@@ -1159,11 +1159,36 @@ if use_dates:
             key="delivery_date",
         )
     with col2:
+        # (04.08.2026) Termin odczytany z dokumentu potrafi wypaść poza zakres
+        # dopuszczalny przez to pole (błąd OCR, nietypowe pouczenie, liczba
+        # ujemna). Wcześniej taka wartość wywoływała wyjątek Streamlita i klient
+        # zamiast reszty formularza oraz przycisku „Oblicz ryzyko" widział
+        # czerwoną ramkę z błędem — dla niego wyglądało to na awarię i najpewniej
+        # zamykał stronę. Teraz przycinamy wartość do dopuszczalnego zakresu
+        # i mówimy o tym wprost, żeby klient wiedział, że ma ją zweryfikować.
+        _TERMIN_MIN, _TERMIN_MAX = 1, 365
+        _termin_odczytany = None
+        if _prefill_has_dates:
+            try:
+                _termin_odczytany = int(prefill.deadline_days)
+            except (TypeError, ValueError):
+                _termin_odczytany = None
+        _termin_startowy = _termin_odczytany if _termin_odczytany is not None else 14
+        _termin_bezpieczny = max(_TERMIN_MIN, min(_TERMIN_MAX, _termin_startowy))
+        _termin_przyciety = (
+            _termin_odczytany is not None and _termin_odczytany != _termin_bezpieczny
+        )
         deadline_days = st.number_input(
-            "Termin z pouczenia (dni)", min_value=1, max_value=365,
-            value=int(prefill.deadline_days) if _prefill_has_dates else 14,
+            "Termin z pouczenia (dni)", min_value=_TERMIN_MIN, max_value=_TERMIN_MAX,
+            value=_termin_bezpieczny,
             key="deadline_days",
         )
+        if _termin_przyciety:
+            st.caption(
+                f"⚠️ Z dokumentu odczytaliśmy termin **{_termin_odczytany} dni**, "
+                "co wygląda na błąd odczytu. Ustawiliśmy wartość domyślną — "
+                "sprawdź pouczenie w piśmie i popraw, jeśli trzeba."
+            )
     from calendar_utils import compute_deadline_date, is_working_day
     deadline_date = compute_deadline_date(delivery_date, int(deadline_days))
     days_exact = (deadline_date - date.today()).days
@@ -1341,6 +1366,10 @@ if "krs_answers" in st.session_state:
         **answers,
         "EPU": epu,
         "DOC_TYPE": _doc_type_from_k1 or (_prefill.doc_type_code if _prefill else ""),
+        # Termin minął — wpływa tylko na brzmienie ostrzeżeń (patrz hard_rules),
+        # nie na poziom ryzyka. Bez tego raport pisał jednocześnie „termin mógł
+        # już upłynąć" i „na reakcję pozostało bardzo mało czasu".
+        "DEADLINE_PASSED": days_exact is not None and days_exact < 0,
     }
 
     # 1. Punktacja
@@ -1481,11 +1510,39 @@ if "krs_answers" in st.session_state:
             "K2_DAYS_LEFT_4_7": "7 dni",
             "K2_DAYS_LEFT_8_14": "14 dni",
         }.get(answers.get("K2", ""), "")
-        _time_pressure = (
-            f" Z dokumentu wynika termin {_deadline_hint} — jeśli pismo leży "
-            f"kilka dni, czas może być bardzo krótki."
-            if _deadline_hint else ""
-        )
+        # (04.08.2026) Nie pisz „z dokumentu wynika…", jeśli klient nie wgrał
+        # żadnego dokumentu — to jego własna odpowiedź z formularza, a nie coś
+        # odczytanego z pisma. Wcześniej kalkulator powoływał się na dokument,
+        # którego w ogóle nie było.
+        if _deadline_hint and _prefill:
+            _time_pressure = (
+                f" Z dokumentu wynika termin {_deadline_hint} — jeśli pismo leży "
+                f"kilka dni, czas może być bardzo krótki."
+            )
+        elif _deadline_hint:
+            _time_pressure = (
+                f" Podałeś, że na reakcję zostało około {_deadline_hint} — jeśli "
+                f"pismo leży już kilka dni, czasu może być jeszcze mniej."
+            )
+        else:
+            _time_pressure = ""
+
+        # (04.08.2026) Przy bardzo krótkim terminie NIE obiecuj, że Audyt 48h
+        # zdąży przed jego upływem — analiza trwa 2 dni robocze od akceptacji
+        # wyceny, więc przy 2–3 dniach to obietnica, której możemy nie dotrzymać.
+        # Zamiast tego kierujemy na pilny kontakt bezpośredni.
+        _bardzo_krotki_termin = answers.get("K2", "") == "K2_DAYS_LEFT_0_3"
+        if _bardzo_krotki_termin:
+            _krok3 = (
+                "3. **Skontaktuj się z nami pilnie** — przy tak krótkim terminie "
+                "liczy się każdy dzień i trzeba najpierw ustalić, co da się zdążyć "
+                "zrobić. Standardowy Audyt 48h może być w tej sytuacji za wolny."
+            )
+        else:
+            _krok3 = (
+                "3. Skontaktuj się z nami — **Audyt 48h** pozwoli ustalić te fakty "
+                "i ułożyć plan działania."
+            )
         st.warning(
             "**⚠️ Nie znasz jeszcze kluczowych faktów tej sprawy.**\n\n"
             f"Nie wiesz kiedy dokument został Ci doręczony — a od tej daty biegnie termin "
@@ -1495,8 +1552,7 @@ if "krs_answers" in st.session_state:
             "**Co zrobić TERAZ (zanim cokolwiek innego):**\n"
             "1. Sprawdź datę na kopercie lub potwierdzeniu odbioru — to wyznacza termin.\n"
             "2. Sprawdź w KRS czy widniejesz jako aktualny lub były członek zarządu.\n"
-            "3. Skontaktuj się z nami — **Audyt 48h** pozwoli ustalić te fakty i ułożyć "
-            "plan działania zanim termin minie."
+            f"{_krok3}"
         )
 
     # (16.07.2026, REDESIGN FAZA B) Pełny tekst wyniku NIE wyświetla się już
