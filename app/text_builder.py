@@ -336,7 +336,27 @@ def build(
     if _nonblank(qty_note):
         sections.append(qty_note)
 
-    for w in hard_rule_result.warnings[:2]:
+    # (04.08.2026) Ostrzeżenia o WIARYGODNOŚCI danych (HR10 — niepewna jakość
+    # odczytu, HR11 — brak pełnych akt sprawy) muszą dotrzeć do klienta ZAWSZE,
+    # bo podważają cały wynik. Wcześniej raport brał po prostu dwa pierwsze
+    # ostrzeżenia z listy, a HR10 jest dopisywane na jej końcu (patrz
+    # hard_rules.apply) — więc w typowej sprawie z krótkim terminem, gdzie
+    # odpalają się już dwa ostrzeżenia o pilności, klient NIGDY nie dowiadywał
+    # się, że dokument mógł zostać źle odczytany. Dostawał pewnie brzmiący
+    # wynik zbudowany na niepewnych danych.
+    _RELIABILITY_RULES = {"HR10", "HR11"}
+    _ids = list(hard_rule_result.triggered)
+    _warns = list(hard_rule_result.warnings)
+    if len(_ids) == len(_warns):
+        _pairs = list(zip(_ids, _warns))
+        _reliability = [w for rid, w in _pairs if rid in _RELIABILITY_RULES]
+        _others = [w for rid, w in _pairs if rid not in _RELIABILITY_RULES]
+        _to_show = _reliability + _others[:2]
+    else:
+        # Zabezpieczenie: gdyby listy kiedykolwiek się rozjechały, nie gubimy
+        # ostrzeżeń — pokazujemy je bez priorytetyzacji.
+        _to_show = _warns[:3]
+    for w in _to_show:
         sections.append(f"**Ważne:** {w}")
 
     if _nonblank(context.k6_text):
