@@ -600,9 +600,11 @@ def _show_doc_summary(main: ProcessedDocument, aux: list[ProcessedDocument]):
         "border-left:4px solid var(--navy);border-radius:8px;"
         "padding:8px 14px;font-size:0.85rem;margin-top:8px;margin-bottom:4px;'>"
         f"{icon_svg('lock', size=16)} <strong>Ochrona Twoich danych:</strong> Przesłane dokumenty analizuje "
-        "wyłącznie automatyczny algorytm — nikt z zespołu ich nie czyta — i są "
-        "<strong>automatycznie usuwane po 24 godzinach</strong>. "
-        "Nie są przechowywane ani udostępniane osobom trzecim.</div>",
+        "wyłącznie automatyczny algorytm — nikt z zespołu ich nie czyta. Do odczytu "
+        "tekstu korzystamy z zewnętrznych usług (Microsoft, Anthropic), z którymi łączą "
+        "nas umowy powierzenia przetwarzania danych. "
+        "<strong>Nie zapisujemy dokumentów w żadnej bazie ani na dysku</strong> — "
+        "znikają po zamknięciu karty przeglądarki.</div>",
         unsafe_allow_html=True,
     )
 
@@ -787,6 +789,25 @@ st.markdown(
     "<li>To samo dotyczy kilku osobnych plików — każdy plik powinien być "
     "kompletnym, nieprzerwanym dokumentem.</li>"
     "</ul></div>",
+    unsafe_allow_html=True,
+)
+
+# (04.08.2026) Uczciwa informacja o danych PRZED wgraniem pliku, nie po analizie.
+# Powód: klient musi wiedzieć, że treść dokumentu opuszcza aplikację i trafia do
+# zewnętrznych usług odczytu, ZANIM podejmie decyzję o wgraniu akt swojej sprawy.
+# Ten sam podział (formularz ręcznie vs wgranie pliku) jest opisany na stronie
+# KRS Guard i w polityce prywatności — nie zmieniać jednego bez drugiego.
+st.markdown(
+    "<div style='background:var(--notice-bg);border:1px solid var(--notice-border);"
+    "border-left:4px solid var(--navy);border-radius:8px;"
+    "padding:8px 14px;font-size:0.85rem;margin-bottom:10px;'>"
+    f"{icon_svg('lock', size=16)} <strong>Co dzieje się z Twoim dokumentem:</strong> "
+    "żeby odczytać pismo, przekazujemy jego treść zewnętrznym usługom "
+    "automatycznego odczytu tekstu (Microsoft, Anthropic) — dane mogą przy tym "
+    "trafić poza Europejski Obszar Gospodarczy. Nie zapisujemy dokumentu w żadnej "
+    "bazie ani na dysku; znika po zamknięciu karty przeglądarki. "
+    "<strong>Wgranie pliku jest opcjonalne</strong> — jeśli wolisz, pomiń ten krok "
+    "i odpowiedz na pytania samodzielnie. Wynik będzie taki sam.</div>",
     unsafe_allow_html=True,
 )
 
@@ -1036,6 +1057,16 @@ else:
 st.divider()
 
 # ── Formularz ─────────────────────────────────────────────────────────────────
+
+# (04.08.2026) Notka o danych widoczna ZAWSZE — także dla klienta, który nie
+# wgrywa żadnego pliku i wypełnia formularz ręcznie. Wcześniej jedyna taka
+# informacja pokazywała się dopiero w podsumowaniu po wgraniu dokumentu, więc
+# osoba wypełniająca ręcznie nie widziała jej w ogóle.
+st.caption(
+    "Twoje odpowiedzi służą wyłącznie do wyliczenia wyniku — nie zapisujemy ich "
+    "w żadnej bazie ani na dysku i znikają po zamknięciu karty przeglądarki. "
+    "Wynik oblicza algorytm; nie jest to porada prawna."
+)
 
 # K1 – Rodzaj pisma
 section_header("1", "Rodzaj pisma")
