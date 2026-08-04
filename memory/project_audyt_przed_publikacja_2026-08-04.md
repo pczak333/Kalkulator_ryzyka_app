@@ -117,3 +117,32 @@ prawdziwych, zanonimizowanych pismach.
   nadal reużywa wierszy nakazu i jest łatany w locie (decyzja produktowa z 07.07).
   Alternatywa (własne wiersze scenariuszy dla wyroku zaocznego) to duża zmiana
   w pliku 472 KB — do rozważenia, jeśli łatanie w locie okaże się dalej kruche.
+
+## Dopisek: błąd „Wyczyść kalkulator" (zgłoszony po sesji, 04.08.2026)
+
+Właściciel przeklikał pełną ścieżkę na produkcji i trafił na
+`StreamlitAPIException` wywalający CAŁĄ aplikację czerwoną ramką: przycisk
+„Wyczyść kalkulator" stoi na DOLE strony, więc widżety formularza (k3–k6,
+use_dates) są już utworzone w tym przebiegu — a Streamlit zabrania wtedy
+modyfikacji ich kluczy w `session_state`, co robił `reset_calculator()`.
+
+**Błąd istniał od czerwca 2026** (commit `2d3d6a1` dodał przypisania widżetów,
+`7655da9` dodał przycisk na dole) — nie wprowadziły go zmiany z tej sesji.
+Przeżył tak długo, bo nie było jak go wykryć bez ręcznego klikania.
+
+Naprawa: przycisk ustawia tylko flagę `_do_reset` i przeładowuje stronę, a
+właściwy reset wykonuje się na POCZĄTKU następnego przebiegu, przed
+utworzeniem widżetów (commit `360d1dd`). Drugie wywołanie `reset_calculator()`
+(wykrycie usunięcia pliku, ~linia 874) jest bezpieczne — wypada przed
+widżetami formularza.
+
+**Najważniejszy wniosek: powstało `tools/smoke_test_ui.py`.**
+`streamlit.testing.v1.AppTest` renderuje aplikację w pamięci i pozwala klikać
+widżety z Pythona — łapie tę klasę błędów w kilkanaście sekund, bez
+przeglądarki. Zweryfikowane dwukierunkowo: test PADA na starej wersji kodu
+(odtwarza dokładnie ten sam komunikat) i PRZECHODZI na poprawionej.
+
+To **koryguje wcześniejszą notatkę** z [[project_progress_indicator]], że
+błędy Streamlita dotyczące kontenerów/widżetów wymagają żywego testu
+w przeglądarce — AppTest wystarcza i nadaje się do rutynowego uruchamiania
+po każdej zmianie w `app.py`.
