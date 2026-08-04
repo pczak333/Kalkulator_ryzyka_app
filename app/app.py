@@ -1228,6 +1228,22 @@ k7 = labeled_radio(
 render_why_expander("K7")
 
 st.divider()
+
+# (04.08.2026) Migawka BIEŻĄCYCH odpowiedzi, liczona przy każdym przeładowaniu
+# skryptu. Służy do dwóch rzeczy: zapisania stanu po kliknięciu „Oblicz ryzyko”
+# ORAZ do wykrycia, że użytkownik zmienił odpowiedzi już PO obliczeniu wyniku
+# (patrz blok „Nieaktualny wynik” niżej). Wcześniej wynik renderował się ze
+# starej migawki i po zmianie odpowiedzi pokazywał nieprawdziwą ocenę ryzyka,
+# a przycisk pobierania budował z niej PDF — bez żadnego ostrzeżenia.
+_ocr_quality_now = prefill.ocr_quality if prefill else "HIGH"
+_answers_now = {
+    "K1": k1 or "", "K2": k2 or "", "K3": k3 or "",
+    "K4": k4 or "", "K5": k5 or "", "K6": k6 or "", "K7": k7 or "",
+    "K2A": "K2A_DELIVERY_DATE_KNOWN" if use_dates else "K2A_DELIVERY_DATE_UNKNOWN",
+    "OCR_QUALITY": _ocr_quality_now,
+}
+_state_now = (_answers_now, bool(epu), days_exact)
+
 if st.button("Oblicz ryzyko →", use_container_width=True, type="primary"):
     missing_labels = []
     if not k1:
@@ -1248,17 +1264,29 @@ if st.button("Oblicz ryzyko →", use_container_width=True, type="primary"):
     if missing_labels:
         st.warning("Zaznacz brakujące opcje w: " + ", ".join(missing_labels))
     else:
-        _ocr_quality = (
-            prefill.ocr_quality if prefill else "HIGH"
-        )
-        st.session_state["krs_answers"] = {
-            "K1": k1 or "", "K2": k2 or "", "K3": k3 or "",
-            "K4": k4 or "", "K5": k5 or "", "K6": k6 or "", "K7": k7 or "",
-            "K2A": "K2A_DELIVERY_DATE_KNOWN" if use_dates else "K2A_DELIVERY_DATE_UNKNOWN",
-            "OCR_QUALITY": _ocr_quality,
-        }
+        st.session_state["krs_answers"] = _answers_now
         st.session_state["krs_epu"] = epu
         st.session_state["krs_days_exact"] = days_exact
+
+# ── Nieaktualny wynik: odpowiedzi zmienione po obliczeniu ─────────────────────
+# Jeśli zapisany wynik nie odpowiada już bieżącym odpowiedziom, kasujemy go.
+# Lepiej pokazać brak wyniku i prośbę o ponowne przeliczenie niż zostawić na
+# ekranie ocenę ryzyka (i przycisk pobrania PDF) niezgodną z formularzem.
+if "krs_answers" in st.session_state:
+    _stored_state = (
+        st.session_state.get("krs_answers"),
+        bool(st.session_state.get("krs_epu")),
+        st.session_state.get("krs_days_exact"),
+    )
+    if _stored_state != _state_now:
+        for _k in ("krs_answers", "krs_epu", "krs_days_exact"):
+            st.session_state.pop(_k, None)
+        st.info(
+            "Zmieniłeś odpowiedzi po obliczeniu wyniku, więc poprzednia ocena "
+            "przestała pasować do formularza. Kliknij **„Oblicz ryzyko →”**, "
+            "aby zobaczyć zaktualizowany wynik.",
+            icon=":material/refresh:",
+        )
 
 # ── Obliczenia i wynik ────────────────────────────────────────────────────────
 if "krs_answers" in st.session_state:
