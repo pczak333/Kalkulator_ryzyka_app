@@ -47,6 +47,19 @@ EPU_COMPATIBLE = {
     "K1_INNE_NIE_WIEM": "NIE",
 }
 
+# (04.08.2026) Kody K1, które SAME jednoznacznie wskazują typ dokumentu — bez
+# potrzeby rozpoznania go przez OCR. Potrzebne, bo podmiana tekstów raportu dla
+# wyroku zaocznego (patrz sekcja wyniku) była kluczowana wyłącznie na DOC_TYPE
+# pochodzącym z wgranego pliku. Klient, który wypełniał formularz ręcznie albo
+# poprawiał błędne rozpoznanie, dostawał raport o NAKAZIE ZAPŁATY i poradę
+# „sprzeciw albo zarzuty" — przy wyroku zaocznym jedyną drogą zaskarżenia jest
+# sprzeciw, więc była to porada dotycząca innego pisma niż to, które klient ma.
+# Kod K1 wskazany przez klienta ma tu pierwszeństwo przed rozpoznaniem OCR.
+_K1_IMPLIES_DOC_TYPE: dict[str, str] = {
+    "K1_WYROK_ZAOCZNY_SPOLKA":          "WYROK_ZAOCZNY_SPOLKA",
+    "K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU": "WYROK_ZAOCZNY_CZLONEK_ZARZADU",
+}
+
 # (16.07.2026, REDESIGN) RISK_COLORS/RISK_BG przeniesione do branding.py —
 # jedno źródło współdzielone z report_builder.py (Faza B), żeby aplikacja i
 # raport PDF/HTML używały identycznych kolorów. Skala nasilenia (zielony→
@@ -1295,10 +1308,15 @@ if "krs_answers" in st.session_state:
     days_exact = st.session_state["krs_days_exact"]
 
     _prefill = st.session_state.get("doc_prefill")
+    # Kod K1 wskazany przez klienta ma pierwszeństwo tam, gdzie sam jednoznacznie
+    # określa typ pisma (patrz _K1_IMPLIES_DOC_TYPE) — inaczej podmiana tekstów
+    # niżej nie zadziała przy ręcznym wypełnianiu formularza ani po poprawieniu
+    # błędnego rozpoznania OCR.
+    _doc_type_from_k1 = _K1_IMPLIES_DOC_TYPE.get(answers.get("K1", ""), "")
     state = {
         **answers,
         "EPU": epu,
-        "DOC_TYPE": _prefill.doc_type_code if _prefill else "",
+        "DOC_TYPE": _doc_type_from_k1 or (_prefill.doc_type_code if _prefill else ""),
     }
 
     # 1. Punktacja
