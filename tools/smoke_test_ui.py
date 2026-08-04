@@ -20,6 +20,14 @@ Uruchomienie
 
 Kod wyjścia 0 = OK, 1 = któraś ścieżka wywala aplikację.
 
+Czego ten test NIE łapie
+------------------------
+Błędu „usunięcie klucza widżetu nie czyści pola" (`pop()` zamiast nadpisania).
+W przeglądarce frontend nadal trzyma wartość widżetu i odsyła ją przy kolejnym
+przebiegu; AppTest nie ma prawdziwego frontendu, więc przechodzi mimo błędu.
+Sprawdzone empirycznie 04.08.2026. **Zmiany w `reset_calculator()` trzeba
+przeklikać w przeglądarce.**
+
 Uwaga o polach radio
 --------------------
 `labeled_radio()` podaje `options=range(len(labels))` + `format_func`, więc
@@ -107,20 +115,44 @@ def main() -> int:
     if _sprawdz(at, "kliknięcie 'Wyczyść kalkulator'"):
         return 1
 
-    # Po wyczyszczeniu formularz ma być z powrotem pusty i gotowy do wypełnienia.
+    # Po wyczyszczeniu formularz ma być z powrotem PUSTY.
     # Świadomie NIE ustawiamy tu ponownie widżetów: AppTest trzyma drzewo
     # z POPRZEDNIEGO przebiegu, a Streamlit zdążył już posprzątać stan widżetów,
     # które zniknęły razem z sekcją wyniku (np. przełącznik `_show_full_report`).
     # Próba zapisu po takim drzewie wywala KeyError w samym AppTest — to
     # ograniczenie narzędzia, nie błąd aplikacji (w przeglądarce widżet po
-    # prostu znika). Wystarczy sprawdzić, że formularz wrócił do stanu pustego.
-    if at.exception:
-        print("  BLAD: wyjątek po wyczyszczeniu")
-        return 1
+    # prostu znika).
     if not [b for b in at.button if "Oblicz" in (b.label or "")]:
         print("  BLAD: po wyczyszczeniu zniknął przycisk 'Oblicz ryzyko'")
         return 1
-    print("  OK: formularz wrócił do stanu wyjściowego")
+
+    # (04.08.2026) Sprawdzenie, czy pola FAKTYCZNIE są puste.
+    #
+    # ⚠️ ZNANE OGRANICZENIE — ten warunek NIE wykrywa błędu „pop() nie czyści
+    # widżetu". Sprawdzone empirycznie: test przechodzi także na wersji kodu
+    # sprzed naprawy, w której kroki 1, 3 i 7 realnie zostawały zaznaczone
+    # w przeglądarce. Powód: w prawdziwej przeglądarce frontend nadal trzyma
+    # wartość widżetu i odsyła ją przy kolejnym przebiegu, więc usunięcie klucza
+    # z session_state nic nie daje — trzeba go NADPISAĆ. AppTest nie ma
+    # prawdziwego frontendu, więc tej sytuacji nie odtwarza.
+    # Wniosek: zmiany w `reset_calculator()` wymagają sprawdzenia W PRZEGLĄDARCE.
+    # Poniższy warunek zostaje jako tania ochrona przed innymi regresjami.
+    niewyczyszczone = [
+        (r.label or "?")[:45] for r in at.radio if r.value is not None
+    ]
+    if niewyczyszczone:
+        print(f"  BLAD: {len(niewyczyszczone)} pól nie wyczyściło się:")
+        for etykieta in niewyczyszczone:
+            print(f"      - {etykieta}")
+        return 1
+    zaznaczone_checkboxy = [
+        (c.label or "?")[:45] for c in at.checkbox if c.value
+    ]
+    if zaznaczone_checkboxy:
+        print(f"  BLAD: checkboxy nadal zaznaczone: {zaznaczone_checkboxy}")
+        return 1
+    print(f"  OK: wszystkie pola wyczyszczone ({len(at.radio)} radio, "
+          f"{len(at.checkbox)} checkbox)")
 
     print("-" * 60)
     print("WYNIK: wszystkie ścieżki OK")

@@ -261,21 +261,34 @@ def labeled_radio(
 
 
 def reset_calculator():
-    # Usuń całkowicie dane niebędące kluczami widżetów
+    # Dane pomocnicze (NIE klucze widżetów) — te można zwyczajnie usunąć.
     for key in ["krs_answers", "krs_epu", "krs_days_exact", "test_pwd",
                 "doc_prefill", "doc_aux",
                 "corr_kwota", "corr_powod", "corr_pozwany",
-                "_last_uploaded_names", "_art299_gate", "_manual_form_opt_in",
-                "k1", "k2", "k7", "epu", "delivery_date", "deadline_days"]:
+                "_last_uploaded_names", "_art299_gate", "_manual_form_opt_in"]:
         st.session_state.pop(key, None)
-    # Klucze widżetów bez prefill — ustaw explicite na None/False, NIE pop.
+
+    # Klucze WIDŻETÓW — ustawiać explicite, NIGDY nie usuwać przez pop().
     # Streamlit cachuje wewnętrznie ostatnią wartość widżetu; gdy klucz jest
-    # nieobecny, używa cache zamiast parametru index=. Explicite None wymusza reset.
-    st.session_state["k3"] = None
-    st.session_state["k4"] = None
-    st.session_state["k5"] = None
-    st.session_state["k6"] = None
+    # nieobecny, przy kolejnym renderze bierze wartość z cache zamiast
+    # z parametru `index=`/`value=` — czyli pop() NIE czyści pola.
+    #
+    # (04.08.2026, zgłoszenie właściciela) k1, k2, k7, epu, delivery_date
+    # i deadline_days były wcześniej usuwane przez pop() i przez to NIE
+    # czyściły się wcale: po „Wyczyść kalkulator" kroki 1 (Rodzaj pisma),
+    # 3 (Czas na reakcję) i 7 (Kwota roszczenia) zostawały zaznaczone,
+    # podczas gdy kroki 4-6 (ustawiane tu explicite) czyściły się poprawnie.
+    # Teraz wszystkie pola formularza są traktowane tak samo.
+    for _k in ("k1", "k2", "k3", "k4", "k5", "k6", "k7"):
+        st.session_state[_k] = None
+    st.session_state["epu"] = False
     st.session_state["use_dates"] = False
+    # Pola dat pokazują się tylko przy zaznaczonym „znam datę doręczenia",
+    # ale przywracamy im wartości domyślne, a nie None — inaczej po ponownym
+    # zaznaczeniu tej opcji `date_input`/`number_input` dostałyby None
+    # i wyliczanie terminu by się wywaliło.
+    st.session_state["delivery_date"] = date.today()
+    st.session_state["deadline_days"] = 14
 
 
 def _doc_type_label(doc_type_code: str) -> str:
