@@ -146,3 +146,48 @@ To **koryguje wcześniejszą notatkę** z [[project_progress_indicator]], że
 błędy Streamlita dotyczące kontenerów/widżetów wymagają żywego testu
 w przeglądarce — AppTest wystarcza i nadaje się do rutynowego uruchamiania
 po każdej zmianie w `app.py`.
+
+## Dopisek 2: „Wyczyść kalkulator" czyścił tylko część pól
+
+Po naprawie wywalania się aplikacji (dopisek wyżej) właściciel sprawdził
+ponownie i zgłosił, że **kroki 4, 5 i 6 czyszczą się, ale 1, 3 i 7 zostają
+zaznaczone**. Obserwacja idealnie wskazała przyczynę — w `reset_calculator()`
+pola były traktowane na dwa sposoby:
+
+- `k3`, `k4`, `k5`, `k6`, `use_dates` → wartość **nadpisywana** → czyściły się
+- `k1`, `k2`, `k7`, `epu`, `delivery_date`, `deadline_days` → klucz **usuwany
+  przez `pop()`** → NIE czyściły się
+
+**Mechanizm:** w przeglądarce frontend nadal trzyma wartość widżetu i odsyła ją
+przy kolejnym przebiegu, więc usunięcie klucza z `session_state` nic nie daje —
+Streamlit przywraca wartość. Trzeba ją NADPISAĆ. Autor kodu znał ten mechanizm
+(jest o nim komentarz przy k3-k6), po prostu nie zastosował go konsekwentnie.
+
+Naprawa (commit `c904ba3`): wszystkie klucze widżetów formularza nadpisywane
+tak samo. Pola dat wracają do wartości DOMYŚLNYCH (`date.today()`, 14), nie do
+`None` — inaczej po ponownym zaznaczeniu „znam datę doręczenia" wyliczanie
+terminu wywaliłoby się na `None`.
+
+### WAŻNE ograniczenie `tools/smoke_test_ui.py`
+
+Rozszerzyłem test o sprawdzanie, czy pola faktycznie są puste — i **test
+przeszedł także na zepsutej wersji**. Czyli tej klasy błędu NIE wykrywa.
+
+Powód jest ten sam, co przyczyna błędu: AppTest nie ma prawdziwego frontendu,
+więc nie odtwarza sytuacji, w której to przeglądarka przechowuje i odsyła
+wartość pola. Ograniczenie opisane wprost w docstringu testu i w komentarzu
+przy samym warunku, żeby nie dawało fałszywego poczucia bezpieczeństwa.
+
+**Reguła na przyszłość:** `smoke_test_ui.py` łapie błędy WYWALAJĄCE aplikację
+(StreamlitAPIException), ale NIE błędy „stan widżetu nie został wyczyszczony".
+Zmiany w `reset_calculator()` albo w obsłudze `session_state` widżetów
+**wymagają przeklikania w przeglądarce** — nie ma na to skrótu.
+
+### Lekcja metodologiczna z całej tej sesji
+
+Dwa razy z rzędu poprawka wyglądała na skończoną, a nie była, i oba razy
+wykryło to **zgłoszenie właściciela po przeklikaniu na produkcji**, nie mój
+test (wcześniej: podmiana nazwy dokumentu przy wyroku zaocznym pokrywała 3 z 5
+wariantów). Wniosek: przy zmianach dotykających interfejsu Streamlita warto
+jawnie powiedzieć użytkownikowi, CZEGO test nie sprawdza, zamiast raportować
+„naprawione i zweryfikowane".
