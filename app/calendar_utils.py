@@ -67,10 +67,18 @@ def adjust_to_working_day(d: date) -> date:
 
 def compute_deadline_date(delivery: date, term_days: int) -> date:
     """
-    Oblicza datę końca terminu zgodnie z KPC:
-    - termin biegnie od NASTĘPNEGO dnia po doręczeniu (art. 111 § 1 KPC)
+    Oblicza datę końca terminu:
+    - termin biegnie od NASTĘPNEGO dnia po doręczeniu
     - liczymy kalendarzowo przez term_days dni
-    - jeśli koniec wypada w dzień wolny → przesuwamy (art. 115 KPC)
+    - jeśli koniec wypada w dzień wolny lub sobotę → przesuwamy na następny
+      dzień roboczy
+
+    (04.08.2026) Usunięto z opisu konkretne powołania artykułów. Wcześniej
+    komentarz i teksty widoczne dla klienta wskazywały „art. 115 KPC" jako
+    podstawę przesunięcia terminu z dnia wolnego — audyt zakwestionował to
+    powołanie (reguła przesunięcia jest w Kodeksie cywilnym, a KPC odsyła do
+    przepisów prawa cywilnego). Sama logika liczenia pozostaje bez zmian;
+    ostateczne brzmienie powołań przepisów do decyzji radcy prawnego.
     """
     start = delivery + timedelta(days=1)
     end = start + timedelta(days=term_days - 1)

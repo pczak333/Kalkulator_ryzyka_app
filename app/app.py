@@ -1170,15 +1170,39 @@ if use_dates:
     _was_shifted = not is_working_day(
         delivery_date + timedelta(days=int(deadline_days))
     )
-    _shift_note = " *(przesunięty z dnia wolnego — art. 115 KPC)*" if _was_shifted else ""
-    st.info(
-        f"Termin upływa **{deadline_date.strftime('%d.%m.%Y')}**{_shift_note} "
-        f"— pozostało **{days_exact} dni** kalendarzowych."
-    )
+    _shift_note = " *(przesunięty z dnia wolnego)*" if _was_shifted else ""
+    # (04.08.2026) Termin już minął — nie pokazuj klientowi ujemnej liczby dni
+    # („pozostało -201 dni” wyglądało jak awaria narzędzia dokładnie w momencie,
+    # w którym człowiek jest najbardziej zestresowany). Zamiast tego spokojna
+    # informacja, że termin minął, i że to jeszcze nie zamyka sprawy.
+    _data_terminu = deadline_date.strftime("%d.%m.%Y")
+    if days_exact < 0:
+        _minelo = abs(days_exact)
+        _dni_slowo = "dzień" if _minelo == 1 else "dni"
+        st.warning(
+            f"Termin upływał **{_data_terminu}**{_shift_note} — minął "
+            f"**{_minelo} {_dni_slowo}** temu. To nie musi oznaczać końca sprawy: "
+            "w niektórych sytuacjach można wnioskować o przywrócenie terminu albo "
+            "podjąć inne kroki. Skontaktuj się z nami, żeby sprawdzić, co da się "
+            "jeszcze zrobić.",
+            icon=":material/schedule:",
+        )
+    elif days_exact == 0:
+        st.warning(
+            f"Termin upływa **dziś ({_data_terminu})**{_shift_note}. "
+            "Jeśli nie zdążysz zareagować dziś, skontaktuj się z nami pilnie.",
+            icon=":material/schedule:",
+        )
+    else:
+        _dni_slowo = "dzień" if days_exact == 1 else "dni"
+        st.info(
+            f"Termin upływa **{_data_terminu}**{_shift_note} "
+            f"— pozostało **{days_exact} {_dni_slowo}** kalendarzowych."
+        )
     st.caption(
         "Do tego terminu wliczają się soboty, niedziele i dni świąteczne. "
-        "Jeśli ostatni dzień wypada w dzień wolny, termin przesuwa się na "
-        "następny dzień roboczy (art. 115 KPC)."
+        "Jeśli ostatni dzień wypada w dzień wolny lub sobotę, termin przesuwa "
+        "się na następny dzień roboczy."
     )
     if days_exact < 0:
         k2 = "K2_DAYS_LEFT_0_3"
