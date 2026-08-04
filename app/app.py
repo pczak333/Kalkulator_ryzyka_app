@@ -799,6 +799,22 @@ def section_header(number: str, title: str):
         unsafe_allow_html=True,
     )
 
+# ── Odroczony reset kalkulatora ──────────────────────────────────────────────
+# (04.08.2026) Streamlit ZABRANIA modyfikowania w session_state klucza widżetu,
+# który został już utworzony w bieżącym przebiegu skryptu (StreamlitAPIException).
+# Przycisk „Wyczyść kalkulator" stoi na DOLE strony — czyli po utworzeniu k3/k4/
+# k5/k6/use_dates — więc wywołanie reset_calculator() bezpośrednio z niego
+# wywalało całą aplikację czerwoną ramką z błędem (zgłoszenie właściciela,
+# 04.08.2026; błąd istniał od czerwca, ujawnił się przy przeklikaniu pełnej
+# ścieżki na produkcji).
+# Rozwiązanie: przycisk tylko USTAWIA flagę i przeładowuje stronę, a właściwy
+# reset wykonuje się TUTAJ — na początku przebiegu, zanim powstanie jakikolwiek
+# widżet, więc modyfikacja ich kluczy jest dozwolona.
+# UWAGA: nie przenosić tego bloku niżej ani nie wołać reset_calculator()
+# bezpośrednio z przycisku na dole — błąd wróci.
+if st.session_state.pop("_do_reset", False):
+    reset_calculator()
+
 # ── Krok 0: Wgraj dokumenty (opcjonalnie) ────────────────────────────────────
 section_header("0", "Wgraj dokumenty (opcjonalnie)")
 st.caption(
@@ -1605,7 +1621,11 @@ if "krs_answers" in st.session_state:
     st.divider()
     if st.button("Wyczyść kalkulator i wprowadź nowe dane", use_container_width=True,
                  icon=":material/refresh:"):
-        reset_calculator()
+        # NIE wołać tu reset_calculator() — widżety formularza już istnieją
+        # w tym przebiegu i Streamlit zabroni modyfikacji ich kluczy
+        # (StreamlitAPIException). Ustawiamy flagę; reset wykona się na
+        # początku następnego przebiegu, przed utworzeniem widżetów.
+        st.session_state["_do_reset"] = True
         st.rerun()
 
     # ── Panel testowy (ukryty za hasłem) ──────────────────────────────────
