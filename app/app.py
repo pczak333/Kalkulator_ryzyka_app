@@ -1,6 +1,7 @@
 """KRS Guard — Kalkulator Ryzyka Prawnego (Streamlit MVP)."""
 import sys
 import os
+import re
 from collections import Counter
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -59,6 +60,23 @@ _K1_IMPLIES_DOC_TYPE: dict[str, str] = {
     "K1_WYROK_ZAOCZNY_SPOLKA":          "WYROK_ZAOCZNY_SPOLKA",
     "K1_WYROK_ZAOCZNY_CZLONEK_ZARZADU": "WYROK_ZAOCZNY_CZLONEK_ZARZADU",
 }
+
+# (04.08.2026) Zdanie nazywające dokument w podsumowaniu scenariusza (CSV 12)
+# występuje w PIĘCIU wariantach — m.in. „… to nakaz zapłaty przeciwko …",
+# „…: nakaz zapłaty przeciwko …" oraz „…: nakaz zapłaty z EPU/e-Sądu przeciwko …".
+# Wcześniejsza podmiana dla wyroku zaocznego wyliczała warianty ręcznie i pokrywała
+# tylko trzy z nich, więc w części spraw (zwłaszcza EPU) klient nadal czytał
+# „nakaz zapłaty", mimo że wskazał wyrok zaoczny. Sprawdzone na wszystkich
+# osiągalnych kombinacjach: 204/360 przypadków dla członka zarządu było
+# niepoprawionych. Wzorzec poniżej łapie każdy wariant tego zdania.
+_RE_NAZWA_DOKUMENTU = re.compile(r"Dokument wymagający reakcji(?:\s+to|:)\s*[^.]*\.")
+
+
+def _podmien_nazwe_dokumentu(summary: str, nowe_zdanie: str) -> str:
+    """Zastępuje zdanie nazywające dokument w podsumowaniu scenariusza."""
+    if not summary:
+        return summary
+    return _RE_NAZWA_DOKUMENTU.sub(nowe_zdanie, summary, count=1)
 
 # (16.07.2026, REDESIGN) RISK_COLORS/RISK_BG przeniesione do branding.py —
 # jedno źródło współdzielone z report_builder.py (Faza B), żeby aplikacja i
@@ -1424,8 +1442,8 @@ if "krs_answers" in st.session_state:
     # niezależnie od tego niuansu.
     elif state.get("DOC_TYPE") == "WYROK_ZAOCZNY_SPOLKA":
         doc_type = "WYROK_ZAOCZNY_SPOLKA"
-        scenario["user_summary_base"] = scenario["user_summary_base"].replace(
-            "Dokument wymagający reakcji to nakaz zapłaty przeciwko spółce.",
+        scenario["user_summary_base"] = _podmien_nazwe_dokumentu(
+            scenario["user_summary_base"],
             "Dokument wymagający reakcji to wyrok zaoczny przeciwko spółce "
             "(z rygorem natychmiastowej wykonalności).",
         )
@@ -1451,18 +1469,11 @@ if "krs_answers" in st.session_state:
         )
     elif state.get("DOC_TYPE") == "WYROK_ZAOCZNY_CZLONEK_ZARZADU":
         doc_type = "WYROK_ZAOCZNY_CZLONEK_ZARZADU"
-        for _old_phrase in (
-            "Dokument wymagający reakcji to nakaz zapłaty przeciwko członkowi zarządu.",
-            "Dokument wymagający reakcji: nakaz zapłaty przeciwko członkowi zarządu.",
-        ):
-            scenario["user_summary_base"] = scenario["user_summary_base"].replace(
-                _old_phrase,
-                _old_phrase.replace(
-                    "nakaz zapłaty przeciwko członkowi zarządu",
-                    "wyrok zaoczny przeciwko członkowi zarządu "
-                    "(z rygorem natychmiastowej wykonalności)",
-                ),
-            )
+        scenario["user_summary_base"] = _podmien_nazwe_dokumentu(
+            scenario["user_summary_base"],
+            "Dokument wymagający reakcji to wyrok zaoczny przeciwko członkowi "
+            "zarządu (z rygorem natychmiastowej wykonalności).",
+        )
         scenario["user_risk_explanation_base"] = (
             "Wyrok zaoczny skierowany bezpośrednio do Ciebie jako byłego członka "
             "zarządu, z rygorem natychmiastowej wykonalności, oznacza, że sąd już "
