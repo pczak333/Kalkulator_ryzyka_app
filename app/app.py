@@ -1274,7 +1274,7 @@ if use_dates:
     st.caption(
         "Do tego terminu wliczają się soboty, niedziele i dni świąteczne. "
         "Jeśli ostatni dzień wypada w dzień wolny lub sobotę, termin przesuwa "
-        "się na następny dzień roboczy."
+        "się na następny dzień roboczy (art. 115 Kodeksu cywilnego)."
     )
     if days_exact < 0:
         k2 = "K2_DAYS_LEFT_0_3"
