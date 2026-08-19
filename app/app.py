@@ -1,4 +1,4 @@
-"""KRS Guard — Kalkulator Ryzyka Prawnego (Streamlit MVP)."""
+"""Zarząd Guard — Kalkulator Ryzyka Prawnego (Streamlit MVP)."""
 import sys
 import os
 import re
@@ -24,7 +24,7 @@ from report_builder import build_report_html, build_report_pdf, markup_bold
 _FAVICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "favicon.png")
 
 st.set_page_config(
-    page_title="KRS Guard — Kalkulator Ryzyka",
+    page_title="Zarząd Guard — Kalkulator Ryzyka",
     page_icon=_FAVICON_PATH,
     layout="centered",
     initial_sidebar_state="collapsed",
@@ -790,7 +790,7 @@ st.markdown(
 <div class="kg-header">
   {logo_svg_light_on_dark(66)}
   <div>
-    <h1>KRS Guard — Kalkulator Ryzyka Prawnego</h1>
+    <h1>Zarząd Guard — Kalkulator Ryzyka Prawnego</h1>
     <p>Bezpłatna, orientacyjna ocena ryzyka w sprawach odpowiedzialności członków zarządu spółek.</p>
   </div>
 </div>""",
@@ -856,7 +856,7 @@ st.markdown(
 # Powód: klient musi wiedzieć, że treść dokumentu opuszcza aplikację i trafia do
 # zewnętrznych usług odczytu, ZANIM podejmie decyzję o wgraniu akt swojej sprawy.
 # Ten sam podział (formularz ręcznie vs wgranie pliku) jest opisany na stronie
-# KRS Guard i w polityce prywatności — nie zmieniać jednego bez drugiego.
+# Zarząd Guard i w polityce prywatności — nie zmieniać jednego bez drugiego.
 st.markdown(
     "<div style='background:var(--notice-bg);border:1px solid var(--notice-border);"
     "border-left:4px solid var(--navy);border-radius:8px;"
@@ -1081,7 +1081,7 @@ if "doc_prefill" in st.session_state:
         elif _gate == "no":
             st.divider()
             st.warning(
-                "Kalkulator KRS Guard ocenia ryzyko wyłącznie w sprawach "
+                "Kalkulator Zarząd Guard ocenia ryzyko wyłącznie w sprawach "
                 "o odpowiedzialność członka zarządu spółki (art. 299 KSH). "
                 "Jeśli sprawa dotyczy innego rodzaju zobowiązania osobistego, "
                 "skonsultuj się bezpośrednio z prawnikiem."
@@ -1761,6 +1761,6 @@ if "krs_answers" in st.session_state:
 # ── Stopka ────────────────────────────────────────────────────────────────────
 st.divider()
 st.caption(
-    "KRS Guard to narzędzie orientacyjnej oceny ryzyka. "
-    "Nie stanowi porady prawnej. © KRS Guard Kancelaria"
+    "Zarząd Guard to narzędzie orientacyjnej oceny ryzyka. "
+    "Nie stanowi porady prawnej. © Zarząd Guard Kancelaria"
 )

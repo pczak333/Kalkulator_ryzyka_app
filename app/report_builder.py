@@ -164,7 +164,7 @@ body {{ font-family: var(--font-body); color: var(--ink); background: var(--pape
   <div class="kg-report-header">
     {logo_svg_light_on_dark(38)}
     <div>
-      <h1>KRS Guard — Kalkulator Ryzyka Prawnego</h1>
+      <h1>Zarząd Guard — Kalkulator Ryzyka Prawnego</h1>
       <p>Raport oceny ryzyka &middot; wygenerowano {today}</p>
     </div>
   </div>
@@ -252,7 +252,7 @@ def build_report_pdf(output: dict, risk_code: str) -> bytes:
     logo = _logo_drawing(32, shield_hex="#ffffff", bar_hex=TOKENS["navy"])
     today = date.today().strftime("%d.%m.%Y")
     header_cell = [
-        Paragraph("KRS Guard — Kalkulator Ryzyka Prawnego", st_h1),
+        Paragraph("Zarząd Guard — Kalkulator Ryzyka Prawnego", st_h1),
         Paragraph(f"Raport oceny ryzyka &middot; wygenerowano {today}", st_sub),
     ]
     header = Table([[logo, header_cell]], colWidths=[44, None])
@@ -326,7 +326,7 @@ def build_report_pdf(output: dict, risk_code: str) -> bytes:
         buf, pagesize=A4,
         leftMargin=20 * mm, rightMargin=20 * mm,
         topMargin=16 * mm, bottomMargin=16 * mm,
-        title="Ocena ryzyka — KRS Guard",
+        title="Ocena ryzyka — Zarząd Guard",
     )
     doc.build(story)
     return buf.getvalue()

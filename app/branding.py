@@ -5,7 +5,7 @@ graficzny kalkulatora — jedno źródło prawdy współdzielone przez `app.py`
 środowiska renderowania wyglądały identycznie.
 
 Znak: sześciokątna plakietka z monogramem "K" (Kalkulator). Własny, oryginalny
-symbol kalkulatora — NIE logo kancelarii KRS Guard (świadoma decyzja, patrz
+symbol kalkulatora — NIE logo kancelarii Zarząd Guard (świadoma decyzja, patrz
 plany/redesign-graficzny-i-raport-pdf-*.md). Budowany jako inline SVG (kod,
 nie plik graficzny) — zero emoji, zero zależności od plików spoza repo, ostry
 w każdym rozmiarze.
