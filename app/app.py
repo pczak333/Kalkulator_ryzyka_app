@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import streamlit as st
 import streamlit.components.v1 as components
 from datetime import date, timedelta
+from urllib.parse import quote
 
 from data_loader import load_form_questions, load_spolka_indirect_risk_text
 from scoring_engine import calculate, risk_label_for_code
@@ -28,6 +29,16 @@ st.set_page_config(
     page_icon=_FAVICON_PATH,
     layout="centered",
     initial_sidebar_state="collapsed",
+)
+
+
+# ── Przejście do Audytu 48h ───────────────────────────────────────────────────
+# Adres formularza Audytu 48h na stronie Zarząd Guard.
+# TO JEDYNE MIEJSCE DO ZMIANY, gdy strona dostanie docelową domenę —
+# wystarczy podmienić poniższy adres, reszta działa bez zmian.
+# Dziś jest to tymczasowy podgląd strony (tryb testowy).
+AUDYT_48H_URL = (
+    "https://pczak333.github.io/kancelaria-prs-strona-www/audyt-48h-form.html"
 )
 
 # ── Pomocniki ─────────────────────────────────────────────────────────────────
@@ -1629,6 +1640,56 @@ if "krs_answers" in st.session_state:
         )
     if _show_report:
         components.html(_report_html, height=1500, scrolling=True)
+
+    # ── Co dalej: przejście do Audytu 48h ─────────────────────────────────
+    # Kalkulator kończył się dotąd ślepym zaułkiem: klient dostawał ocenę
+    # i nie miał dokąd pójść (zachęta do Audytu 48h istniała, ale dopiero
+    # na końcu pełnego raportu, który jest domyślnie zwinięty — więc kto go
+    # nie rozwinął, nie widział nic).
+    #
+    # Kody odpowiedzi jadą w części adresu PO ZNAKU # — przeglądarki NIE
+    # wysyłają jej na żaden serwer, więc dane nie trafiają nigdzie po drodze.
+    # Formularz na stronie nie wypełnia niczego sam: najpierw pyta klienta,
+    # czy Audyt dotyczy tej samej sprawy (mógł testować Kalkulator na innym
+    # piśmie), i dopiero po potwierdzeniu przenosi odpowiedzi.
+    # Adres strony: stała AUDYT_48H_URL na górze tego pliku.
+    _ho = ["zg=1"]
+    if k1:
+        _ho.append("k1=" + quote(k1))
+    if k4:
+        _ho.append("k4=" + quote(k4))
+    if k5:
+        _ho.append("k5=" + quote(k5))
+    if k6:
+        _ho.append("k6=" + quote(k6))
+    if k7:
+        _ho.append("k7=" + quote(k7))
+    if final_risk_code:
+        _ho.append("ryz=" + quote(final_risk_code))
+    # Daty tylko wtedy, gdy klient sam je podał (inaczej te zmienne nie istnieją).
+    if use_dates:
+        _ho.append("dd=" + delivery_date.isoformat())
+        _ho.append("td=" + deadline_date.isoformat())
+    _audyt_link = AUDYT_48H_URL + "#" + "&".join(_ho)
+
+    st.divider()
+    st.markdown("#### Co dalej?")
+    st.markdown(
+        "Kolejnym krokiem jest **Audyt 48h** — pisemna opinia radcy prawnego, "
+        "oparta na Twoich dokumentach, a nie na automatycznej ocenie."
+    )
+    st.link_button(
+        "Przejdź do Audytu 48h →",
+        _audyt_link,
+        use_container_width=True,
+        type="primary",
+        icon=":material/arrow_forward:",
+    )
+    st.caption(
+        "Twoje odpowiedzi i poziom ryzyka przeniosą się do formularza — nie "
+        "będziesz wpisywać ich drugi raz. Formularz najpierw zapyta, czy Audyt "
+        "dotyczy tej samej sprawy, i wszystko będzie można poprawić."
+    )
 
     # ── Reset ─────────────────────────────────────────────────────────────
     st.divider()
