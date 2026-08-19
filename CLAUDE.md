@@ -4,7 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-**KRS Guard – Kalkulator Ryzyka Prawnego** is a legal risk calculator for cases involving liability of company board members (odpowiedzialność członków zarządu, art. 299 KSH). The calculator takes court/official documents and a user-filled form as input, and produces an oriented risk assessment with a call to action (typically recommending the paid "Audyt 48h" service).
+**Zarząd Guard – Kalkulator Ryzyka Prawnego** (nazwa marki zmieniona z „KRS Guard" 19.08.2026 — patrz notka niżej) is a legal risk calculator for cases involving liability of company board members (odpowiedzialność członków zarządu, art. 299 KSH). The calculator takes court/official documents and a user-filled form as input, and produces an oriented risk assessment with a call to action (typically recommending the paid "Audyt 48h" service).
+
+> **Nazwa marki (19.08.2026).** Marka nazywała się kolejno „Kancelaria PRS",
+> „KRS Guard" (22.07.2026) i od 09.08.2026 **„Zarząd Guard"**. Kalkulator za tą
+> ostatnią zmianą nie nadążył — witał klienta napisem „KRS Guard", podczas gdy
+> strona mówiła „Zarząd Guard". Poprawione: **wszystkie napisy widoczne dla
+> klienta** (tytuł karty, nagłówek, stopka, nagłówek raportu HTML i PDF).
+>
+> **Świadomie NIE zmieniono** — nie „poprawiać" tego przy okazji:
+> - **nazw plików z danymi** (`01_1_Slownik_pojec_KRS_Guard.csv`,
+>   `KRS_Guard_reguly_i_zasady_funkcjonowania.xlsx` itd.) — kod wczytuje je po
+>   nazwie;
+> - **treści w kolumnach z notatkami dla AI** w plikach CSV (`uwagi_dla_AI`,
+>   `interpretacja_dla_AI`, `kierunek_komunikatu`) — sprawdzono, że żaden kod
+>   ich nie czyta, więc klient ich nie widzi;
+> - **skrótu „KRS"** wszędzie tam, gdzie znaczy Krajowy Rejestr Sądowy — to nie
+>   jest nazwa marki.
 
 The application is built and running. The stack is **Python + Streamlit**. Source code lives in `app/`.
 
@@ -55,7 +71,7 @@ app/
 │     **(c) Podmiana nazwy dokumentu jest REGEXOWA** (`_RE_NAZWA_DOKUMENTU` + `_podmien_nazwe_dokumentu()`), nie listą dosłownych fraz. Zdanie „Dokument wymagający reakcji…" występuje w CSV 12 w **pięciu** wariantach (m.in. z EPU/e-Sądu); poprzednia wersja wyliczała je ręcznie i pokrywała tylko trzy, przez co w 204 z 360 osiągalnych kombinacji dla członka zarządu klient nadal czytał „nakaz zapłaty". **Jeśli w CSV 12 pojawi się nowy wariant tego zdania, regex go złapie — ale warto to sprawdzić** (skrypt weryfikujący: przejść wszystkie osiągalne kombinacje K2×K3×K4×K6×K7×EPU przez `calculate` → `apply_hard_rules` → `find_scenario`).
 │     **(d) Termin, który minął.** `state["DEADLINE_PASSED"]` ⇒ `hard_rules` używa wariantów `warning_passed` dla HR01/HR02/HR06. Wpływa TYLKO na brzmienie — poziom ryzyka bez zmian (miniony termin nadal mapuje się na `K2_DAYS_LEFT_0_3`). Bez tego raport pisał jednocześnie „termin mógł już upłynąć" i „pozostało bardzo mało czasu". Komunikat pod polem daty nie pokazuje już ujemnych dni, a `deadline_days` z OCR jest przycinany do zakresu pola (wcześniej wartość spoza zakresu wywalała cały formularz czerwonym błędem Streamlita).
 │   - Pełna historia/uzasadnienie powyższego: `memory/project_visual_redesign.md`, `memory/project_progress_indicator.md`, `memory/project_out_of_scope_detection.md`, `memory/project_unrelated_docs_warning.md`, `memory/project_wps_amount_labeling.md`, `memory/project_komornik_boilerplate_deadlines.md`.
-├── branding.py          # System tokenów wizualnych (kolory, typografia, promienie, cienie — `TOKENS` + `css_variables()`) i znak graficzny kalkulatora: `logo_svg()`/`logo_svg_light_on_dark()`/`logo_svg_dark_on_light()` — inline SVG, sześciokątna plakietka z monogramem "K" (negatywowy styl — litera wypełniona kolorem tła), świadomie NIE logo kancelarii KRS Guard. Favicon (`app/assets/favicon.png`) generowany osobno przez `tools/generate_favicon.py` (PIL) z tych samych tokenów. `RISK_COLORS`/`RISK_BG` (kolor/tło pigułki per poziom ryzyka) i `icon_svg()`/`_ICON_PATHS` (monochromatyczne ikony Material-Symbols-style do banerów HTML) też tu mieszkają, współdzielone przez app.py i report_builder.py.
+├── branding.py          # System tokenów wizualnych (kolory, typografia, promienie, cienie — `TOKENS` + `css_variables()`) i znak graficzny kalkulatora: `logo_svg()`/`logo_svg_light_on_dark()`/`logo_svg_dark_on_light()` — inline SVG, sześciokątna plakietka z monogramem "K" (negatywowy styl — litera wypełniona kolorem tła), świadomie NIE logo kancelarii Zarząd Guard. Favicon (`app/assets/favicon.png`) generowany osobno przez `tools/generate_favicon.py` (PIL) z tych samych tokenów. `RISK_COLORS`/`RISK_BG` (kolor/tło pigułki per poziom ryzyka) i `icon_svg()`/`_ICON_PATHS` (monochromatyczne ikony Material-Symbols-style do banerów HTML) też tu mieszkają, współdzielone przez app.py i report_builder.py.
 ├── report_builder.py    # Buduje raport wyniku z `text_builder.build()`: `build_report_html()` (podgląd embedded przez `st.components.v1.html`) i `build_report_pdf()` (do pobrania, `reportlab`). WeasyPrint/xhtml2pdf ODRZUCONE po realnych testach (WeasyPrint wymaga natywnych DLL niedostępnych na Windows; xhtml2pdf gubił polskie znaki diakrytyczne w każdej wypróbowanej konfiguracji `@font-face`). Dołączone fonty DejaVu Sans/Serif (z matplotlib — pełne pokrycie Latin Extended-A, w odróżnieniu od fontu bundlowanego z reportlab). Znak graficzny narysowany natywnie w reportlab (`_logo_drawing()`, te same współrzędne co SVG w branding.py). `markup_bold()` (publiczna) konwertuje markdown `**pogrubienia**` na `<b>`, reużywana przez zajawkę wyniku w app.py.
 ├── data_loader.py       # Reads CSV files from dane_wejściowe/csv/; `load_spolka_indirect_risk_text()` — komunikat o ryzyku pośrednim dla dokumentów spółki z CSV 35 (arkusz 6P), używany przez baner w app.py
 ├── scoring_engine.py    # Computes S = C+P+H+W, maps score to risk level
